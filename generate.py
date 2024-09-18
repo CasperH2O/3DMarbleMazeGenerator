@@ -129,19 +129,49 @@ class Puzzle:
         for node in occupied_nodes:
             node.occupied = True
 
-    def randomly_select_waypoints(self, num_waypoints=5):
-        # Select waypoints from unoccupied nodes
+    def randomly_select_waypoints(self, num_waypoints=5, num_candidates=10):
+        # Select unoccupied nodes
         unoccupied_nodes = [node for node in self.nodes if not node.occupied]
         if len(unoccupied_nodes) < num_waypoints:
             num_waypoints = len(unoccupied_nodes)
             print(f"Reduced number of waypoints to {num_waypoints} due to limited unoccupied nodes.")
 
         random.seed(self.seed)
-        waypoints = random.sample(unoccupied_nodes, num_waypoints)
-        for node in waypoints:
-            node.waypoint = True
+        np.random.seed(self.seed)
 
-        print(f"Selected {num_waypoints} waypoints.")
+        waypoints = []
+        for _ in range(num_waypoints):
+            # Generate candidates
+            candidates = random.sample(unoccupied_nodes, min(num_candidates, len(unoccupied_nodes)))
+
+            # Evaluate each candidate
+            best_candidate = None
+            max_min_dist = -1
+            for candidate in candidates:
+                candidate_pos = np.array([candidate.x, candidate.y, candidate.z])
+
+                if not waypoints:
+                    # If no waypoints yet, any candidate is acceptable
+                    min_dist = float('inf')
+                else:
+                    # Compute distances to existing waypoints
+                    dists = [
+                        np.linalg.norm(candidate_pos - np.array([wp.x, wp.y, wp.z]))
+                        for wp in waypoints
+                    ]
+                    min_dist = min(dists)
+
+                # Select candidate with maximum minimum distance
+                if min_dist > max_min_dist:
+                    max_min_dist = min_dist
+                    best_candidate = candidate
+
+            # Mark the best candidate as a waypoint
+            best_candidate.waypoint = True
+            waypoints.append(best_candidate)
+            unoccupied_nodes.remove(best_candidate)
+
+        print(f"Selected {num_waypoints} waypoints using Mitchell's Best-Candidate Algorithm.")
 
     def reset_nodes(self):
         for node in self.nodes:
@@ -370,7 +400,7 @@ if __name__ == "__main__":
     mounting_nodes = puzzle.define_mounting_waypoints()
 
     # Randomly select waypoints
-    puzzle.randomly_select_waypoints(num_waypoints=20)
+    puzzle.randomly_select_waypoints(num_waypoints=15)
 
     # Reset the nodes before pathfinding
     puzzle.reset_nodes()
