@@ -410,7 +410,7 @@ if __name__ == "__main__":
     puzzle.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
     # Randomly select waypoints
-    puzzle.randomly_select_waypoints(num_waypoints=1)
+    puzzle.randomly_select_waypoints(num_waypoints=10)
 
     # Reset the nodes before pathfinding
     puzzle.reset_nodes()
