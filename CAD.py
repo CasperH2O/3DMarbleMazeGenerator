@@ -1,11 +1,12 @@
 import cadquery as cq
 
-# Define the parameters for the rings
+# Define the parameters for the puzzle
 sphere_outer_diameter = 100  # Outer diameter in mm
 sphere_flange_diameter = 120
 sphere_thickness = 3         # Thickness in mm (cross-sectional radius)
 sphere_inner_diameter = sphere_outer_diameter - (2 * sphere_thickness)  # Inner diameter in mm
 ring_thickness = 3           # Thickness of the ring
+ball_diameter = 4
 
 #################
 # Mounting Ring #
@@ -104,9 +105,13 @@ show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.
 # Path #
 ########
 
-# U-shape profile
+# Define the 3D path using X, Y, and Z coordinates
+pts = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
+
+# Define path shape U
 u_shape = (
-    cq.Workplane("XZ")
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(pts[0]), rotate=cq.Vector(0, 90, 270))
     .moveTo(-5, 5)              # Top left of U-shape
     .lineTo(5, 5)               # Top horizontal line
     .lineTo(5, -5)              # Right vertical line
@@ -118,11 +123,8 @@ u_shape = (
     .close()                    # Close the U-shape
 )
 
-show_object(u_shape)
-
-# Define the 3D path using X, Y, and Z coordinates
-# The points should be provided as (x, y, z) tuples.
-pts = [(0, 0, 0),(0, 10, 0), (0, 20, 0), (0, 20, 10), (0, 20, 20)]
+# Show path shap for debug
+show_object(u_shape, name="Path Shape")
 
 # Create the path in 3D using a spline
 path = cq.Workplane("XY").polyline(pts)
@@ -131,4 +133,13 @@ path = cq.Workplane("XY").polyline(pts)
 u_beam = u_shape.sweep(path)
 
 # Show the final swept U-beam
-show_object(u_beam)
+show_object(u_beam, name="Path")
+
+########
+# Ball #
+########
+
+# Note, relies on path being availible with starting point
+
+ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(pts[0])
+show_object(ball, name="Ball", options={"color": (192, 192, 192)})
