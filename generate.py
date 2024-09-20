@@ -282,11 +282,18 @@ class Puzzle:
 
         total_path = []
 
+        first_iteration = True  # Flag to handle the first path differently
+
         while waypoints:
             next_waypoint, path = self.find_nearest_waypoint(current_node, waypoints)
             if next_waypoint and path:
                 self.occupy_path(path)
-                total_path.extend(path)
+                if first_iteration:
+                    total_path.extend(path)
+                    first_iteration = False
+                else:
+                    # Skip the first node to prevent duplication
+                    total_path.extend(path[1:])
                 waypoints.remove(next_waypoint)
                 current_node = next_waypoint
             else:
@@ -298,6 +305,9 @@ class Puzzle:
             end_node = total_path[-1]
             end_node.end = True
             print(f"End node set at: {end_node}")
+
+        # Print the path
+        print("pts =", [(node.x, node.y, node.z) for node in total_path])
 
         return total_path
 
@@ -393,14 +403,14 @@ if __name__ == "__main__":
     # Create a Puzzle instance
     puzzle = Puzzle(diameter=diameter, shell_thickness=shell_thickness, node_size=node_size, seed=seed)
 
-    # Randomly occupy nodes within the sphere
-    puzzle.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
-
     # Define mounting waypoints and home
     mounting_nodes = puzzle.define_mounting_waypoints()
 
+    # Randomly occupy nodes within the sphere as obstacles
+    puzzle.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
+
     # Randomly select waypoints
-    puzzle.randomly_select_waypoints(num_waypoints=15)
+    puzzle.randomly_select_waypoints(num_waypoints=1)
 
     # Reset the nodes before pathfinding
     puzzle.reset_nodes()
