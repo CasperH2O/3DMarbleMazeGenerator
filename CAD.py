@@ -99,3 +99,36 @@ flange_offset_mirrored = flange_offset.mirror(mirrorPlane="XY")
 
 show_object(flange_offset, name="Dome Bottom Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
 show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
+
+########
+# Path #
+########
+
+# U-shape profile
+u_shape = (
+    cq.Workplane("XZ")
+    .moveTo(-5, 5)              # Top left of U-shape
+    .lineTo(5, 5)               # Top horizontal line
+    .lineTo(5, -5)              # Right vertical line
+    .lineTo(3, -5)              # Right wall thickness
+    .lineTo(3, 3)               # Bottom inner part
+    .lineTo(-3, 3)              # Bottom inner part (other side)
+    .lineTo(-3, -5)             # Left wall thickness
+    .lineTo(-5, -5)             # Left vertical line
+    .close()                    # Close the U-shape
+)
+
+show_object(u_shape)
+
+# Define the 3D path using X, Y, and Z coordinates
+# The points should be provided as (x, y, z) tuples.
+pts = [(0, 0, 0),(0, 10, 0), (0, 20, 0), (0, 20, 10), (0, 20, 20)]
+
+# Create the path in 3D using a spline
+path = cq.Workplane("XY").polyline(pts)
+
+# Sweep the U-shape along the 3D path
+u_beam = u_shape.sweep(path)
+
+# Show the final swept U-beam
+show_object(u_beam)
