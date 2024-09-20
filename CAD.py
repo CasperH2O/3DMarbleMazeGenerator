@@ -110,19 +110,21 @@ show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.
 
 # Define the 3D path using X, Y, and Z coordinates
 CAD_path = [(-35, 0, 0), (-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
+u_shape_height_width = 9
+u_shape_wall_thickness = 2
 
 # Define path shape U
 u_shape = (
     cq.Workplane("XY")
     .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
-    .moveTo(-5, 5)              # Top left of U-shape
-    .lineTo(5, 5)               # Top horizontal line
-    .lineTo(5, -5)              # Right vertical line
-    .lineTo(3, -5)              # Right wall thickness
-    .lineTo(3, 3)               # Bottom inner part
-    .lineTo(-3, 3)              # Bottom inner part (other side)
-    .lineTo(-3, -5)             # Left wall thickness
-    .lineTo(-5, -5)             # Left vertical line
+    .moveTo(- u_shape_height_width / 2, u_shape_height_width / 2)                           # Top left of U-shape
+    .lineTo(u_shape_height_width / 2, u_shape_height_width / 2)                             # Top horizontal line
+    .lineTo(u_shape_height_width / 2, -u_shape_height_width / 2)                            # Right vertical line
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, -u_shape_height_width / 2)   # Right wall thickness
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, u_shape_height_width / 2 - u_shape_wall_thickness)               # Bottom inner part
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, u_shape_height_width / 2 - u_shape_wall_thickness)              # Bottom inner part (other side)
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, -u_shape_height_width / 2)             # Left wall thickness
+    .lineTo(-u_shape_height_width / 2, -u_shape_height_width / 2)             # Left vertical line
     .close()                    # Close the U-shape
 )
 
