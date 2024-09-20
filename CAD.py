@@ -32,6 +32,7 @@ show_object(mounting_ring, name="Mounting Ring")
 #########
 # Domes #
 #########
+'''
 
 # Calculate the outer and inner radius
 outer_radius = sphere_outer_diameter / 2
@@ -101,17 +102,23 @@ flange_offset_mirrored = flange_offset.mirror(mirrorPlane="XY")
 show_object(flange_offset, name="Dome Bottom Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
 show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
 
+'''
+
 ########
 # Path #
 ########
 
 # Define the 3D path using X, Y, and Z coordinates
-pts = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
+# Node path, faulty
+CAD_path = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
+# Node path, manually corrected
+CAD_path = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
+#                                                                                                                                                                                    #start of issue
 
 # Define path shape U
 u_shape = (
     cq.Workplane("XY")
-    .transformed(offset=cq.Vector(pts[0]), rotate=cq.Vector(0, 90, 270))
+    .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
     .moveTo(-5, 5)              # Top left of U-shape
     .lineTo(5, 5)               # Top horizontal line
     .lineTo(5, -5)              # Right vertical line
@@ -127,13 +134,13 @@ u_shape = (
 show_object(u_shape, name="Path Shape")
 
 # Create the path in 3D using a spline
-path = cq.Workplane("XY").polyline(pts)
+path = cq.Workplane("XY").polyline(CAD_path)
 
 # Sweep the U-shape along the 3D path
 u_beam = u_shape.sweep(path)
 
 # Show the final swept U-beam
-show_object(u_beam, name="Path")
+show_object(u_beam, name="Path", options={"alpha": 0.9})
 
 ########
 # Ball #
@@ -141,5 +148,5 @@ show_object(u_beam, name="Path")
 
 # Note, relies on path being availible with starting point
 
-ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(pts[0])
+ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[0])
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
