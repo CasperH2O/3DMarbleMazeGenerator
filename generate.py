@@ -44,6 +44,24 @@ class Puzzle:
         self.node_dict = {}
         self.generate_nodes()
 
+        # Define start and initial route from start
+        self.define_start_node_and_route()
+
+        # Define mounting waypoints and home
+        self.define_mounting_waypoints()
+
+        # Randomly occupy nodes within the sphere as obstacles
+        self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
+
+        # Randomly select waypoints
+        self.randomly_select_waypoints(num_waypoints=5)
+
+        # Reset the nodes before pathfinding
+        self.reset_nodes()
+
+        # Connect the waypoints
+        self.total_path = self.connect_waypoints()
+
     def generate_nodes(self):
         # Generate nodes within the sphere centered at (0, 0, 0)
         nodes = []
@@ -425,24 +443,9 @@ if __name__ == "__main__":
     # Create a Puzzle instance
     puzzle = Puzzle(diameter=diameter, shell_thickness=shell_thickness, node_size=node_size, seed=seed)
 
-    # Define mounting waypoints and home
-    mounting_nodes = puzzle.define_mounting_waypoints()
-
-    # Randomly occupy nodes within the sphere as obstacles
-    puzzle.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
-
-    # Randomly select waypoints
-    puzzle.randomly_select_waypoints(num_waypoints=10)
-
-    # Reset the nodes before pathfinding
-    puzzle.reset_nodes()
-
-    # Connect the waypoints
-    total_path = puzzle.connect_waypoints()
-
-    if total_path:
-        print(f"Total path length: {len(total_path)}")
+    if puzzle.total_path:
+        print(f"Total path length: {len(puzzle.total_path)}")
         # Visualize the nodes and the path
-        puzzle.visualize_nodes_and_paths(total_path)
+        puzzle.visualize_nodes_and_paths(puzzle.total_path)
     else:
         print("No path could be constructed to connect all waypoints.")
