@@ -74,6 +74,32 @@ class Puzzle:
         self.nodes = nodes
         self.node_dict = {(node.x, node.y, node.z): node for node in self.nodes}
 
+    # Method to define the start node and initial route from start
+    def define_start_node_and_route(self):
+        # Find the minimum x among existing nodes on the X-axis (where y=0 and z=0)
+        x_axis_nodes = [node for node in self.nodes if node.y == 0 and node.z == 0]
+        if x_axis_nodes:
+            min_x = min(node.x for node in x_axis_nodes)
+        else:
+            min_x = 0  # If no nodes exist, start from 0
+
+        # Calculate positions for the two new nodes in the negative x direction
+        x1 = min_x - self.node_size
+        x2 = x1 - self.node_size
+
+        # Create two new nodes at positions (x1, 0, 0) and (x2, 0, 0)
+        node1 = Node(x1, 0, 0)
+        node2 = Node(x2, 0, 0)
+
+        # Add them to self.nodes and self.node_dict
+        self.nodes.extend([node1, node2])
+        self.node_dict[(node1.x, node1.y, node1.z)] = node1
+        self.node_dict[(node2.x, node2.y, node2.z)] = node2
+
+        # Since x2 < x1, node2 is furthest from (0, 0, 0)
+        node2.start = True  # Mark the furthest node as the start node
+
+
     # Method to define "mounting" waypoints along the circumference and select home
     def define_mounting_waypoints(self):
         random.seed(self.seed)
@@ -103,10 +129,6 @@ class Puzzle:
             )
             nearest_node.mounting = True
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
-
-            # Set the 'start' property to True for the first mounting waypoint
-            if i == 0:
-                nearest_node.start = True
 
             mounting_nodes.append(nearest_node)
 
@@ -307,7 +329,7 @@ class Puzzle:
             print(f"End node set at: {end_node}")
 
         # Print the path
-        print("pts =", [(node.x, node.y, node.z) for node in total_path])
+        print("CAD_path = ", [(node.x, node.y, node.z) for node in total_path])
 
         return total_path
 
