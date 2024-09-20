@@ -361,7 +361,7 @@ class Puzzle:
             path_xs = [node.x for node in total_path]
             path_ys = [node.y for node in total_path]
             path_zs = [node.z for node in total_path]
-            ax.plot(path_xs, path_ys, path_zs, color='black')
+            ax.plot(path_xs, path_ys, path_zs, color='black', linewidth=0.75)
 
         # Plot the inner circle in the XY plane (z = 0)
         theta = np.linspace(0, 2 * np.pi, 100)
