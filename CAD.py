@@ -109,11 +109,7 @@ show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.
 ########
 
 # Define the 3D path using X, Y, and Z coordinates
-# Node path, faulty
-CAD_path = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
-# Node path, manually corrected
-CAD_path = [(-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
-#                                                                                                                                                                                    #start of issue
+CAD_path = [(-35, 0, 0), (-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
 
 # Define path shape U
 u_shape = (
@@ -137,10 +133,10 @@ show_object(u_shape, name="Path Shape")
 path = cq.Workplane("XY").polyline(CAD_path)
 
 # Sweep the U-shape along the 3D path
-u_beam = u_shape.sweep(path)
+u_beam = u_shape.sweep(path, transition='right')
 
 # Show the final swept U-beam
-show_object(u_beam, name="Path", options={"alpha": 0.9})
+show_object(u_beam, name="Path", options={"alpha": 0.1})
 
 ########
 # Ball #
@@ -148,5 +144,5 @@ show_object(u_beam, name="Path", options={"alpha": 0.9})
 
 # Note, relies on path being availible with starting point
 
-ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[0])
+ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
