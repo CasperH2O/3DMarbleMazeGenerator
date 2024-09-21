@@ -111,7 +111,7 @@ show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.
 # Define the 3D path using X, Y, and Z coordinates
 CAD_path = [(-35, 0, 0), (-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
 CAD_path = [(-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-20, 0, -10), (-20, -10, -10), (-10, -10, -10), (-10, -10, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0)]
-CAD_path = [(-50, 0, 0), (-40, 0, 0), (-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-20, 0, -10), (-20, -10, -10), (-20, -20, -10), (-20, -30, -10), (-10, -30, -10), (-10, -30, 0), (-10, -30, 10), (-10, -30, 20), (0, -30, 20), (0, -20, 20), (0, -10, 20), (0, -10, 30), (-10, -10, 30), (-20, -10, 30), (-20, 0, 30), (-20, 0, 20), (-10, 0, 20), (-10, -10, 20), (-10, -10, 10), (0, -10, 10), (0, -10, 0), (10, -10, 0), (20, -10, 0), (20, -20, 0), (30, -20, 0), (30, -10, 0), (30, -10, -10), (30, -10, -20), (20, -10, -20), (10, -10, -20), (0, -10, -20), (0, -20, -20), (0, -20, -30), (0, -10, -30), (0, 0, -30), (0, 10, -30), (0, 20, -30), (0, 20, -20), (0, 30, -20), (0, 30, -10), (-10, 30, -10), (-10, 30, 0), (0, 30, 0), (10, 30, 0), (20, 30, 0), (20, 20, 0), (30, 20, 0), (30, 10, 0), (20, 10, 0), (20, 10, 10), (20, 10, 20), (20, 10, 30)]
+CAD_path =  [(-50, 0, 0), (-40, 0, 0), (-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-10, 0, -20), (0, 0, -20), (0, -10, -20), (0, -10, -30), (0, -20, -30), (0, -20, -20), (0, -20, -10), (0, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0), (-10, 20, 0), (-10, 20, 10), (-10, 20, 20), (-20, 20, 20), (-20, 10, 20), (-20, 0, 20)]
 
 u_shape_height_width = 9.9999
 u_shape_wall_thickness = 2
@@ -132,7 +132,7 @@ u_shape = (
 )
 
 # Show path shap for debug
-show_object(u_shape, name="Path Shape")
+#show_object(u_shape, name="Path Shape")
 
 # Create the path in 3D using a spline
 path = cq.Workplane("XY").polyline(CAD_path)
@@ -140,8 +140,30 @@ path = cq.Workplane("XY").polyline(CAD_path)
 # Sweep the U-shape along the 3D path
 u_beam = u_shape.sweep(path, transition='right')
 
-# Show the final swept U-beam
-show_object(u_beam, name="Path", options={"alpha": 0.1})
+# Prepare for cutting around path body, makes start start at sphere edge
+
+# Calculate radii
+sphere_outer_radius = sphere_flange_diameter / 2
+sphere_inner_radius = sphere_inner_diameter / 2
+
+# Create the cross-sectional profile of the hollow sphere
+hollow_sphere_profile = (
+    cq.Workplane("XZ")
+    .moveTo(0, sphere_outer_radius)
+    .threePointArc((-sphere_outer_radius, 0), (0, -sphere_outer_radius))
+    .lineTo(0, -sphere_inner_radius)
+    .threePointArc((-sphere_inner_radius, 0), (0, sphere_inner_radius))
+    .close()
+)
+
+# Revolve the profile to create the hollow sphere solid
+hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
+
+# Perform the cut operation
+u_beam_cut = u_beam.cut(hollow_sphere)
+
+# Show the final u_beam after the revolve cut
+show_object(u_beam_cut, name="Path", options={"alpha": 0.0})
 
 ########
 # Ball #
