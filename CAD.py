@@ -1,4 +1,5 @@
 import cadquery as cq
+import math
 
 # Define the parameters for the puzzle
 sphere_outer_diameter = 100  # Outer diameter in mm
@@ -32,77 +33,57 @@ show_object(mounting_ring, name="Mounting Ring")
 #########
 # Domes #
 #########
-'''
 
-# Calculate the outer and inner radius
-outer_radius = sphere_outer_diameter / 2
-inner_radius = outer_radius - sphere_thickness
+sphere_outer_radius = sphere_outer_diameter / 2
+sphere_inner_radius = sphere_inner_diameter / 2
+sphere_flange_radius = sphere_flange_diameter / 2
 
-dome_top = (
-    cq.Workplane("front")
-    .moveTo(outer_radius, 0)
-    .lineTo(0, sphere_thickness)
-    .lineTo(2.0, 1.0)
-    .threePointArc((1.0, 1.5), (0.0, 1.0))
+# Calculate the intermediate point at 45 degrees (π/4 radians)
+angle_45 = math.radians(45)
+
+# Intermediate points for inner arc
+x_mid_inner = sphere_inner_radius * math.cos(angle_45)
+y_mid_inner = sphere_inner_radius * math.sin(angle_45)
+
+# Calculate adjusted starting point for outer arc
+x_start_outer = math.sqrt(sphere_outer_radius**2 - sphere_thickness**2)
+y_start_outer = sphere_thickness  # Given
+
+# Calculate angle for adjusted starting point
+theta_start = math.asin(y_start_outer / sphere_outer_radius)
+
+# Calculate intermediate point for outer arc
+theta_mid_outer = (theta_start + math.pi / 2) / 2
+x_mid_outer = sphere_outer_radius * math.cos(theta_mid_outer)
+y_mid_outer = sphere_outer_radius * math.sin(theta_mid_outer)
+
+# Create the profile on the XZ plane
+profile = (
+    cq.Workplane("XZ")
+    # Start at the outer circle top
+    .moveTo(0, sphere_outer_radius)  # Point A
+    .lineTo(0, sphere_inner_radius)  # Line down to Point B
+    .threePointArc((x_mid_inner, sphere_inner_radius * math.sin(angle_45)), (sphere_inner_radius, 0))  # Inner arc to Point C
+    .lineTo(sphere_flange_radius, 0)  # Line to Point D
+    .lineTo(sphere_flange_radius, sphere_thickness)  # Line up to Point E
+    .lineTo(x_start_outer, y_start_outer)  # Line to adjusted starting point for outer arc (Point F)
+    .threePointArc((x_mid_outer, y_mid_outer), (0, sphere_outer_radius))  # Outer arc back to Point A
     .close()
-    .revolve(360, (0, 0, 0), (0, 0, 1))
 )
 
-show_object(dome_top, name="Dome Top Alt", options={"alpha": 0.9, "color": (1, 1, 1)})
+# Display the profile
+#show_object(profile, name="Profile", options={"alpha": 0.5, "color": (1, 0, 0)})
 
+# Revolve the profile
+dome_top = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
-# Create the outer half-sphere (dome) by cutting a full sphere
-dome_outer = (
-    cq.Workplane("XY")
-    .sphere(outer_radius)           # Create the outer sphere
-    .cut(cq.Workplane("XY").box(2 * outer_radius, 2 * outer_radius, outer_radius, centered=(True, True, False)))  # Slice it in half along the XY plane
-)
-
-# Create the inner half-sphere (for hollowing the dome)
-dome_inner = (
-    cq.Workplane("XY")
-    .sphere(inner_radius)           # Create the inner sphere (for hollowing)
-    .cut(cq.Workplane("XY").box(2 * inner_radius, 2 * inner_radius, inner_radius, centered=(True, True, False)))  # Slice the inner half-sphere
-)
-
-# Hollow out the outer dome by subtracting the inner dome from it
-dome_hollowed = dome_outer.cut(dome_inner)
-
-# Move the hollowed dome upwards (offset from the XY plane)
-dome_offset = dome_hollowed.translate((0, 0, -0.5 * ring_thickness))
+dome_top = dome_top.translate((0, 0, 0.5 * ring_thickness))
 
 # Mirror the extruded half along the XY plane
-dome_offset_mirrored = dome_offset.mirror(mirrorPlane="XY")
+dome_bottom = dome_top.mirror(mirrorPlane="XY")
 
-show_object(dome_offset, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1, 1)})
-show_object(dome_offset_mirrored, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
-
-###########
-# Flanges #
-###########
-
-# Calculate the radius of the sphere glange from the outer and inner diameters
-outer_radius = sphere_flange_diameter / 2
-inner_radius = sphere_inner_diameter / 2 + 2 * sphere_thickness
-
-# Create the flange ring as a difference between two circles, then extrude symmetrically
-flange = (
-    cq.Workplane("XY")
-    .circle(outer_radius)          # Outer circle
-    .circle(inner_radius)          # Inner circle (hole)
-    .extrude(ring_thickness / 2)   # Extrude half the thickness upwards
-)
-
-# Move the hollowed dome upwards (offset from the XY plane)
-flange_offset = flange.translate((0, 0, 0.5 * ring_thickness))
-
-# Mirror the extruded half along the XY plane
-flange_offset_mirrored = flange_offset.mirror(mirrorPlane="XY")
-
-show_object(flange_offset, name="Dome Bottom Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
-show_object(flange_offset_mirrored, name="Dome Top Flange", options={"alpha": 0.9, "color": (1, 1, 1)})
-
-'''
+show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1, 1)})
+show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 ########
 # Path #
