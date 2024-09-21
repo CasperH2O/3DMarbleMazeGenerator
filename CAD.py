@@ -7,7 +7,11 @@ sphere_flange_diameter = 120
 sphere_thickness = 3         # Thickness in mm (cross-sectional radius)
 sphere_inner_diameter = sphere_outer_diameter - (2 * sphere_thickness)  # Inner diameter in mm
 ring_thickness = 3           # Thickness of the ring
+
 ball_diameter = 4
+
+mounting_hole_diameter = 3   # Diameter of the mounting holes
+mounting_hole_amount = 5     # Number of mounting holes
 
 #################
 # Mounting Ring #
@@ -153,4 +157,35 @@ show_object(u_beam_cut, name="Path", options={"alpha": 0.0})
 # Note, relies on path being availible with starting point
 
 ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
+
+##################
+# Mounting holes #
+##################
+
+sphere_outer_radius = sphere_outer_diameter / 2  # 50 mm
+sphere_flange_radius = sphere_flange_diameter / 2  # 60 mm
+
+# Calculate the hole pattern radius
+hole_pattern_radius = (sphere_outer_radius + sphere_flange_radius) / 2  # Average radius
+
+# Create a workplane on the XY plane
+wp = cq.Workplane("XY")
+
+# Define the hole pattern
+holes = (
+    wp
+    .workplane()
+    .polarArray(hole_pattern_radius, 0, 360, mounting_hole_amount, fill=True)
+    .circle(mounting_hole_diameter / 2)
+    .extrude(3 * sphere_thickness, both=True)  # Extrude length sufficient to cut through the bodies, centered on XY plane
+)
+
+# Cut the holes in mounting_ring
+mounting_ring = mounting_ring.cut(holes)
+
+# Cut the holes in dome_top
+dome_top = dome_top.cut(holes)
+
+# Cut the holes in dome_bottom
+dome_bottom = dome_bottom.cut(holes)
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
