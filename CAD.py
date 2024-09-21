@@ -5,39 +5,35 @@ import math
 sphere_outer_diameter = 100  # Outer diameter in mm
 sphere_flange_diameter = 120
 sphere_thickness = 3         # Thickness in mm (cross-sectional radius)
-sphere_inner_diameter = sphere_outer_diameter - (2 * sphere_thickness)  # Inner diameter in mm
 ring_thickness = 3           # Thickness of the ring
-
 ball_diameter = 4
-
 mounting_hole_diameter = 3   # Diameter of the mounting holes
-mounting_hole_amount = 5     # Number of mounting holes
+mounting_hole_amount = 6     # Number of mounting holes
+
+# Derived variables
+sphere_inner_diameter = sphere_outer_diameter - (2 * sphere_thickness)  # Inner diameter in mm
+sphere_outer_radius = sphere_outer_diameter / 2
+sphere_inner_radius = sphere_inner_diameter / 2
+sphere_flange_radius = sphere_flange_diameter / 2
 
 #################
 # Mounting Ring #
 #################
 
-# Calculate the radius of the mounting from the outer and inner diameters
-outer_radius = sphere_flange_diameter / 2
-inner_radius = sphere_inner_diameter / 2
-
 # Create the mounting ring as a difference between two circles, then extrude symmetrically
 mounting_ring = (
     cq.Workplane("XY")
-    .circle(outer_radius)          # Outer circle
-    .circle(inner_radius)          # Inner circle (hole)
+    .circle(sphere_flange_radius)          # Outer circle
+    .circle(sphere_inner_radius)          # Inner circle (hole)
     .extrude(ring_thickness)   # Extrude half the thickness upwards
 )
 
+# Move to center
 mounting_ring = mounting_ring.translate((0, 0,- 0.5 * ring_thickness))
 
 #########
 # Domes #
 #########
-
-sphere_outer_radius = sphere_outer_diameter / 2
-sphere_inner_radius = sphere_inner_diameter / 2
-sphere_flange_radius = sphere_flange_diameter / 2
 
 # Calculate the intermediate point at 45 degrees (π/4 radians)
 angle_45 = math.radians(45)
@@ -78,9 +74,10 @@ profile = (
 # Revolve the profile
 dome_top = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
+# Move to make place for mounting ring
 dome_top = dome_top.translate((0, 0, 0.5 * ring_thickness))
 
-# Mirror the extruded half along the XY plane
+# Mirror the dome for the other side
 dome_bottom = dome_top.mirror(mirrorPlane="XY")
 
 ########
@@ -119,17 +116,12 @@ path = cq.Workplane("XY").polyline(CAD_path)
 # Sweep the U-shape along the 3D path
 u_beam = u_shape.sweep(path, transition='right')
 
-# Prepare for cutting around path body, makes start start at sphere edge
-
-# Calculate radii
-sphere_outer_radius = sphere_flange_diameter / 2
-sphere_inner_radius = sphere_inner_diameter / 2
-
+# Prepare for cutting around path body, makes start flush with sphere edge
 # Create the cross-sectional profile of the hollow sphere
 hollow_sphere_profile = (
     cq.Workplane("XZ")
-    .moveTo(0, sphere_outer_radius)
-    .threePointArc((-sphere_outer_radius, 0), (0, -sphere_outer_radius))
+    .moveTo(0, sphere_flange_radius)
+    .threePointArc((-sphere_flange_radius, 0), (0, -sphere_flange_radius))
     .lineTo(0, -sphere_inner_radius)
     .threePointArc((-sphere_inner_radius, 0), (0, sphere_inner_radius))
     .close()
@@ -152,9 +144,6 @@ ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
 # Mounting holes #
 ##################
 
-sphere_outer_radius = sphere_outer_diameter / 2  # 50 mm
-sphere_flange_radius = sphere_flange_diameter / 2  # 60 mm
-
 # Calculate the hole pattern radius
 hole_pattern_radius = (sphere_outer_radius + sphere_flange_radius) / 2  # Average radius
 
@@ -170,13 +159,9 @@ holes = (
     .extrude(3 * sphere_thickness, both=True)  # Extrude length sufficient to cut through the bodies, centered on XY plane
 )
 
-# Cut the holes in mounting_ring
+# Cut the holes in applicable bodies
 mounting_ring = mounting_ring.cut(holes)
-
-# Cut the holes in dome_top
 dome_top = dome_top.cut(holes)
-
-# Cut the holes in dome_bottom
 dome_bottom = dome_bottom.cut(holes)
 
 ###########
