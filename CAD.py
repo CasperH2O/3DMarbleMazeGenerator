@@ -31,9 +31,6 @@ mounting_ring = (
 
 mounting_ring = mounting_ring.translate((0, 0,- 0.5 * ring_thickness))
 
-# Display the ring
-show_object(mounting_ring, name="Mounting Ring")
-
 #########
 # Domes #
 #########
@@ -85,9 +82,6 @@ dome_top = dome_top.translate((0, 0, 0.5 * ring_thickness))
 
 # Mirror the extruded half along the XY plane
 dome_bottom = dome_top.mirror(mirrorPlane="XY")
-
-show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1, 1)})
-show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 ########
 # Path #
@@ -145,17 +139,13 @@ hollow_sphere_profile = (
 hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
 
 # Perform the cut operation
-u_beam_cut = u_beam.cut(hollow_sphere)
-
-# Show the final u_beam after the revolve cut
-show_object(u_beam_cut, name="Path", options={"alpha": 0.0})
+u_beam = u_beam.cut(hollow_sphere)
 
 ########
 # Ball #
 ########
 
 # Note, relies on path being availible with starting point
-
 ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
 
 ##################
@@ -188,4 +178,18 @@ dome_top = dome_top.cut(holes)
 
 # Cut the holes in dome_bottom
 dome_bottom = dome_bottom.cut(holes)
+
+###########
+# Display #
+###########
+
+# Display the mounting ring
+show_object(mounting_ring, name="Mounting Ring")
+
+# Show domes
+show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1, 1)})
+show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
+
+# Show the final path
+show_object(u_beam, name="Path", options={"alpha": 0.0})
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
