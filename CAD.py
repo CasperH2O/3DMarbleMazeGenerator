@@ -3,12 +3,12 @@ import math
 
 # Define the parameters for the puzzle
 sphere_outer_diameter = 100  # Outer diameter in mm
-sphere_flange_diameter = 120
+sphere_flange_diameter = 130
 sphere_thickness = 3         # Thickness in mm (cross-sectional radius)
 ring_thickness = 3           # Thickness of the ring
 ball_diameter = 4
 mounting_hole_diameter = 3   # Diameter of the mounting holes
-mounting_hole_amount = 6     # Number of mounting holes
+mounting_hole_amount = 5     # Number of mounting holes
 
 # Derived variables
 sphere_inner_diameter = sphere_outer_diameter - (2 * sphere_thickness)  # Inner diameter in mm
@@ -114,7 +114,7 @@ u_shape = (
 path = cq.Workplane("XY").polyline(CAD_path)
 
 # Sweep the U-shape along the 3D path
-u_beam = u_shape.sweep(path, transition='right')
+path_body = u_shape.sweep(path, transition='right') #right, round
 
 # Prepare for cutting around path body, makes start flush with sphere edge
 # Create the cross-sectional profile of the hollow sphere
@@ -131,7 +131,7 @@ hollow_sphere_profile = (
 hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
 
 # Perform the cut operation
-u_beam = u_beam.cut(hollow_sphere)
+path_body = path_body.cut(hollow_sphere)
 
 ########
 # Ball #
@@ -176,5 +176,5 @@ show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1,
 show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 # Show the final path
-show_object(u_beam, name="Path", options={"alpha": 0.0})
+show_object(path_body, name="Path", options={"alpha": 0.0})
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
