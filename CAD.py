@@ -86,13 +86,13 @@ dome_bottom = dome_top.mirror(mirrorPlane="XY")
 
 # Define the 3D path using X, Y, and Z coordinates
 CAD_path = [(-35, 0, 0), (-30, 0, 0), (-20, 0, 0), (-20, -10, 0), (-20, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20.0001, 0), (30, -20.0001, 10), (30, -10, 10.0001), (30, 0, 10.0001), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (-10, 20, 0), (-10, 30, 0)]
-CAD_path = [(-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-20, 0, -10), (-20, -10, -10), (-10, -10, -10), (-10, -10, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0)]
-CAD_path =  [(-50, 0, 0), (-40, 0, 0), (-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-10, 0, -20), (0, 0, -20), (0, -10, -20), (0, -10, -30), (0, -20, -30), (0, -20, -20), (0, -20, -10), (0, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0), (-10, 20, 0), (-10, 20, 10), (-10, 20, 20), (-20, 20, 20), (-20, 10, 20), (-20, 0, 20)]
-
-u_shape_height_width = 9.9999
-u_shape_wall_thickness = 2
+#CAD_path = [(-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-20, 0, -10), (-20, -10, -10), (-10, -10, -10), (-10, -10, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0)]
+#CAD_path =  [(-50, 0, 0), (-40, 0, 0), (-30, 0, 0), (-30, 0, -10), (-30, 0, -20), (-20, 0, -20), (-10, 0, -20), (0, 0, -20), (0, -10, -20), (0, -10, -30), (0, -20, -30), (0, -20, -20), (0, -20, -10), (0, -20, 0), (-10, -20, 0), (-10, -30, 0), (0, -30, 0), (10, -30, 0), (10, -20, 0), (10, -10, 0), (20, -10, 0), (30, -10, 0), (30, -20, 0), (30, -20, 10), (30, -10, 10), (30, 0, 10), (30, 0, 0), (30, 10, 0), (30, 20, 0), (20, 20, 0), (10, 20, 0), (0, 20, 0), (0, 30, 0), (0, 30, -10), (-10, 30, -10), (-10, 30, 0), (-10, 20, 0), (-10, 20, 10), (-10, 20, 20), (-20, 20, 20), (-20, 10, 20), (-20, 0, 20)]
 
 # Define path shape U
+u_shape_height_width = 10 - 0.0001
+u_shape_wall_thickness = 2
+
 u_shape = (
     cq.Workplane("XY")
     .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
@@ -108,13 +108,86 @@ u_shape = (
 )
 
 # Show path shap for debug
-#show_object(u_shape, name="Path Shape")
+#show_object(u_shape, name="Path Shape U")
+
+# Path shape: tube
+tube_outer_diameter = 10 - 0.0001  # Example value
+tube_wall_thickness = 2   # Example value
+
+# Calculate inner diameter
+tube_inner_diameter = tube_outer_diameter - 2 * tube_wall_thickness
+
+# Define the tube shape
+tube_shape = (
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
+    .circle(tube_outer_diameter / 2)
+    .circle(tube_inner_diameter / 2)
+)
+
+#show_object(tube_shape, name="Path Shape Tube")
+
+# Path shape configurable height U shape
+# Parameters
+u_shape_height_width = 10.0 -0.0001 # Overall width and initial height of the U-shape
+u_shape_wall_thickness = 2.0        # Wall thickness
+lower_distance = 2.0                # Amount to shorten the vertical sides
+
+# Adjusted top Y-coordinate
+adjusted_top_y = u_shape_height_width / 2 - lower_distance
+
+# Note, this shape is actually drawn as an n
+u_shape_adjusted_height = (
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
+    .moveTo(- u_shape_height_width / 2, u_shape_height_width / 2)                           # Top left of U-shape
+    .lineTo(u_shape_height_width / 2, u_shape_height_width / 2)                             # Top horizontal line
+    .lineTo(u_shape_height_width / 2, -adjusted_top_y)                                      # Right vertical line
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, -adjusted_top_y)   # Right wall thickness
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, u_shape_height_width / 2 - u_shape_wall_thickness)               # Bottom inner part
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, u_shape_height_width / 2 - u_shape_wall_thickness)              # Bottom inner part (other side)
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, -adjusted_top_y)             # Left wall thickness
+    .lineTo(-u_shape_height_width / 2, -adjusted_top_y)             # Left vertical line
+    .close()                    # Close the U-shape
+)
+
+show_object(u_shape_adjusted_height, name="Path Shape Lowered Height U")
+
+# Note, this shape is actually drawn as an n
+u_shape_adjusted_height_rectangle_1 = (
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
+    .moveTo(-u_shape_height_width / 2, -adjusted_top_y) 
+    .lineTo(-u_shape_height_width / 2, -u_shape_height_width / 2)
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, -u_shape_height_width / 2)   # Right wall thickness
+    .lineTo(-u_shape_height_width / 2 + u_shape_wall_thickness, -u_shape_height_width / 2 + lower_distance)   # Right wall thickness
+    .close()                    # Close the shape
+)
+
+show_object(u_shape_adjusted_height_rectangle_1, name="Path Shape Lowered Height U 1")
+
+# Note, this shape is actually drawn as an n
+u_shape_adjusted_height_rectangle_2 = (
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(CAD_path[0]), rotate=cq.Vector(0, 90, 270))
+    .moveTo(u_shape_height_width / 2, -adjusted_top_y) 
+    .lineTo(u_shape_height_width / 2, -u_shape_height_width / 2)
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, -u_shape_height_width / 2)   # Right wall thickness
+    .lineTo(u_shape_height_width / 2 - u_shape_wall_thickness, -u_shape_height_width / 2 + lower_distance)   # Right wall thickness
+    .close()                    # Close the shape
+)
+
+show_object(u_shape_adjusted_height_rectangle_2, name="Path Shape Lowered Height U 2")
 
 # Create the path in 3D using a spline
 path = cq.Workplane("XY").polyline(CAD_path)
+path1 = cq.Workplane("XY").polyline(CAD_path)
+path2 = cq.Workplane("XY").polyline(CAD_path)
 
 # Sweep the U-shape along the 3D path
-path_body = u_shape.sweep(path, transition='right') #right, round
+path_body = u_shape_adjusted_height.sweep(path, transition='right') #right, round
+path_body1 = u_shape_adjusted_height_rectangle_1.sweep(path1, transition='right') #right, round
+path_body2 = u_shape_adjusted_height_rectangle_2.sweep(path2, transition='right') #right, round
 
 # Prepare for cutting around path body, makes start flush with sphere edge
 # Create the cross-sectional profile of the hollow sphere
@@ -177,4 +250,6 @@ show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1,
 
 # Show the final path
 show_object(path_body, name="Path", options={"alpha": 0.0})
+show_object(path_body1, name="Path1", options={"alpha": 0.0})
+show_object(path_body2, name="Path2", options={"alpha": 0.0})
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
