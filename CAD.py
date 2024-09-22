@@ -72,13 +72,13 @@ profile = (
 #show_object(profile, name="Profile", options={"alpha": 0.5, "color": (1, 0, 0)})
 
 # Revolve the profile
-dome_top = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
+dome_bottom = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
 # Move to make place for mounting ring
-dome_top = dome_top.translate((0, 0, 0.5 * ring_thickness))
+dome_bottom = dome_bottom.translate((0, 0, 0.5 * ring_thickness))
 
 # Mirror the dome for the other side
-dome_bottom = dome_top.mirror(mirrorPlane="XY")
+dome_top = dome_bottom.mirror(mirrorPlane="XY")
 
 ########
 # Path #
@@ -151,7 +151,7 @@ u_shape_adjusted_height = (
     .close()                    # Close the U-shape
 )
 
-show_object(u_shape_adjusted_height, name="Path Shape Lowered Height U")
+#show_object(u_shape_adjusted_height, name="Path Shape Lowered Height U")
 
 # Note, this shape is actually drawn as an n
 u_shape_adjusted_height_rectangle_1 = (
@@ -164,7 +164,7 @@ u_shape_adjusted_height_rectangle_1 = (
     .close()                    # Close the shape
 )
 
-show_object(u_shape_adjusted_height_rectangle_1, name="Path Shape Lowered Height U 1")
+#show_object(u_shape_adjusted_height_rectangle_1, name="Path Shape Lowered Height U 1")
 
 # Note, this shape is actually drawn as an n
 u_shape_adjusted_height_rectangle_2 = (
@@ -177,7 +177,7 @@ u_shape_adjusted_height_rectangle_2 = (
     .close()                    # Close the shape
 )
 
-show_object(u_shape_adjusted_height_rectangle_2, name="Path Shape Lowered Height U 2")
+#show_object(u_shape_adjusted_height_rectangle_2, name="Path Shape Lowered Height U 2")
 
 # Create the path in 3D using a spline
 path = cq.Workplane("XY").polyline(CAD_path)
