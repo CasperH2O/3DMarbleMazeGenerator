@@ -10,6 +10,8 @@ from utils.config import (
     BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, 
     SEED
 )
+from puzzle.node_creator import SphereGridNodeCreator
+from puzzle.pathfinder import AStarPathFinder
 
 # Define the parameters for the puzzle
 sphere_outer_diameter = DIAMETER
@@ -94,8 +96,19 @@ dome_top = dome_bottom.mirror(mirrorPlane="XY")
 # Path #
 ########
 
-# Create a Puzzle instance
-puzzle = Puzzle(diameter=DIAMETER, shell_thickness=SHELL_THICKNESS, node_size=NODE_SIZE, seed=SEED)
+# Initialize the node creator and pathfinder
+node_creator = SphereGridNodeCreator()
+pathfinder = AStarPathFinder()
+
+# Create a Puzzle instance with the specified node creator and pathfinder
+puzzle = Puzzle(
+    diameter=DIAMETER,
+    shell_thickness=SHELL_THICKNESS,
+    node_size=NODE_SIZE,
+    seed=SEED,
+    node_creator=node_creator,
+    pathfinder=pathfinder
+)
 
 if puzzle.total_path:
     print(f"Total path length: {len(puzzle.total_path)}")

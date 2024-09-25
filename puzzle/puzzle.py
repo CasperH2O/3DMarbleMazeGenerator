@@ -1,24 +1,25 @@
 # puzzle/puzzle.py
 
-import numpy as np
+from .node_creator import NodeCreator
+from .pathfinder import PathFinder
 import random
-
 from .node import Node
-from .pathfinding import a_star, euclidean_distance
-
+import numpy as np
 
 class Puzzle:
     """
-    Generates a 3D maze puzzle within a sphere.
+    Generates a 3D maze puzzle within a sphere using specified node creation and pathfinding strategies.
 
     Attributes:
         diameter (float): Diameter of the sphere.
         shell_thickness (float): Thickness of the shell.
         node_size (float): Size of each node in the grid.
         seed (int): Seed for random number generators.
+        node_creator (NodeCreator): Strategy for creating nodes.
+        pathfinder (PathFinder): Strategy for pathfinding.
     """
 
-    def __init__(self, diameter, shell_thickness, node_size, seed):
+    def __init__(self, diameter, shell_thickness, node_size, seed, node_creator: NodeCreator, pathfinder: PathFinder):
         self.diameter = diameter
         self.shell_thickness = shell_thickness
         self.node_size = node_size
@@ -26,13 +27,13 @@ class Puzzle:
 
         # Calculate inner radius and effective radius
         self.inner_radius = (self.diameter / 2) - self.shell_thickness
-        cube_half_diagonal = (self.node_size * np.sqrt(3)) / 2
-        self.effective_radius = self.inner_radius - cube_half_diagonal
 
-        # Initialize the nodes and node dictionary
-        self.nodes = []
-        self.node_dict = {}
-        self.generate_nodes()
+        # Initialize the node creator and generate nodes
+        self.node_creator = node_creator
+        self.nodes, self.node_dict = self.node_creator.create_nodes(self)
+
+        # Initialize the pathfinder
+        self.pathfinder = pathfinder
 
         # Define start and initial route from start
         self.define_start_node_and_route()
@@ -46,41 +47,12 @@ class Puzzle:
         # Randomly select waypoints
         self.randomly_select_waypoints(num_waypoints=5)
 
-        # Reset the nodes before pathfinding
-        self.reset_nodes()
+        # Connect the waypoints using the pathfinder
+        self.total_path = self.pathfinder.connect_waypoints(self)
 
-        # Connect the waypoints
-        self.total_path = self.connect_waypoints()
-
-    def generate_nodes(self):
-        # Generate nodes within the sphere centered at (0, 0, 0)
-        nodes = []
-        node_size = self.node_size
-        effective_radius = self.effective_radius
-
-        # Number of cubes along one axis
-        num_cubes_along_axis = int(np.floor(2 * effective_radius / node_size))
-        # Adjust num_cubes_along_axis to be odd
-        if num_cubes_along_axis % 2 == 0:
-            num_cubes_along_axis += 1
-
-        # Start position to center the cubes
-        start_pos = -(num_cubes_along_axis // 2) * node_size
-
-        x_values = [start_pos + i * node_size for i in range(num_cubes_along_axis)]
-        y_values = x_values
-        z_values = x_values
-
-        for x in x_values:
-            for y in y_values:
-                for z in z_values:
-                    distance = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-                    if distance <= effective_radius:
-                        node = Node(x, y, z)
-                        nodes.append(node)
-
-        self.nodes = nodes
-        self.node_dict = {(node.x, node.y, node.z): node for node in self.nodes}
+    def get_neighbors(self, node):
+        """Delegates neighbor retrieval to the node creator."""
+        return self.node_creator.get_neighbors(node, self.node_dict, self.node_size)
 
     def define_start_node_and_route(self):
         # Find the minimum x among existing nodes on the X-axis (where y=0 and z=0)
@@ -199,88 +171,3 @@ class Puzzle:
 
         print(f"Selected {num_waypoints} waypoints using Mitchell's Best-Candidate Algorithm.")
 
-    def reset_nodes(self):
-        for node in self.nodes:
-            node.g = float('inf')
-            node.h = 0
-            node.f = float('inf')
-            node.parent = None
-
-    def get_neighbors(self, node):
-        neighbors = []
-        node_size = self.node_size
-        directions = [
-            (node_size, 0, 0), (-node_size, 0, 0),
-            (0, node_size, 0), (0, -node_size, 0),
-            (0, 0, node_size), (0, 0, -node_size)
-        ]
-        for dx, dy, dz in directions:
-            neighbor_coordinates = (node.x + dx, node.y + dy, node.z + dz)
-            neighbor = self.node_dict.get(neighbor_coordinates)
-            if neighbor and not neighbor.occupied:
-                neighbors.append(neighbor)
-        return neighbors
-
-    def occupy_path(self, path):
-        for node in path:
-            node.occupied = True
-            node.g = float('inf')
-            node.h = 0
-            node.f = float('inf')
-            node.parent = None
-
-    def find_nearest_waypoint(self, current_node, unvisited_waypoints):
-        # Sort unvisited waypoints by Euclidean distance
-        unvisited_waypoints.sort(key=lambda node: euclidean_distance(current_node, node))
-        for waypoint in unvisited_waypoints:
-            self.reset_nodes()
-            path = a_star(current_node, waypoint, self)
-            if path:
-                return waypoint, path
-        return None, None
-
-    def connect_waypoints(self):
-        waypoints = [node for node in self.nodes if node.waypoint]
-        if not waypoints:
-            print("No waypoints to connect.")
-            return []
-
-        # Ensure the start node is the first node in the route
-        start_node = next((node for node in self.nodes if node.start), None)
-        if start_node:
-            current_node = start_node
-            waypoints.remove(start_node)  # Remove start node from waypoints if present
-        else:
-            # If no start node is set, use the first waypoint
-            current_node = waypoints.pop(0)
-
-        total_path = []
-
-        first_iteration = True  # Flag to handle the first path differently
-
-        while waypoints:
-            next_waypoint, path = self.find_nearest_waypoint(current_node, waypoints)
-            if next_waypoint and path:
-                self.occupy_path(path)
-                if first_iteration:
-                    total_path.extend(path)
-                    first_iteration = False
-                else:
-                    # Skip the first node to prevent duplication
-                    total_path.extend(path[1:])
-                waypoints.remove(next_waypoint)
-                current_node = next_waypoint
-            else:
-                print("No more reachable waypoints.")
-                break
-
-        # Set the last node in the path as the end node
-        if total_path:
-            end_node = total_path[-1]
-            end_node.end = True
-            print(f"End node set at: {end_node}")
-
-        # Print the path
-        print("CAD_path = ", [(node.x, node.y, node.z) for node in total_path])
-
-        return total_path
