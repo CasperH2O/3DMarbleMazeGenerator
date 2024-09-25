@@ -7,6 +7,8 @@ def create_u_shape(position, height_width=10.0 - 0.0001, wall_thickness=2.0):
     """
     Creates a U-shaped cross-section at the given position.
     """
+
+    # Note, this shape is actually drawn as an 'n'
     u_shape = (
         cq.Workplane("XY")
         .transformed(offset=cq.Vector(position), rotate=cq.Vector(0, 90, 270))
@@ -75,11 +77,11 @@ def create_u_shape_adjusted_height_edge_1(position, height_width=10.0 - 0.0001, 
     u_shape_adjusted_height_edge_1 = (
         cq.Workplane("XY")
         .transformed(offset=cq.Vector(position), rotate=cq.Vector(0, 90, 270))
-        .moveTo(-u_shape_height_width / 2, -adjusted_top_y)
-        .lineTo(-u_shape_height_width / 2, -u_shape_height_width / 2)
-        .lineTo(-u_shape_height_width / 2 + wall_thickness, -u_shape_height_width / 2)  # Right wall thickness
-        .lineTo(-u_shape_height_width / 2 + wall_thickness,
-                -u_shape_height_width / 2 + lower_distance)  # Right wall thickness
+        .moveTo(-height_width / 2, -adjusted_top_y)
+        .lineTo(-height_width / 2, -height_width / 2)
+        .lineTo(-height_width / 2 + wall_thickness, -height_width / 2)  # Right wall thickness
+        .lineTo(-height_width / 2 + wall_thickness,
+                -height_width / 2 + lower_distance)  # Right wall thickness
         .close()  # Close the shape
     )
     return u_shape_adjusted_height_edge_1
@@ -96,11 +98,11 @@ def create_u_shape_adjusted_height_edge_2(position, height_width=10.0 - 0.0001, 
     u_shape_adjusted_height_edge_2 = (
         cq.Workplane("XY")
         .transformed(offset=cq.Vector(position), rotate=cq.Vector(0, 90, 270))
-        .moveTo(u_shape_height_width / 2, -adjusted_top_y)
-        .lineTo(u_shape_height_width / 2, -u_shape_height_width / 2)
-        .lineTo(u_shape_height_width / 2 - wall_thickness, -u_shape_height_width / 2)  # Right wall thickness
-        .lineTo(u_shape_height_width / 2 - wall_thickness,
-                -u_shape_height_width / 2 + lower_distance)  # Right wall thickness
+        .moveTo(height_width / 2, -adjusted_top_y)
+        .lineTo(height_width / 2, -height_width / 2)
+        .lineTo(height_width / 2 - wall_thickness, -height_width / 2)  # Right wall thickness
+        .lineTo(height_width / 2 - wall_thickness,
+                -height_width / 2 + lower_distance)  # Right wall thickness
         .close()  # Close the shape
     )
     return u_shape_adjusted_height_edge_2

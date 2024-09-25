@@ -2,18 +2,20 @@
 
 import cadquery as cq
 import math
+import shapes.path_shapes
 
 from puzzle.puzzle import Puzzle
-from shapes.path_shapes import create_u_shape_adjusted_height
 from utils.config import (
-    DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, BALL_DIAMETER,
-    MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, SEED
+    DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, RING_THICKNESS, 
+    BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, 
+    SEED
 )
 
 # Define the parameters for the puzzle
 sphere_outer_diameter = DIAMETER
 sphere_flange_diameter = SPHERE_FLANGE_DIAMETER
 sphere_thickness = SHELL_THICKNESS
+ring_thickness = RING_THICKNESS
 ball_diameter = BALL_DIAMETER
 mounting_hole_diameter = MOUNTING_HOLE_DIAMETER
 mounting_hole_amount = MOUNTING_HOLE_AMOUNT
@@ -84,7 +86,7 @@ profile = (
 dome_bottom = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
 # Move to make place for mounting ring
-dome_bottom = dome_bottom.translate((0, 0, 0.5 * ring_thickness))
+dome_bottom = dome_bottom.translate((0, 0, 0.5 * ring_thickness + 0.01))
 
 # Mirror the dome for the other side
 dome_top = dome_bottom.mirror(mirrorPlane="XY")
@@ -112,12 +114,19 @@ if CAD_path:
         'lower_distance': 2.0
     }
     u_shape = create_u_shape_adjusted_height(CAD_path[0], **u_shape_parameters)
+    u_shape_adjusted_height_rectangle_1 = create_u_shape_adjusted_height_edge_1(CAD_path[0], **u_shape_parameters)
+    u_shape_adjusted_height_rectangle_2 = create_u_shape_adjusted_height_edge_2(CAD_path[0], **u_shape_parameters)
 
     # Create the 3D path using a polyline
     path = cq.Workplane("XY").polyline(CAD_path)
+    path1 = cq.Workplane("XY").polyline(CAD_path)
+    path2 = cq.Workplane("XY").polyline(CAD_path)
+
 
     # Sweep the U-shape along the 3D path
     path_body = u_shape.sweep(path, transition='right')
+    path_body1 = u_shape_adjusted_height_rectangle_1.sweep(path1, transition='right') #right, round
+    path_body2 = u_shape_adjusted_height_rectangle_2.sweep(path2, transition='right') #right, round
 
     # Prepare for cutting around path body, makes start flush with sphere edge
     # Create the cross-sectional profile of the hollow sphere
@@ -184,5 +193,5 @@ show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1,
 show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 # Show the final path
-show_object(path_body1, name="Path1", options={"alpha": 0.0})
-show_object(path_body2, name="Path2", options={"alpha": 0.0})
+show_object(path_body1, name="Path Edge 1", options={"alpha": 0.0})
+show_object(path_body2, name="Path Edge 2", options={"alpha": 0.0})
