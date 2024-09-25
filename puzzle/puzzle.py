@@ -1,32 +1,18 @@
 # puzzle/puzzle.py
 
+from .casing import Casing
 from .node_creator import NodeCreator
 from .pathfinder import PathFinder
 import random
 from .node import Node
 import numpy as np
 
+
 class Puzzle:
-    """
-    Generates a 3D maze puzzle within a sphere using specified node creation and pathfinding strategies.
-
-    Attributes:
-        diameter (float): Diameter of the sphere.
-        shell_thickness (float): Thickness of the shell.
-        node_size (float): Size of each node in the grid.
-        seed (int): Seed for random number generators.
-        node_creator (NodeCreator): Strategy for creating nodes.
-        pathfinder (PathFinder): Strategy for pathfinding.
-    """
-
-    def __init__(self, diameter, shell_thickness, node_size, seed, node_creator: NodeCreator, pathfinder: PathFinder):
-        self.diameter = diameter
-        self.shell_thickness = shell_thickness
+    def __init__(self, node_size, seed, casing: Casing, node_creator: NodeCreator, pathfinder: PathFinder):
         self.node_size = node_size
         self.seed = seed
-
-        # Calculate inner radius and effective radius
-        self.inner_radius = (self.diameter / 2) - self.shell_thickness
+        self.casing = casing
 
         # Initialize the node creator and generate nodes
         self.node_creator = node_creator
@@ -35,13 +21,13 @@ class Puzzle:
         # Initialize the pathfinder
         self.pathfinder = pathfinder
 
-        # Define start and initial route from start
-        self.define_start_node_and_route()
+        # Define start node
+        self.start_node = self.casing.get_start_node(self.node_dict)
 
-        # Define mounting waypoints and home
-        self.define_mounting_waypoints()
+        # Define mounting waypoints
+        self.casing.get_mounting_waypoints(self.nodes, self.seed)
 
-        # Randomly occupy nodes within the sphere as obstacles
+        # Randomly occupy nodes within the casing as obstacles
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
         # Randomly select waypoints
@@ -79,38 +65,7 @@ class Puzzle:
         node2.start = True  # Mark the furthest node as the start node
 
     def define_mounting_waypoints(self):
-        random.seed(self.seed)
-
-        # Determine the number of mounting waypoints (between 3 and 5)
-        num_mounting_waypoints = random.randint(3, 5)
-
-        # Get the outer radius at Z = 0
-        outer_radius = self.inner_radius
-
-        # Calculate the angle between waypoints
-        angle_increment = 2 * np.pi / num_mounting_waypoints
-
-        mounting_nodes = []
-
-        for i in range(num_mounting_waypoints):
-            angle = i * angle_increment + np.pi  # Start from angle π (180 degrees)
-
-            # Calculate the (x, y) coordinates for this mounting node
-            x = outer_radius * np.cos(angle)
-            y = outer_radius * np.sin(angle)
-
-            # Find the nearest unoccupied node at Z = 0
-            nearest_node = min(
-                (node for node in self.nodes if node.z == 0 and not node.occupied and node not in mounting_nodes),
-                key=lambda node: np.sqrt((node.x - x) ** 2 + (node.y - y) ** 2)
-            )
-            nearest_node.mounting = True
-            nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
-
-            mounting_nodes.append(nearest_node)
-
-        print(f"Defined {len(mounting_nodes)} mounting waypoints: {mounting_nodes}")
-        return mounting_nodes
+        self.casing.get_mounting_waypoints(self.nodes, self.seed)
 
     def randomly_occupy_nodes(self, min_percentage=0, max_percentage=0):
         random.seed(self.seed)
