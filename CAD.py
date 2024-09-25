@@ -2,9 +2,9 @@
 
 import cadquery as cq
 import math
-import shapes.path_shapes
 
 from puzzle.puzzle import Puzzle
+from shapes.path_shapes import *
 from utils.config import (
     DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, RING_THICKNESS, 
     BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, 
@@ -144,18 +144,33 @@ if CAD_path:
 
     # Perform the cut operation
     path_body = path_body.cut(hollow_sphere)
+    path_body1 = path_body1.cut(hollow_sphere)
+    path_body2 = path_body2.cut(hollow_sphere)
 
     # Display the final path
     show_object(path_body, name="Path", options={"alpha": 0.0})
 
-    ########
-    # Ball #
-    ########
+    ######################
+    # Ball and ball path #
+    ######################
 
     # Place the ball at the second node position
     if len(CAD_path) > 1:
         ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
         show_object(ball, name="Ball", options={"color": (192, 192, 192)})
+        
+        # Create a circular profile on a rotated workplane
+        ball_path_profile = (
+            cq.Workplane("XY")
+            .transformed(offset=cq.Vector(CAD_path[1]), rotate=(0, 90, 270))
+            .circle(ball_diameter / 10)
+        )
+        
+        # Create the 3D path using a polyline starting from the same spot as the ball
+        path = cq.Workplane("XY").polyline(CAD_path[1:])
+        ball_path = ball_path_profile.sweep(path, transition='round')
+        
+        show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 
 ##################
 # Mounting Holes #
