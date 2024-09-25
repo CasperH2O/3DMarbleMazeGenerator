@@ -45,7 +45,6 @@ mounting_ring = mounting_ring.translate((0, 0, -0.5 * sphere_thickness))
 # Domes #
 #########
 
-
 # Calculate the intermediate point at 45 degrees (π/4 radians)
 angle_45 = math.radians(45)
 
@@ -147,9 +146,6 @@ if CAD_path:
     path_body1 = path_body1.cut(hollow_sphere)
     path_body2 = path_body2.cut(hollow_sphere)
 
-    # Display the final path
-    show_object(path_body, name="Path", options={"alpha": 0.0})
-
     ######################
     # Ball and ball path #
     ######################
@@ -157,7 +153,6 @@ if CAD_path:
     # Place the ball at the second node position
     if len(CAD_path) > 1:
         ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
-        show_object(ball, name="Ball", options={"color": (192, 192, 192)})
         
         # Create a circular profile on a rotated workplane
         ball_path_profile = (
@@ -168,9 +163,8 @@ if CAD_path:
         
         # Create the 3D path using a polyline starting from the same spot as the ball
         path = cq.Workplane("XY").polyline(CAD_path[1:])
-        ball_path = ball_path_profile.sweep(path, transition='round')
+        ball_path = ball_path_profile.sweep(path, transition='right')
         
-        show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 
 ##################
 # Mounting Holes #
@@ -193,8 +187,8 @@ holes = (
 
 # Cut the holes in applicable bodies
 mounting_ring = mounting_ring.cut(holes)
-# dome_top = dome_top.cut(holes)
-# dome_bottom = dome_bottom.cut(holes)
+dome_top = dome_top.cut(holes)
+dome_bottom = dome_bottom.cut(holes)
 
 ###########
 # Display #
@@ -208,5 +202,9 @@ show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1,
 show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 # Show the final path
+show_object(path_body, name="Path", options={"alpha": 0.0})
 show_object(path_body1, name="Path Edge 1", options={"alpha": 0.0})
 show_object(path_body2, name="Path Edge 2", options={"alpha": 0.0})
+
+show_object(ball, name="Ball", options={"color": (192, 192, 192)})
+#show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
