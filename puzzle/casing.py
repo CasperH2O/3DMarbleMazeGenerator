@@ -12,11 +12,6 @@ class Casing(ABC):
         pass
 
     @abstractmethod
-    def get_start_node(self, node_dict):
-        """Define the start node based on the casing."""
-        pass
-
-    @abstractmethod
     def get_mounting_waypoints(self, nodes, seed):
         pass
 
@@ -35,14 +30,6 @@ class SphereCasing(Casing):
     def contains_point(self, x, y, z) -> bool:
         distance = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         return distance <= self.inner_radius
-
-    def get_start_node(self, node_dict):
-        # Start node at minimum x on the x-axis where y=0 and z=0
-        min_x = min(x for x, y, z in node_dict.keys() if y == 0 and z == 0)
-        start_node = node_dict.get((min_x, 0, 0))
-        if start_node:
-            start_node.start = True
-        return start_node
 
     def get_mounting_waypoints(self, nodes, seed):
         random.seed(seed)

@@ -8,14 +8,12 @@ from puzzle.visualization import visualize_nodes_and_paths_plotly
 from utils.config import DIAMETER, SHELL_THICKNESS, NODE_SIZE, SEED, WIDTH, HEIGHT, LENGTH
 
 if __name__ == "__main__":
-    # Initialize the casing
+    # Initialize the casing, node creator and pathfinder
     casing = SphereCasing(diameter=DIAMETER, shell_thickness=SHELL_THICKNESS)
-    node_creator = SphereGridNodeCreator()
-
     #casing = BoxCasing(width=WIDTH, height=HEIGHT, length=LENGTH)
-    #node_creator = BoxGridNodeCreator()
 
-    # Initialize the node creator and pathfinder
+    node_creator = SphereGridNodeCreator()
+    #node_creator = BoxGridNodeCreator()
 
     pathfinder = AStarPathFinder()
 
@@ -31,6 +29,6 @@ if __name__ == "__main__":
     if puzzle.total_path:
         print(f"Total path length: {len(puzzle.total_path)}")
         # Visualize the nodes and the path
-        visualize_nodes_and_paths_plotly(puzzle.nodes, puzzle.total_path, puzzle.inner_radius)
+        visualize_nodes_and_paths_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing.inner_radius)
     else:
         print("No path could be constructed to connect all waypoints.")

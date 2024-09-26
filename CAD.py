@@ -3,6 +3,7 @@
 import cadquery as cq
 import math
 
+from puzzle.casing import *
 from puzzle.puzzle import Puzzle
 from shapes.path_shapes import *
 from utils.config import (
@@ -97,15 +98,15 @@ dome_top = dome_bottom.mirror(mirrorPlane="XY")
 ########
 
 # Initialize the node creator and pathfinder
+casing = SphereCasing(diameter=DIAMETER, shell_thickness=SHELL_THICKNESS)
 node_creator = SphereGridNodeCreator()
 pathfinder = AStarPathFinder()
 
-# Create a Puzzle instance with the specified node creator and pathfinder
+# Create the puzzle
 puzzle = Puzzle(
-    diameter=DIAMETER,
-    shell_thickness=SHELL_THICKNESS,
     node_size=NODE_SIZE,
     seed=SEED,
+    casing=casing,
     node_creator=node_creator,
     pathfinder=pathfinder
 )
@@ -176,7 +177,8 @@ if CAD_path:
         
         # Create the 3D path using a polyline starting from the same spot as the ball
         path = cq.Workplane("XY").polyline(CAD_path[1:])
-        ball_path = ball_path_profile.sweep(path, transition='right')
+        # bug with start extension
+        #ball_path = ball_path_profile.sweep(path, transition='right') 
         
 
 ##################

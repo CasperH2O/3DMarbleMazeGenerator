@@ -177,4 +177,4 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, inner_radius):
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="../../3d_nodes_and_paths.html")
+    pyo.plot(fig, filename="3d_nodes_and_paths.html")

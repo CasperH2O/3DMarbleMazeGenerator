@@ -41,7 +41,33 @@ class SphereGridNodeCreator(NodeCreator):
                         nodes.append(node)
 
         node_dict = {(node.x, node.y, node.z): node for node in nodes}
-        return nodes, node_dict
+
+        # Define the start node
+        # Find the minimum x among existing nodes on the X-axis (where y=0 and z=0)
+        x_axis_nodes = [node for node in nodes if node.y == 0 and node.z == 0]
+        if x_axis_nodes:
+            min_x = min(node.x for node in x_axis_nodes)
+        else:
+            min_x = 0  # If no nodes exist, start from 0
+
+        # Calculate positions for the two new nodes in the negative x direction
+        x1 = min_x - node_size
+        x2 = x1 - node_size
+
+        # Create two new nodes at positions (x1, 0, 0) and (x2, 0, 0)
+        node1 = Node(x1, 0, 0)
+        node2 = Node(x2, 0, 0)
+
+        # Add them to nodes and node_dict
+        nodes.extend([node1, node2])
+        node_dict[(node1.x, node1.y, node1.z)] = node1
+        node_dict[(node2.x, node2.y, node2.z)] = node2
+
+        # Since x2 < x1, node2 is furthest from (0, 0, 0)
+        node2.start = True  # Mark the furthest node as the start node
+        start_node = node2
+
+        return nodes, node_dict, start_node
 
     def get_neighbors(self, node, node_dict, node_size):
         neighbors = []
@@ -92,7 +118,17 @@ class BoxGridNodeCreator(NodeCreator):
                         nodes.append(node)
 
         node_dict = {(node.x, node.y, node.z): node for node in nodes}
-        return nodes, node_dict
+
+        # Define the start node
+        # For the box, the start node is at the minimum x, y, z
+        min_x = min(node.x for node in nodes)
+        min_y = min(node.y for node in nodes)
+        min_z = min(node.z for node in nodes)
+        start_node = node_dict.get((min_x, min_y, min_z))
+        if start_node:
+            start_node.start = True
+
+        return nodes, node_dict, start_node
 
     def get_neighbors(self, node, node_dict, node_size):
         neighbors = []
