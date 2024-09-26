@@ -21,6 +21,9 @@ class SphereGridNodeCreator(NodeCreator):
         node_size = puzzle.node_size
         casing = puzzle.casing
 
+        cube_half_diagonal = (node_size * np.sqrt(3)) / 2
+        effective_radius = casing.inner_radius - cube_half_diagonal
+
         # Calculate grid boundaries based on the casing dimensions
         dimension = casing.diameter - 2 * casing.shell_thickness
         num_cubes_along_axis = int(np.floor(dimension / node_size))
@@ -36,7 +39,8 @@ class SphereGridNodeCreator(NodeCreator):
         for x in x_values:
             for y in y_values:
                 for z in z_values:
-                    if casing.contains_point(x, y, z):
+                    distance = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+                    if distance <= effective_radius:
                         node = Node(x, y, z)
                         nodes.append(node)
 
