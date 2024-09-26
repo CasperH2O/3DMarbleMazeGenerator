@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 import heapq
 from .utils import manhattan_distance, euclidean_distance
-import random
 
 
 class PathFinder(ABC):

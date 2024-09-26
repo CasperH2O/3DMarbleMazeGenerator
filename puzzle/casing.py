@@ -104,7 +104,38 @@ class BoxCasing(Casing):
 
     def get_mounting_waypoints(self, nodes, seed):
         # Implement mounting waypoints logic for box casing
-        pass
+        random.seed(seed)
+
+        # For example, select nodes at the center of each face
+        face_centers = [
+            (0, 0, -self.half_length),  # Front face
+            (0, 0, self.half_length),  # Back face
+            (self.half_width, 0, 0),  # Right face
+            (-self.half_width, 0, 0),  # Left face
+            (0, self.half_height, 0),  # Top face
+            (0, -self.half_height, 0),  # Bottom face
+        ]
+
+        mounting_nodes = []
+
+        for x_face, y_face, z_face in face_centers:
+            # Find the nearest unoccupied node to the face center
+            candidates = [
+                node for node in nodes
+                if not node.occupied
+            ]
+
+            nearest_node = min(
+                candidates,
+                key=lambda node: np.sqrt((node.x - x_face) ** 2 + (node.y - y_face) ** 2 + (node.z - z_face) ** 2)
+            )
+            nearest_node.mounting = True
+            nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
+
+            mounting_nodes.append(nearest_node)
+
+        print(f"Defined {len(mounting_nodes)} mounting waypoints for Box: {mounting_nodes}")
+        return mounting_nodes
 
     def get_dimensions(self):
         return {'width': self.width, 'height': self.height, 'length': self.length}

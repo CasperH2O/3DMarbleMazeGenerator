@@ -1,25 +1,43 @@
 # puzzle/puzzle.py
 
-from .casing import Casing
-from .node_creator import NodeCreator
-from .pathfinder import PathFinder
 import random
-from .node import Node
 import numpy as np
+from utils import config  # Import config to access configuration variables
 
 
 class Puzzle:
-    def __init__(self, node_size, seed, casing: Casing, node_creator: NodeCreator, pathfinder: PathFinder):
+    def __init__(self, node_size, seed, case_shape):
         self.node_size = node_size
         self.seed = seed
-        self.casing = casing
+        self.case_shape = case_shape
 
-        # Initialize the node creator and generate nodes
-        self.node_creator = node_creator
-        self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(self)
+        # Initialize the casing, node_creator, and pathfinder based on case_shape
+        if case_shape == 'Sphere':
+            from .casing import SphereCasing
+            self.casing = SphereCasing(
+                diameter=config.DIAMETER,
+                shell_thickness=config.SHELL_THICKNESS
+            )
+            from .node_creator import SphereGridNodeCreator
+            self.node_creator = SphereGridNodeCreator()
+        elif case_shape == 'Box':
+            from .casing import BoxCasing
+            self.casing = BoxCasing(
+                width=config.WIDTH,
+                height=config.HEIGHT,
+                length=config.LENGTH
+            )
+            from .node_creator import BoxGridNodeCreator
+            self.node_creator = BoxGridNodeCreator()
+        else:
+            raise ValueError(f"Unknown case_shape '{case_shape}' specified.")
 
         # Initialize the pathfinder
-        self.pathfinder = pathfinder
+        from .pathfinder import AStarPathFinder
+        self.pathfinder = AStarPathFinder()
+
+        # Generate nodes using the node creator
+        self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(self)
 
         # Define mounting waypoints
         self.casing.get_mounting_waypoints(self.nodes, self.seed)
@@ -98,4 +116,3 @@ class Puzzle:
             unoccupied_nodes.remove(best_candidate)
 
         print(f"Selected {num_waypoints} waypoints using Mitchell's Best-Candidate Algorithm.")
-

@@ -13,3 +13,4 @@ SEED = 42  # Random seed
 WIDTH = 50
 HEIGHT = 50
 LENGTH = 100
+CASE_SHAPE = 'Box'  # Options: 'Sphere', 'Box'

@@ -91,28 +91,25 @@ class SphereGridNodeCreator(NodeCreator):
 class BoxGridNodeCreator(NodeCreator):
     def create_nodes(self, puzzle):
         nodes = []
+        node_dict = {}
         node_size = puzzle.node_size
         casing = puzzle.casing
 
-        # Calculate grid boundaries based on the casing dimensions
-        num_x = int(np.floor(casing.width / node_size))
-        num_y = int(np.floor(casing.height / node_size))
-        num_z = int(np.floor(casing.length / node_size))
+        # Define grid boundaries adjusted for node_size
+        half_width = casing.width / 2
+        half_height = casing.height / 2
+        half_length = casing.length / 2
 
-        if num_x % 2 == 0:
-            num_x += 1
-        if num_y % 2 == 0:
-            num_y += 1
-        if num_z % 2 == 0:
-            num_z += 1
+        start_x = -half_width + node_size / 2
+        end_x = half_width - node_size / 2
+        start_y = -half_height + node_size / 2
+        end_y = half_height - node_size / 2
+        start_z = -half_length + node_size / 2
+        end_z = half_length - node_size / 2
 
-        start_x = -(num_x // 2) * node_size
-        start_y = -(num_y // 2) * node_size
-        start_z = -(num_z // 2) * node_size
-
-        x_values = [start_x + i * node_size for i in range(num_x)]
-        y_values = [start_y + i * node_size for i in range(num_y)]
-        z_values = [start_z + i * node_size for i in range(num_z)]
+        x_values = np.arange(start_x, end_x + node_size * 0.1, node_size)
+        y_values = np.arange(start_y, end_y + node_size * 0.1, node_size)
+        z_values = np.arange(start_z, end_z + node_size * 0.1, node_size)
 
         for x in x_values:
             for y in y_values:
@@ -120,6 +117,7 @@ class BoxGridNodeCreator(NodeCreator):
                     if casing.contains_point(x, y, z):
                         node = Node(x, y, z)
                         nodes.append(node)
+                        node_dict[(x, y, z)] = node
 
         node_dict = {(node.x, node.y, node.z): node for node in nodes}
 
