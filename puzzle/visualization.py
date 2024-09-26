@@ -3,14 +3,14 @@
 from puzzle.casing import SphereCasing, BoxCasing
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import plotly.graph_objects as go
 import plotly.offline as pyo
 
 
 def visualize_nodes_and_paths(nodes, total_path, casing):
     """
-    Visualizes the nodes and the path in a 3D plot.
+    Visualizes the nodes and the path in a 3D plot using matplotlib.
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -52,56 +52,81 @@ def visualize_nodes_and_paths(nodes, total_path, casing):
         path_zs = [node.z for node in total_path]
         ax.plot(path_xs, path_ys, path_zs, color='black', linewidth=1)
 
-    # Plot the casing based on its type
+    # Plot casing based on its type
     if isinstance(casing, SphereCasing):
-        # Create a wireframe sphere
-        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-        x_sphere = casing.inner_radius * np.cos(u) * np.sin(v)
-        y_sphere = casing.inner_radius * np.sin(u) * np.sin(v)
-        z_sphere = casing.inner_radius * np.cos(v)
-        ax.plot_wireframe(x_sphere, y_sphere, z_sphere, color='cyan', linewidth=0.5, alpha=0.5)
+        # Plot circles in the XY, XZ, and YZ planes
+        theta = np.linspace(0, 2 * np.pi, 100)
+        r = casing.inner_radius
+
+        # Circle in XY plane (z = 0)
+        x_circle_xy = r * np.cos(theta)
+        y_circle_xy = r * np.sin(theta)
+        z_circle_xy = np.zeros_like(theta)
+        ax.plot(x_circle_xy, y_circle_xy, z_circle_xy, color='cyan')
+
+        # Circle in XZ plane (y = 0)
+        x_circle_xz = r * np.cos(theta)
+        y_circle_xz = np.zeros_like(theta)
+        z_circle_xz = r * np.sin(theta)
+        ax.plot(x_circle_xz, y_circle_xz, z_circle_xz, color='magenta')
+
+        # Circle in YZ plane (x = 0)
+        x_circle_yz = np.zeros_like(theta)
+        y_circle_yz = r * np.cos(theta)
+        z_circle_yz = r * np.sin(theta)
+        ax.plot(x_circle_yz, y_circle_yz, z_circle_yz, color='yellow')
+
     elif isinstance(casing, BoxCasing):
-        # Define the 8 corners of the box
+        # Plot the box edges (as before)
         hw = casing.half_width
         hh = casing.half_height
         hl = casing.half_length
 
+        # Define the 8 corners of the box
         corners = np.array([
             [-hw, -hh, -hl],
-            [ hw, -hh, -hl],
-            [ hw,  hh, -hl],
-            [-hw,  hh, -hl],
-            [-hw, -hh,  hl],
-            [ hw, -hh,  hl],
-            [ hw,  hh,  hl],
-            [-hw,  hh,  hl]
+            [hw, -hh, -hl],
+            [hw, hh, -hl],
+            [-hw, hh, -hl],
+            [-hw, -hh, hl],
+            [hw, -hh, hl],
+            [hw, hh, hl],
+            [-hw, hh, hl]
         ])
 
-        # Define the 6 faces of the box
-        faces = [
-            [corners[0], corners[1], corners[2], corners[3]],  # Bottom face
-            [corners[4], corners[5], corners[6], corners[7]],  # Top face
-            [corners[0], corners[1], corners[5], corners[4]],  # Front face
-            [corners[2], corners[3], corners[7], corners[6]],  # Back face
-            [corners[1], corners[2], corners[6], corners[5]],  # Right face
-            [corners[4], corners[7], corners[3], corners[0]],  # Left face
+        # Define the edges of the box
+        edges = [
+            [corners[0], corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], corners[3]],
+            [corners[3], corners[0]],
+            [corners[4], corners[5]],
+            [corners[5], corners[6]],
+            [corners[6], corners[7]],
+            [corners[7], corners[4]],
+            [corners[0], corners[4]],
+            [corners[1], corners[5]],
+            [corners[2], corners[6]],
+            [corners[3], corners[7]]
         ]
 
-        # Create a 3D polygon collection
-        box = Poly3DCollection(faces, linewidths=0.5, edgecolors='black', alpha=0.1)
-        box.set_facecolor('cyan')
-        ax.add_collection3d(box)
+        edge_collection = Line3DCollection(edges, colors='cyan', linewidths=1)
+        ax.add_collection3d(edge_collection)
 
     # Set axis labels and aspect ratio
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')
     ax.set_zlabel('Z axis')
-    ax.set_box_aspect([1,1,1])  # Equal aspect ratio
+    ax.set_box_aspect([1, 1, 1])  # Equal aspect ratio
 
     plt.show()
 
 
 def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
+    """
+    Visualizes the nodes and the path in a 3D plot using Plotly.
+    """
+
     # Create lists for nodes
     xs = [node.x for node in nodes]
     ys = [node.y for node in nodes]
@@ -164,26 +189,54 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
 
     # Plot casing based on its type
     if isinstance(casing, SphereCasing):
-        # Plot the inner sphere as a wireframe
-        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-        x_sphere = casing.inner_radius * np.cos(u) * np.sin(v)
-        y_sphere = casing.inner_radius * np.sin(u) * np.sin(v)
-        z_sphere = casing.inner_radius * np.cos(v)
+        # Plot circles in the XY, XZ, and YZ planes
+        theta = np.linspace(0, 2 * np.pi, 100)
+        r = casing.inner_radius
 
-        sphere_wireframe = go.Surface(
-            x=x_sphere,
-            y=y_sphere,
-            z=z_sphere,
-            opacity=0.1,
-            colorscale='Blues',
-            showscale=False,
-            name='Inner Sphere',
-            lighting=dict(ambient=0.5),
-            hoverinfo='skip'
+        # Circle in XY plane (z = 0)
+        x_circle_xy = r * np.cos(theta)
+        y_circle_xy = r * np.sin(theta)
+        z_circle_xy = np.zeros_like(theta)
+        circle_trace_xy = go.Scatter3d(
+            x=x_circle_xy,
+            y=y_circle_xy,
+            z=z_circle_xy,
+            mode='lines',
+            line=dict(color='cyan', width=2),
+            name='XY plane'
         )
-        casing_traces.append(sphere_wireframe)
+        casing_traces.append(circle_trace_xy)
+
+        # Circle in XZ plane (y = 0)
+        x_circle_xz = r * np.cos(theta)
+        y_circle_xz = np.zeros_like(theta)
+        z_circle_xz = r * np.sin(theta)
+        circle_trace_xz = go.Scatter3d(
+            x=x_circle_xz,
+            y=y_circle_xz,
+            z=z_circle_xz,
+            mode='lines',
+            line=dict(color='magenta', width=2),
+            name='XZ plane'
+        )
+        casing_traces.append(circle_trace_xz)
+
+        # Circle in YZ plane (x = 0)
+        x_circle_yz = np.zeros_like(theta)
+        y_circle_yz = r * np.cos(theta)
+        z_circle_yz = r * np.sin(theta)
+        circle_trace_yz = go.Scatter3d(
+            x=x_circle_yz,
+            y=y_circle_yz,
+            z=z_circle_yz,
+            mode='lines',
+            line=dict(color='yellow', width=2),
+            name='YZ plane'
+        )
+        casing_traces.append(circle_trace_yz)
+
     elif isinstance(casing, BoxCasing):
-        # Plot the box edges
+        # Plot the box edges (as before)
         hw = casing.half_width
         hh = casing.half_height
         hl = casing.half_length
@@ -191,20 +244,20 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
         # Define the 8 corners of the box
         corners = np.array([
             [-hw, -hh, -hl],
-            [ hw, -hh, -hl],
-            [ hw,  hh, -hl],
-            [-hw,  hh, -hl],
-            [-hw, -hh,  hl],
-            [ hw, -hh,  hl],
-            [ hw,  hh,  hl],
-            [-hw,  hh,  hl]
+            [hw, -hh, -hl],
+            [hw, hh, -hl],
+            [-hw, hh, -hl],
+            [-hw, -hh, hl],
+            [hw, -hh, hl],
+            [hw, hh, hl],
+            [-hw, hh, hl]
         ])
 
         # Define the edges as pairs of indices into the corners array
         edges = [
-            (0, 1), (1,2), (2,3), (3,0),  # Bottom face
-            (4,5), (5,6), (6,7), (7,4),  # Top face
-            (0,4), (1,5), (2,6), (3,7)   # Vertical edges
+            (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face
+            (4, 5), (5, 6), (6, 7), (7, 4),  # Top face
+            (0, 4), (1, 5), (2, 6), (3, 7)  # Vertical edges
         ]
 
         # Create lists for edge coordinates
@@ -226,7 +279,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             y=y_lines,
             z=z_lines,
             mode='lines',
-            line=dict(color='black', width=1),
+            line=dict(color='cyan', width=1),
             name='Box'
         )
         casing_traces.append(box_trace)

@@ -1,7 +1,7 @@
 # generate.py
 
 from puzzle.puzzle import Puzzle
-from puzzle.visualization import visualize_nodes_and_paths_plotly
+from puzzle.visualization import *
 from utils.config import (
     NODE_SIZE, SEED, CASE_SHAPE
 )

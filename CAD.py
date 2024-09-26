@@ -9,7 +9,7 @@ from shapes.path_shapes import *
 from utils.config import (
     DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, RING_THICKNESS, 
     BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, 
-    SEED
+    SEED, CASE_SHAPE
 )
 from puzzle.node_creator import SphereGridNodeCreator
 from puzzle.pathfinder import AStarPathFinder
@@ -106,9 +106,7 @@ pathfinder = AStarPathFinder()
 puzzle = Puzzle(
     node_size=NODE_SIZE,
     seed=SEED,
-    casing=casing,
-    node_creator=node_creator,
-    pathfinder=pathfinder
+    case_shape=CASE_SHAPE
 )
 
 if puzzle.total_path:
@@ -177,8 +175,7 @@ if CAD_path:
         
         # Create the 3D path using a polyline starting from the same spot as the ball
         path = cq.Workplane("XY").polyline(CAD_path[1:])
-        # bug with start extension
-        #ball_path = ball_path_profile.sweep(path, transition='right') 
+        ball_path = ball_path_profile.sweep(path, transition='right') 
         
 
 ##################
