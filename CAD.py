@@ -2,6 +2,7 @@
 
 import cadquery as cq
 import math
+import os
 
 from puzzle.casing import *
 from puzzle.puzzle import Puzzle
@@ -68,7 +69,7 @@ x_mid_outer = sphere_outer_radius * math.cos(theta_mid_outer)
 y_mid_outer = sphere_outer_radius * math.sin(theta_mid_outer)
 
 # Create the profile on the XZ plane
-profile = (
+dome_profile = (
     cq.Workplane("XZ")
     # Start at the outer circle top
     .moveTo(0, sphere_outer_radius)  # Point A
@@ -81,102 +82,17 @@ profile = (
     .close()
 )
 
-# Display the profile
-# show_object(profile, name="Profile", options={"alpha": 0.5, "color": (1, 0, 0)})
+# Display the dome profile
+# show_object(dome_profile, name="Dome Profile", options={"alpha": 0.5, "color": (1, 0, 0)})
 
-# Revolve the profile
-dome_bottom = profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
+# Revolve the dome profile
+dome_bottom = dome_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
 # Move to make place for mounting ring
 dome_bottom = dome_bottom.translate((0, 0, 0.5 * ring_thickness + 0.01))
 
 # Mirror the dome for the other side
 dome_top = dome_bottom.mirror(mirrorPlane="XY")
-
-########
-# Path #
-########
-
-# Initialize the node creator and pathfinder
-casing = SphereCasing(diameter=DIAMETER, shell_thickness=SHELL_THICKNESS)
-node_creator = SphereGridNodeCreator()
-pathfinder = AStarPathFinder()
-
-# Create the puzzle
-puzzle = Puzzle(
-    node_size=NODE_SIZE,
-    seed=SEED,
-    case_shape=CASE_SHAPE
-)
-
-if puzzle.total_path:
-    print(f"Total path length: {len(puzzle.total_path)}")
-    # Get the CAD path from the puzzle's total_path
-    CAD_path = [(node.x, node.y, node.z) for node in puzzle.total_path]
-else:
-    print("No path could be constructed to connect all waypoints.")
-    CAD_path = []
-
-if CAD_path:
-    # Define the path shape
-    u_shape_parameters = {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 2.0,
-        'lower_distance': 2.0
-    }
-    u_shape = create_u_shape_adjusted_height(CAD_path[0], **u_shape_parameters)
-    u_shape_adjusted_height_rectangle_1 = create_u_shape_adjusted_height_edge_1(CAD_path[0], **u_shape_parameters)
-    u_shape_adjusted_height_rectangle_2 = create_u_shape_adjusted_height_edge_2(CAD_path[0], **u_shape_parameters)
-
-    # Create the 3D path using a polyline
-    path = cq.Workplane("XY").polyline(CAD_path)
-    path1 = cq.Workplane("XY").polyline(CAD_path)
-    path2 = cq.Workplane("XY").polyline(CAD_path)
-
-
-    # Sweep the U-shape along the 3D path
-    path_body = u_shape.sweep(path, transition='right')
-    path_body1 = u_shape_adjusted_height_rectangle_1.sweep(path1, transition='right') #right, round
-    path_body2 = u_shape_adjusted_height_rectangle_2.sweep(path2, transition='right') #right, round
-
-    # Prepare for cutting around path body, makes start flush with sphere edge
-    # Create the cross-sectional profile of the hollow sphere
-    hollow_sphere_profile = (
-        cq.Workplane("XZ")
-        .moveTo(0, sphere_flange_radius)
-        .threePointArc((-sphere_flange_radius, 0), (0, -sphere_flange_radius))
-        .lineTo(0, -sphere_inner_radius)
-        .threePointArc((-sphere_inner_radius, 0), (0, sphere_inner_radius))
-        .close()
-    )
-
-    # Revolve the profile to create the hollow sphere solid
-    hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
-
-    # Perform the cut operation
-    path_body = path_body.cut(hollow_sphere)
-    path_body1 = path_body1.cut(hollow_sphere)
-    path_body2 = path_body2.cut(hollow_sphere)
-
-    ######################
-    # Ball and ball path #
-    ######################
-
-    # Place the ball at the second node position
-    if len(CAD_path) > 1:
-        ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
-        
-        # Create a circular profile on a rotated workplane
-        ball_path_profile = (
-            cq.Workplane("XY")
-            .transformed(offset=cq.Vector(CAD_path[1]), rotate=(0, 90, 270))
-            .circle(ball_diameter / 10)
-        )
-        
-        # Create the 3D path using a polyline starting from the same spot as the ball
-        path = cq.Workplane("XY").polyline(CAD_path[1:])
-        ball_path = ball_path_profile.sweep(path, transition='right') 
-        
 
 ##################
 # Mounting Holes #
@@ -202,6 +118,77 @@ mounting_ring = mounting_ring.cut(holes)
 dome_top = dome_top.cut(holes)
 dome_bottom = dome_bottom.cut(holes)
 
+########
+# Path #
+########
+
+# Create the puzzle
+puzzle = Puzzle(
+    node_size=NODE_SIZE,
+    seed=SEED,
+    case_shape=CASE_SHAPE
+)
+
+CAD_path = [(node.x, node.y, node.z) for node in puzzle.total_path]
+
+# Define the path shape
+u_shape_parameters = {
+    'height_width': 10.0 - 0.0001,
+    'wall_thickness': 2.0,
+    'lower_distance': 2.0
+}
+u_shape = create_u_shape_adjusted_height(CAD_path[0], **u_shape_parameters)
+u_shape_adjusted_height_rectangle_1 = create_u_shape_adjusted_height_edge_1(CAD_path[0], **u_shape_parameters)
+u_shape_adjusted_height_rectangle_2 = create_u_shape_adjusted_height_edge_2(CAD_path[0], **u_shape_parameters)
+
+# Create the 3D path using a polyline
+path = cq.Workplane("XY").polyline(CAD_path)
+path1 = cq.Workplane("XY").polyline(CAD_path)
+path2 = cq.Workplane("XY").polyline(CAD_path)
+
+
+# Sweep the U-shape along the 3D path
+path_body = u_shape.sweep(path, transition='right')
+path_body1 = u_shape_adjusted_height_rectangle_1.sweep(path1, transition='right') #right, round
+path_body2 = u_shape_adjusted_height_rectangle_2.sweep(path2, transition='right') #right, round
+
+# Prepare for cutting around path body, makes start flush with sphere edge
+# Create the cross-sectional profile of the hollow sphere
+hollow_sphere_profile = (
+    cq.Workplane("XZ")
+    .moveTo(0, sphere_flange_radius)
+    .threePointArc((-sphere_flange_radius, 0), (0, -sphere_flange_radius))
+    .lineTo(0, -sphere_inner_radius)
+    .threePointArc((-sphere_inner_radius, 0), (0, sphere_inner_radius))
+    .close()
+)
+
+# Revolve the profile to create the hollow sphere solid
+hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
+
+# Perform the cut operation to make start flush with sphere on the inside
+path_body = path_body.cut(hollow_sphere)
+path_body1 = path_body1.cut(hollow_sphere)
+path_body2 = path_body2.cut(hollow_sphere)
+
+######################
+# Ball and ball path #
+######################
+
+# Place the ball at the second node position
+ball = cq.Workplane("XY").sphere(ball_diameter / 2).translate(CAD_path[1])
+
+# Create a circular profile on a rotated workplane
+ball_path_profile = (
+    cq.Workplane("XY")
+    .transformed(offset=cq.Vector(CAD_path[1]), rotate=(0, 90, 270))
+    .circle(ball_diameter / 10)
+)
+
+# Create the 3D path using a polyline starting from the same spot as the ball
+path = cq.Workplane("XY").polyline(CAD_path[1:])
+ball_path = ball_path_profile.sweep(path, transition='right') 
+
 ###########
 # Display #
 ###########
@@ -220,3 +207,33 @@ show_object(path_body2, name="Path Edge 2", options={"alpha": 0.0})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 #show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
+
+###############
+# Export Step #
+###############
+
+# Chosen step over stl format for improved scaling units and curved line accuracy
+
+# Construct folder name and path
+folder_name = f"Case-{CASE_SHAPE}-Seed-{SEED}"
+path = os.path.join("..", "CAD", "STEP", folder_name)
+
+# Check if path exists, if not create the folder
+if not os.path.exists(path):
+    os.makedirs(path)
+
+# Define objects we want to export
+objects_to_export = {
+    "Mounting Ring": mounting_ring,
+    "Dome Top": dome_top,
+    "Dome Bottom": dome_bottom,
+    "Path": path_body,
+    "Path Edge 1": path_body1,
+    "Path Edge 2": path_body2,
+    "Ball": ball,
+}
+
+# Export each object
+for name, obj in objects_to_export.items():
+    file_path = os.path.join(path, f"{name}.step")
+    obj.val().exportStep(file_path)

@@ -2,9 +2,7 @@
 
 from puzzle.puzzle import Puzzle
 from puzzle.visualization import *
-from utils.config import (
-    NODE_SIZE, SEED, CASE_SHAPE
-)
+from utils.config import (NODE_SIZE, SEED, CASE_SHAPE)
 
 if __name__ == "__main__":
     # Create the puzzle
