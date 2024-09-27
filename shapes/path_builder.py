@@ -35,7 +35,7 @@ class PathBuilder:
         """
         path_type = 'u_shape'  # Start with 'u_shape'
         path_type_counter = 0  # Counter for nodes since last path_type change
-        path_type_change_interval = 5  # Change path_type every 5 nodes
+        path_type_change_interval = 10  # Change path_type every 5 nodes
         possible_path_types = self.path_types.copy()
 
         # First 3 nodes are 'u_shape'
@@ -61,7 +61,7 @@ class PathBuilder:
 
             if path_type_counter >= path_type_change_interval:
                 # Check if the next 5 nodes contain a waypoint
-                contains_waypoint = any(n.waypoint for n in nodes[i:i + 5])
+                contains_waypoint = any(n.waypoint for n in nodes[i:i + 2])
                 if not contains_waypoint:
                     # Change path_type
                     path_type_counter = 0

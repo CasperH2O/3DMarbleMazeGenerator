@@ -12,20 +12,22 @@ def create_u_shape(workplane=None, height_width=9.9999, wall_thickness=2.0):
     else:
         wp = workplane
 
+    half_width = height_width / 2
+    inner_half_width = half_width - wall_thickness
+
     u_shape = (
         wp
-        .moveTo(-height_width / 2, height_width / 2)  # Top left of U-shape
-        .lineTo(height_width / 2, height_width / 2)   # Top horizontal line
-        .lineTo(height_width / 2, -height_width / 2)  # Right vertical line
-        .lineTo(height_width / 2 - wall_thickness, -height_width / 2)
-        .lineTo(height_width / 2 - wall_thickness, height_width / 2 - wall_thickness)
-        .lineTo(-height_width / 2 + wall_thickness, height_width / 2 - wall_thickness)
-        .lineTo(-height_width / 2 + wall_thickness, -height_width / 2)
-        .lineTo(-height_width / 2, -height_width / 2)
+        .moveTo(-half_width, -half_width)  # Bottom left corner of U
+        .lineTo(-half_width, half_width)   # Up to top left corner
+        .lineTo(half_width, half_width)    # Right to top right corner
+        .lineTo(half_width, -half_width)   # Down to bottom right corner
+        .lineTo(inner_half_width, -half_width)  # Left along bottom inner edge
+        .lineTo(inner_half_width, inner_half_width)  # Up to inner top right
+        .lineTo(-inner_half_width, inner_half_width)  # Left to inner top left
+        .lineTo(-inner_half_width, -half_width)  # Down to inner bottom left
         .close()
     )
     return u_shape
-
 
 def create_tube_shape(workplane=None, outer_diameter=9.9999, wall_thickness=2.0):
     """
