@@ -202,8 +202,8 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             y=y_circle_xy,
             z=z_circle_xy,
             mode='lines',
-            line=dict(color='cyan', width=2),
-            name='XY plane'
+            line=dict(color='gray', width=2),
+            showlegend=False
         )
         casing_traces.append(circle_trace_xy)
 
@@ -216,8 +216,8 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             y=y_circle_xz,
             z=z_circle_xz,
             mode='lines',
-            line=dict(color='magenta', width=2),
-            name='XZ plane'
+            line=dict(color='gray', width=2),
+            showlegend=False
         )
         casing_traces.append(circle_trace_xz)
 
@@ -230,8 +230,8 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             y=y_circle_yz,
             z=z_circle_yz,
             mode='lines',
-            line=dict(color='yellow', width=2),
-            name='YZ plane'
+            line=dict(color='gray', width=2),
+            showlegend=False
         )
         casing_traces.append(circle_trace_yz)
 
