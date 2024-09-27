@@ -145,18 +145,18 @@ segments = path_builder.group_nodes_by_path_type(CAD_nodes)
 path_builder.prepare_profiles_and_paths(segments)
 
 # For debugging: show all profiles before the sweep
-for idx, profile in enumerate(path_builder.profiles):
-    show_object(profile, name=f"Profile_{idx}")
+#for idx, profile in enumerate(path_builder.profiles):
+    #show_object(profile, name=f"Profile_{idx}")
 
 # For debugging: specify the indices of profiles and paths to process
-indices_to_sweep = [0]  # Change this list to the indices you want to process
+indices_to_sweep = list(range(len(path_builder.profiles)))  # Change this list to the indices you want to process
 
 # Optionally, display the selected profiles and paths
 for idx in indices_to_sweep:
     profile = path_builder.profiles[idx]
     path = path_builder.paths[idx]
-    show_object(profile, name=f"Profile_{idx}")
-    show_object(path, name=f"Path_{idx}")
+    show_object(profile, name=f"Profile_{idx}", options={"color": (192, 192, 20)})
+    show_object(path, name=f"Path_{idx}", options={"color": (20, 192, 192)})
 
 # Now sweep the selected profiles along the paths
 path_bodies = path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
@@ -230,9 +230,9 @@ show_object(dome_top, name="Dome Bottom", options={"alpha": 0.9, "color": (1, 1,
 show_object(dome_bottom, name="Dome Top", options={"alpha": 0.9, "color": (1, 1, 1)})
 
 # Show the final path
-show_object(path_body, name="Path", options={"alpha": 0.0})
+#show_object(path_body, name="Path", options={"alpha": 0.0})
 
-show_object(ball, name="Ball", options={"color": (192, 192, 192)})
+#show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 
 ###############

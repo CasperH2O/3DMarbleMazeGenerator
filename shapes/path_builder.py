@@ -100,37 +100,53 @@ class PathBuilder:
 
     def prepare_profiles_and_paths(self, segments):
         """
-        Creates profiles and paths for each segment and stores them.
+        Creates profiles and paths for each segment and stores them along with the path_type.
         """
+        self.segments_data = []  # List to store profiles, paths, and path_types
         previous_end_point = None  # To store the end point of the previous segment
 
         for idx, (path_type, segment_nodes) in enumerate(segments):
-            # Get the subpath
-            subpath_points = [(node.x, node.y, node.z) for node in segment_nodes]
-            # Create the path
-            path = cq.Workplane("XY").polyline(subpath_points)
-            self.paths.append(path)
+            # Get the subpath points (positions of nodes in the segment)
+            subpath_points = [cq.Vector(node.x, node.y, node.z) for node in segment_nodes]
 
-            # Get the start point of the segment
-            start_point = cq.Vector(subpath_points[0])
-
-            # Compute the direction vector based on the path entering the node
+            # Compute the entering direction vector for the start point
             if previous_end_point is not None:
-                # Use the vector from the previous end point to the start point
-                direction_vector = (start_point - previous_end_point).normalized()
+                # Use the vector from previous end point to current start point
+                entering_direction = (subpath_points[0] - previous_end_point).normalized()
             elif len(subpath_points) >= 2:
-                # For the first segment, use the vector from next point to start point
-                next_point = cq.Vector(subpath_points[1])
-                direction_vector = (start_point - next_point).normalized()
+                # For the first segment, use the vector from first to second point
+                entering_direction = (subpath_points[1] - subpath_points[0]).normalized()
             else:
-                # Default direction if only one point and no previous segment
-                direction_vector = cq.Vector(1, 0, 0)
+                # Default entering direction
+                entering_direction = cq.Vector(1, 0, 0)
 
-            # Adjust the origin to the edge of the node along the entering path
-            adjusted_origin = start_point - (direction_vector * (self.node_size / 2))
+            # Adjust the start point back along the entering direction by half the node size
+            adjusted_start_point = subpath_points[0] - entering_direction * (self.node_size / 2)
 
-            # Create a plane at the adjusted origin, with normal vector along the direction vector
-            plane = self.create_plane_at_point(adjusted_origin, direction_vector)
+            # Compute the exiting direction vector for the end point
+            if idx + 1 < len(segments):
+                # Next segment exists, use it to compute the exiting direction
+                next_segment_nodes = segments[idx + 1][1]
+                next_start_point = cq.Vector(next_segment_nodes[0].x, next_segment_nodes[0].y, next_segment_nodes[0].z)
+                exiting_direction = (next_start_point - subpath_points[-1]).normalized()
+            elif len(subpath_points) >= 2:
+                # Use the vector from second last to last point
+                exiting_direction = (subpath_points[-1] - subpath_points[-2]).normalized()
+            else:
+                # Default exiting direction
+                exiting_direction = entering_direction
+
+            # Adjust the end point forward along the exiting direction by half the node size
+            adjusted_end_point = subpath_points[-1] + exiting_direction * (self.node_size / 2)
+
+            # Build the adjusted subpath points
+            adjusted_subpath_points = [adjusted_start_point] + subpath_points + [adjusted_end_point]
+
+            # Create the path with adjusted points
+            path = cq.Workplane("XY").polyline([p.toTuple() for p in adjusted_subpath_points])
+
+            # Create a plane at the adjusted start point with normal along the entering direction
+            plane = self.create_plane_at_point(adjusted_start_point, entering_direction)
 
             # Now create the Workplane on this plane
             wp = cq.Workplane(plane)
@@ -141,37 +157,47 @@ class PathBuilder:
             profile_function = self.profile_functions.get(path_type, create_u_shape)
             profile = profile_function(workplane=wp, **parameters)
 
-            # Store the profile for debugging
-            self.profiles.append(profile)
+            # Store the profile, path, and path_type together
+            segment_data = {
+                'profile': profile,
+                'path': path,
+                'path_type': path_type
+            }
+            self.segments_data.append(segment_data)
 
-            # Update previous_end_point to the last point of the current segment
-            previous_end_point = cq.Vector(subpath_points[-1])
+            # Update previous_end_point to the adjusted end point of the current segment
+            previous_end_point = adjusted_end_point
 
     def sweep_profiles_along_paths(self, indices=None):
         """
         Sweeps the stored profiles along their corresponding paths.
 
         Parameters:
-        indices (list of int, optional): The indices of the profiles and paths to sweep.
-                                         If None, all profiles and paths are processed.
+        indices (list of int, optional): The indices of the segments to sweep.
+                                         If None, all segments are processed.
         """
         path_bodies = []
-        # If indices are provided, use them to select profiles and paths
+        # If indices are provided, use them to select segments
         if indices is not None:
-            selected_profiles = [self.profiles[i] for i in indices]
-            selected_paths = [self.paths[i] for i in indices]
+            selected_segments = [self.segments_data[i] for i in indices]
         else:
-            selected_profiles = self.profiles
-            selected_paths = self.paths
+            selected_segments = self.segments_data
 
-        for idx, (profile, path) in enumerate(zip(selected_profiles, selected_paths)):
+        for idx, segment in enumerate(selected_segments):
+            profile = segment['profile']
+            path = segment['path']
+            path_type = segment['path_type']
             try:
-                # Sweep the profile along the path
-                path_body = profile.sweep(path, transition='right')
+                # Adjust the sweep parameters based on path_type
+                if path_type == 'tube_shape':
+                    path_body = profile.sweep(path, transition='round')
+                else:
+                    path_body = profile.sweep(path, transition='right')
                 # Collect the body
                 path_bodies.append(path_body)
             except Exception as e:
-                print(f"Error sweeping profile at index {indices[idx] if indices else idx}: {e}")
+                actual_idx = indices[idx] if indices else idx
+                print(f"Error sweeping segment at index {actual_idx}: {e}")
         return path_bodies
 
     def build_final_path_body(self, path_bodies):
