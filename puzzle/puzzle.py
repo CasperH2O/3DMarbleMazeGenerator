@@ -33,7 +33,7 @@ class Puzzle:
             raise ValueError(f"Unknown case_shape '{case_shape}' specified.")
 
         # Initialize the pathfinder
-        from .pathfinder import AStarPathFinder
+        from .path_finder import AStarPathFinder
         self.pathfinder = AStarPathFinder()
 
         # Generate nodes using the node creator
@@ -46,7 +46,7 @@ class Puzzle:
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
         # Randomly select waypoints
-        self.randomly_select_waypoints(num_waypoints=5)
+        self.randomly_select_waypoints(num_waypoints=1)
 
         # Connect the waypoints using the pathfinder
         self.total_path = self.pathfinder.connect_waypoints(self)

@@ -1,4 +1,4 @@
-# puzzle/pathfinder.py
+# puzzle/path_finder.py
 
 from abc import ABC, abstractmethod
 import heapq
@@ -110,9 +110,6 @@ class AStarPathFinder(PathFinder):
             end_node = total_path[-1]
             end_node.end = True
             print(f"End node set at: {end_node}")
-
-        # Print the path
-        print("CAD_path = ", [(node.x, node.y, node.z) for node in total_path])
 
         return total_path
 
