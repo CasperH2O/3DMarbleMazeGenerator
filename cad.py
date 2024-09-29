@@ -149,7 +149,7 @@ ball_path_points = node_positions[1:]  # Exclude the first node if needed
 path = cq.Workplane("XY").polyline(ball_path_points)
 
 # Sweep the profile along the path
-#ball_path = ball_path_profile.sweep(path, transition='right')
+ball_path = ball_path_profile.sweep(path, transition='right')
 
 ###########
 # Display #
@@ -159,7 +159,7 @@ path = cq.Workplane("XY").polyline(ball_path_points)
 show_object(path_body, name="Path", options={"alpha": 0.0})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
-#show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
+show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 
 ###############
 # Export Step #
