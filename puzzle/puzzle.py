@@ -12,7 +12,7 @@ class Puzzle:
         self.case_shape = case_shape
 
         # Initialize the casing, node_creator, and pathfinder based on case_shape
-        if case_shape == 'Sphere':
+        if case_shape == 'Sphere' or case_shape == 'Sphere with flange':
             from .casing import SphereCasing
             self.casing = SphereCasing(
                 diameter=config.SPHERE_DIAMETER,
@@ -25,7 +25,8 @@ class Puzzle:
             self.casing = BoxCasing(
                 width=config.WIDTH,
                 height=config.HEIGHT,
-                length=config.LENGTH
+                length=config.LENGTH,
+                panel_thickness=config.PANEL_THICKNESS,
             )
             from .node_creator import BoxGridNodeCreator
             self.node_creator = BoxGridNodeCreator()

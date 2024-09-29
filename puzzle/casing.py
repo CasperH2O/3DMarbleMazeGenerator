@@ -79,13 +79,14 @@ class SphereCasing(Casing):
 
 
 class BoxCasing(Casing):
-    def __init__(self, width, height, length):
+    def __init__(self, width, height, length, panel_thickness):
         self.width = width
         self.height = height
         self.length = length
         self.half_width = width / 2
         self.half_height = height / 2
         self.half_length = length / 2
+        self.panel_thickness = panel_thickness
 
     def contains_point(self, x, y, z) -> bool:
         return (-self.half_width <= x <= self.half_width and

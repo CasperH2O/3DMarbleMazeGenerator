@@ -1,7 +1,7 @@
 # utils/config.py
 
 # Puzzle configuration
-CASE_SHAPE = 'Sphere'  # Options: 'Sphere', 'Box'
+CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'Box'
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
@@ -19,7 +19,7 @@ MOUNTING_HOLE_AMOUNT = 5  # Number of mounting holes
 WIDTH = 100
 HEIGHT = 100
 LENGTH = 150
-PANEL_THICKNESS = 3  # Todo, unused
+PANEL_THICKNESS = 3
 
 # Path types and their parameters
 PATH_TYPES = ['u_shape',

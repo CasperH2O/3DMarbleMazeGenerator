@@ -95,10 +95,10 @@ class BoxGridNodeCreator(NodeCreator):
         node_size = puzzle.node_size
         casing = puzzle.casing
 
-        # Define grid boundaries adjusted for node_size
-        half_width = casing.width / 2
-        half_height = casing.height / 2
-        half_length = casing.length / 2
+        # Define grid boundaries adjusted for node_size and casing
+        half_width = casing.width / 2 - 2 * casing.panel_thickness
+        half_height = casing.height / 2 - 2 * casing.panel_thickness
+        half_length = casing.length / 2 - 2 * casing.panel_thickness
 
         start_x = -half_width + node_size / 2
         end_x = half_width - node_size / 2
