@@ -22,10 +22,18 @@ LENGTH = 150
 PANEL_THICKNESS = 3  # Todo, unused
 
 # Path types and their parameters
-PATH_TYPES = ['u_shape', 'tube_shape', 'u_shape_adjusted_height', 'v_shape']
+PATH_TYPES = ['u_shape',
+              # 'l_shape',
+              'tube_shape',
+              # 'u_shape_adjusted_height',
+              'v_shape']
 
 PATH_TYPE_PARAMETERS = {
     'u_shape': {
+        'height_width': 10.0 - 0.0001,
+        'wall_thickness': 1.2,
+    },
+    'l_shape': {
         'height_width': 10.0 - 0.0001,
         'wall_thickness': 1.2,
     },

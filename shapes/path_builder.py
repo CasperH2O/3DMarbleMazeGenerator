@@ -3,12 +3,7 @@
 import random
 import cadquery as cq
 from utils.config import PATH_TYPES, PATH_TYPE_PARAMETERS, SEED, NODE_SIZE
-from shapes.path_shapes import (
-    create_u_shape,
-    create_tube_shape,
-    create_u_shape_adjusted_height,
-    create_v_shape,
-)
+from shapes.path_shapes import *
 
 
 class PathBuilder:
@@ -23,6 +18,7 @@ class PathBuilder:
         self.path_type_parameters = PATH_TYPE_PARAMETERS
         self.profile_functions = {
             'u_shape': create_u_shape,
+            'l_shape': create_l_shape,
             'tube_shape': create_tube_shape,
             'u_shape_adjusted_height': create_u_shape_adjusted_height,
             'v_shape': create_v_shape

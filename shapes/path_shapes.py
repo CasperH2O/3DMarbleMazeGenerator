@@ -31,6 +31,31 @@ def create_u_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
     return u_shape
 
 
+def create_l_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
+    """
+    Creates an L-shaped cross-section centered at the origin or on the given work plane.
+    """
+    if work_plane is None:
+        wp = cq.Workplane("XY")
+    else:
+        wp = work_plane
+
+    half_width = height_width / 2
+    inner_half_width = half_width - wall_thickness
+
+    u_shape = (
+        wp
+        .moveTo(-half_width, half_width)  # 1
+        .lineTo(-inner_half_width, half_width)  # 2
+        .lineTo(-inner_half_width, -inner_half_width)  # 3
+        .lineTo(half_width, -inner_half_width)  # 4
+        .lineTo(half_width, -half_width)  # 5
+        .lineTo(-half_width, -half_width)  # 6
+        .close()
+    )
+    return u_shape
+
+
 def create_tube_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0):
     """
     Creates a tube-shaped cross-section centered at the origin or on the given work plane.
