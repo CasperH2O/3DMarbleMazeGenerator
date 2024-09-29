@@ -9,15 +9,15 @@ from puzzle.puzzle import Puzzle
 from shapes.path_shapes import *
 from shapes.path_builder import PathBuilder
 from utils.config import (
-    DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, RING_THICKNESS, 
-    BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE, 
+    SPHERE_DIAMETER, SPHERE_FLANGE_DIAMETER, SHELL_THICKNESS, RING_THICKNESS,
+    BALL_DIAMETER, MOUNTING_HOLE_DIAMETER, MOUNTING_HOLE_AMOUNT, NODE_SIZE,
     SEED, CASE_SHAPE, PATH_TYPES
 )
 from puzzle.node_creator import SphereGridNodeCreator
 from puzzle.path_finder import AStarPathFinder
 
 # Define the parameters for the puzzle
-sphere_outer_diameter = DIAMETER
+sphere_outer_diameter = SPHERE_DIAMETER
 sphere_flange_diameter = SPHERE_FLANGE_DIAMETER
 sphere_thickness = SHELL_THICKNESS
 ring_thickness = RING_THICKNESS

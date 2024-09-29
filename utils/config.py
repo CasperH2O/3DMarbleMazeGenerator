@@ -8,7 +8,7 @@ SEED = 42  # Random seed
 NUMBER_OF_WAYPOINTS = 1
 
 # Sphere case
-DIAMETER = 100  # Diameter of the sphere in mm
+SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
 SPHERE_FLANGE_DIAMETER = 120  # Flange diameter
 SHELL_THICKNESS = 2  # Thickness of the sphere shell in mm
 RING_THICKNESS = 3  # Thickness of the mounting ring

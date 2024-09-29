@@ -15,7 +15,7 @@ class Puzzle:
         if case_shape == 'Sphere':
             from .casing import SphereCasing
             self.casing = SphereCasing(
-                diameter=config.DIAMETER,
+                diameter=config.SPHERE_DIAMETER,
                 shell_thickness=config.SHELL_THICKNESS
             )
             from .node_creator import SphereGridNodeCreator
