@@ -6,7 +6,8 @@ from utils.config import PATH_TYPES, PATH_TYPE_PARAMETERS, SEED, NODE_SIZE
 from shapes.path_shapes import (
     create_u_shape,
     create_tube_shape,
-    create_u_shape_adjusted_height
+    create_u_shape_adjusted_height,
+    create_v_shape,
 )
 
 
@@ -23,7 +24,8 @@ class PathBuilder:
         self.profile_functions = {
             'u_shape': create_u_shape,
             'tube_shape': create_tube_shape,
-            'u_shape_adjusted_height': create_u_shape_adjusted_height
+            'u_shape_adjusted_height': create_u_shape_adjusted_height,
+            'v_shape': create_v_shape
         }
         self.profiles = []  # Store profiles for debugging
         self.paths = []     # Store paths corresponding to profiles
@@ -189,7 +191,7 @@ class PathBuilder:
             path_type = segment['path_type']
             try:
                 # Adjust the sweep parameters based on path_type
-                if path_type == 'tube_shape':
+                if path_type == 'tube_shape' or path_type == 'v_shape':
                     path_body = profile.sweep(path, transition='round')
                 else:
                     path_body = profile.sweep(path, transition='right')

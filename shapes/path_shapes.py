@@ -1,4 +1,5 @@
 # shapes/path_shapes.py
+import math
 
 import cadquery as cq
 
@@ -17,17 +18,18 @@ def create_u_shape(workplane=None, height_width=9.9999, wall_thickness=2.0):
 
     u_shape = (
         wp
-        .moveTo(-half_width, -half_width)  # Bottom left corner of U
-        .lineTo(-half_width, half_width)   # Up to top left corner
-        .lineTo(half_width, half_width)    # Right to top right corner
-        .lineTo(half_width, -half_width)   # Down to bottom right corner
-        .lineTo(inner_half_width, -half_width)  # Left along bottom inner edge
-        .lineTo(inner_half_width, inner_half_width)  # Up to inner top right
-        .lineTo(-inner_half_width, inner_half_width)  # Left to inner top left
-        .lineTo(-inner_half_width, -half_width)  # Down to inner bottom left
+        .moveTo(-half_width, half_width)  # 1
+        .lineTo(-inner_half_width, half_width)  # 2
+        .lineTo(-inner_half_width, -inner_half_width)  # 3
+        .lineTo(inner_half_width, -inner_half_width)  # 4
+        .lineTo(inner_half_width, half_width)  # 5
+        .lineTo(half_width, half_width)  # 6
+        .lineTo(half_width, -half_width)  # 7
+        .lineTo(-half_width, -half_width)  # 8
         .close()
     )
     return u_shape
+
 
 def create_tube_shape(workplane=None, outer_diameter=9.9999, wall_thickness=2.0):
     """
@@ -59,6 +61,10 @@ def create_u_shape_adjusted_height(workplane=None, height_width=9.9999, wall_thi
     else:
         wp = workplane
 
+    # Check reduced height does not so large as to remove side walls completely
+    if height_width - lower_distance < wall_thickness:
+        lower_distance = height_width - wall_thickness
+
     # Adjusted top Y-coordinate
     adjusted_top_y = height_width / 2 - lower_distance
 
@@ -75,3 +81,32 @@ def create_u_shape_adjusted_height(workplane=None, height_width=9.9999, wall_thi
         .close()
     )
     return u_shape_adjusted_height
+
+
+def create_v_shape(workplane=None, height_width=9.9999, wall_thickness=2.0):
+    """
+    Creates a V-shaped cross-section centered at the origin or on the given Workplane.
+    Height/width define the dimensions.
+    """
+    if workplane is None:
+        wp = cq.Workplane("XY")
+    else:
+        wp = workplane
+
+    # Calculate the diagonal
+    diagonal = math.sqrt(wall_thickness ** 2 + wall_thickness ** 2)
+
+    v_shape = (
+        wp
+        .moveTo(-wall_thickness, -height_width / 2)   # 1 start bottom left outer corner
+        .lineTo(-height_width / 2, -wall_thickness)   # 2
+        .lineTo(-height_width / 2 + wall_thickness, -wall_thickness)      # 3
+        .lineTo(-wall_thickness, -height_width / 2 + wall_thickness)  # 4
+        .lineTo(wall_thickness, -height_width / 2 + wall_thickness)  # 5
+        .lineTo(height_width / 2 - wall_thickness, -wall_thickness)  # 6
+        .lineTo(height_width / 2, -wall_thickness)  # 7
+        .lineTo(wall_thickness, -height_width / 2)  # 8
+        .close()                              # Close the shape
+    )
+
+    return v_shape

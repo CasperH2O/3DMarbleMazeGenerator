@@ -259,11 +259,11 @@ objects_to_export = {
     "Mounting Ring": mounting_ring,
     "Dome Top": dome_top,
     "Dome Bottom": dome_bottom,
-    #"Path": path_body,
+    "Path": path_body,
     "Ball": ball,
 }
 
 # Export each object
 for name, obj in objects_to_export.items():
-    file_path = os.path.join(path, f"{name}.step")
-    obj.val().exportStep(file_path)
+    file_path = os.path.join(path, f"{name}.stl")
+    obj.val().exportStl(file_path)

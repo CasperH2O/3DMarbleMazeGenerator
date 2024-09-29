@@ -2,15 +2,15 @@
 
 # Puzzle configuration
 CASE_SHAPE = 'Sphere'  # Options: 'Sphere', 'Box'
-BALL_DIAMETER = 6  # Diameter of the ball
+BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
-NUMBER_OF_WAYPOINTS = 15
+NUMBER_OF_WAYPOINTS = 1
 
 # Sphere case
-DIAMETER = 180  # Diameter of the sphere in mm
-SPHERE_FLANGE_DIAMETER = 210  # Flange diameter
-SHELL_THICKNESS = 3  # Thickness of the sphere shell in mm
+DIAMETER = 100  # Diameter of the sphere in mm
+SPHERE_FLANGE_DIAMETER = 120  # Flange diameter
+SHELL_THICKNESS = 2  # Thickness of the sphere shell in mm
 RING_THICKNESS = 3  # Thickness of the mounting ring
 MOUNTING_HOLE_DIAMETER = 3  # Diameter of the mounting holes
 MOUNTING_HOLE_AMOUNT = 5  # Number of mounting holes
@@ -22,7 +22,7 @@ LENGTH = 150
 PANEL_THICKNESS = 3  # Todo, unused
 
 # Path types and their parameters
-PATH_TYPES = ['u_shape', 'tube_shape', 'u_shape_adjusted_height']
+PATH_TYPES = ['u_shape', 'tube_shape', 'u_shape_adjusted_height', 'v_shape']
 
 PATH_TYPE_PARAMETERS = {
     'u_shape': {
@@ -37,5 +37,9 @@ PATH_TYPE_PARAMETERS = {
         'height_width': 10.0 - 0.0001,
         'wall_thickness': 1.2,
         'lower_distance': 3.5
+    },
+    'v_shape': {
+        'height_width': 10.0 - 0.0001,
+        'wall_thickness': 1.2,
     }
 }
