@@ -155,9 +155,9 @@ class PathBuilder:
 
             # Get parameters for the path_type
             parameters = self.path_type_parameters.get(path_type, {})
-            # Create the profile on this Workplane
+            # Create the profile on this work plane
             profile_function = self.profile_functions.get(path_type, create_u_shape)
-            profile = profile_function(workplane=wp, **parameters)
+            profile = profile_function(work_plane=wp, **parameters)
 
             # Store the profile, path, and path_type together
             segment_data = {
