@@ -34,10 +34,14 @@ else:
 # Get the CAD objects
 cad_objects = case.get_cad_objects()
 
-# Display or export the CAD objects
-for name, (obj, options) in cad_objects.items():
-    # Use show_object with options
-    show_object(obj, name=name, options=options)
+# Display CAD objects, if they have options, apply them
+for name, value in cad_objects.items():
+    if isinstance(value, tuple):
+        obj, options = value
+        show_object(obj, name=name, options=options)
+    else:
+        obj = value
+        show_object(obj, name=name)
 
 ########
 # Path #

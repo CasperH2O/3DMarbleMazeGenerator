@@ -1,7 +1,7 @@
 # utils/config.py
 
 # Puzzle configuration
-CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'Box'
+CASE_SHAPE = 'Sphere'  # Options: 'Sphere', 'Sphere with flange', 'Box'
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
