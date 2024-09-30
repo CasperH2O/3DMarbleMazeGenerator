@@ -15,3 +15,4 @@ if __name__ == "__main__":
     print(f"Total path length: {len(puzzle.total_path)}")
     # Visualize the nodes and the path
     visualize_nodes_and_paths_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
+    #visualize_nodes_and_paths_nurbs(puzzle.nodes, puzzle.total_path, puzzle.casing)
