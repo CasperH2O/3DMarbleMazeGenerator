@@ -26,17 +26,20 @@ class CaseSphere(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "casing": (self.casing, {"alpha": 0.9, "color": (1, 1, 1)}),
+            "Casing": (self.casing, {"alpha": 0.9, "color": (1, 1, 1)}),
         }
 
     def get_cut_shape(self):
+        # Add small distance for tolerances
+        flush_distance_tolerance = 0.4
+
         # Create the cross-sectional profile of the hollow sphere
         hollow_sphere_profile = (
             cq.Workplane("XZ")
             .moveTo(0, self.outer_radius * 2)
             .threePointArc((-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
-            .lineTo(0, -self.inner_radius)
-            .threePointArc((-self.inner_radius, 0), (0, self.inner_radius))
+            .lineTo(0, -self.inner_radius + flush_distance_tolerance)
+            .threePointArc((-self.inner_radius + flush_distance_tolerance, 0), (0, self.inner_radius - flush_distance_tolerance))
             .close()
         )
 
