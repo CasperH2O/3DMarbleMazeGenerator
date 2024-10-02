@@ -1,19 +1,19 @@
-# utils/config.py
+# config.py
 
 # Puzzle configuration
-CASE_SHAPE = 'Box'  # Options: 'Sphere', 'Sphere with flange', 'Box'
+CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'Box'
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
-NUMBER_OF_WAYPOINTS = 10
+NUMBER_OF_WAYPOINTS = 1
 
 # Sphere case
 SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
 SPHERE_FLANGE_DIAMETER = 120  # Flange diameter
-SHELL_THICKNESS = 2  # Thickness of the sphere shell in mm
-RING_THICKNESS = 3  # Thickness of the mounting ring
-MOUNTING_HOLE_DIAMETER = 3  # Diameter of the mounting holes
-MOUNTING_HOLE_AMOUNT = 5  # Number of mounting holes
+SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
+MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring
+MOUNTING_HOLE_DIAMETER = 4  # Diameter of the mounting holes
+MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
 
 # Box case
 WIDTH = 100

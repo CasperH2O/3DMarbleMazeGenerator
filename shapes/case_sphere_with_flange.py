@@ -10,7 +10,7 @@ class CaseSphereWithFlange(CaseBase):
         self.sphere_outer_diameter = config.SPHERE_DIAMETER
         self.sphere_flange_diameter = config.SPHERE_FLANGE_DIAMETER
         self.sphere_thickness = config.SHELL_THICKNESS
-        self.ring_thickness = config.RING_THICKNESS
+        self.mounting_ring_thickness = config.MOUNTING_RING_THICKNESS
         self.ball_diameter = config.BALL_DIAMETER
         self.mounting_hole_diameter = config.MOUNTING_HOLE_DIAMETER
         self.mounting_hole_amount = config.MOUNTING_HOLE_AMOUNT
@@ -32,10 +32,10 @@ class CaseSphereWithFlange(CaseBase):
             cq.Workplane("XY")
             .circle(self.sphere_flange_radius)          # Outer circle
             .circle(self.sphere_inner_radius)          # Inner circle (hole)
-            .extrude(self.sphere_thickness)   # Extrude thickness
+            .extrude(self.mounting_ring_thickness)   # Extrude thickness
         )
         # Move to center
-        mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.sphere_thickness))
+        mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
         return mounting_ring
 
     def create_domes(self):
@@ -72,14 +72,14 @@ class CaseSphereWithFlange(CaseBase):
         )
 
         # Revolve the dome profile
-        dome_bottom = dome_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
+        dome_top = dome_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
 
         # Move to make place for mounting ring
         # Add small distance to prevent overlap artifacts during rendering
-        dome_bottom = dome_bottom.translate((0, 0, 0.5 * self.ring_thickness + 0.01))
+        dome_top = dome_top.translate((0, 0, 0.5 * self.mounting_ring_thickness + 0.01))
 
         # Mirror the dome for the other side
-        dome_top = dome_bottom.mirror(mirrorPlane="XY")
+        dome_bottom = dome_top.mirror(mirrorPlane="XY")
 
         return dome_top, dome_bottom
 
@@ -118,10 +118,10 @@ class CaseSphereWithFlange(CaseBase):
         # Create the cross-sectional profile of the hollow sphere
         hollow_sphere_profile = (
             cq.Workplane("XZ")
-            .moveTo(0, self.outer_radius * 2)
-            .threePointArc((-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
-            .lineTo(0, -self.inner_radius + flush_distance_tolerance)
-            .threePointArc((-self.inner_radius + flush_distance_tolerance, 0), (0, self.inner_radius - flush_distance_tolerance))
+            .moveTo(0, self.sphere_outer_radius * 2)
+            .threePointArc((-self.sphere_outer_radius * 2, 0), (0, -self.sphere_outer_radius * 2))
+            .lineTo(0, -self.sphere_inner_radius + flush_distance_tolerance)
+            .threePointArc((-self.sphere_inner_radius + flush_distance_tolerance, 0), (0, self.sphere_inner_radius - flush_distance_tolerance))
             .close()
         )
 
