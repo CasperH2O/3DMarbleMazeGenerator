@@ -2,7 +2,7 @@
 
 import random
 import cadquery as cq
-from config import PATH_TYPES, PATH_TYPE_PARAMETERS, SEED, NODE_SIZE
+import config
 from shapes.path_shapes import *
 
 
@@ -11,11 +11,11 @@ class PathBuilder:
     Handles the assignment of path types, grouping of nodes, and building of the final path body.
     """
 
-    def __init__(self, seed=SEED, path_types=PATH_TYPES, node_size=NODE_SIZE):
+    def __init__(self, seed=config.SEED, path_types=config.PATH_TYPES, node_size=config.NODE_SIZE):
         self.seed = seed
         self.path_types = path_types.copy()
         random.seed(self.seed)
-        self.path_type_parameters = PATH_TYPE_PARAMETERS
+        self.path_type_parameters = config.PATH_TYPE_PARAMETERS
         self.profile_functions = {
             'u_shape': create_u_shape,
             'l_shape': create_l_shape,

@@ -6,7 +6,6 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import plotly.graph_objects as go
 import plotly.offline as pyo
 from geomdl import BSpline, utilities
-from geomdl.visualization import VisMPL
 from scipy import interpolate
 from scipy.interpolate import BSpline as SciPyBSpline
 

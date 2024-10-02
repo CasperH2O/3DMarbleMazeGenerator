@@ -1,35 +1,28 @@
 # cad.py
 
 import cadquery as cq
-import math
 import os
-
+import config
 from puzzle.puzzle import Puzzle
 from shapes.path_shapes import *
 from shapes.path_builder import PathBuilder
-from config import (
-    BALL_DIAMETER, NODE_SIZE,
-    SEED, CASE_SHAPE,
-)
 from shapes.case_sphere import CaseSphere
 from shapes.case_box import CaseBox
 from shapes.case_sphere_with_flange import CaseSphereWithFlange
-
-import config
 
 ########
 # Case #
 ########
 
-# Instantiate the appropriate case class
-if CASE_SHAPE == 'Sphere':
+# Instantiate the appropriate case
+if config.CASE_SHAPE == 'Sphere':
     case = CaseSphere(config)
-elif CASE_SHAPE == 'Box':
+elif config.CASE_SHAPE == 'Box':
     case = CaseBox(config)
-elif CASE_SHAPE == 'Sphere with flange':
+elif config.CASE_SHAPE == 'Sphere with flange':
     case = CaseSphereWithFlange(config)
 else:
-    raise ValueError(f"Unknown CASE_SHAPE '{CASE_SHAPE}' specified in config.py.")
+    raise ValueError(f"Unknown CASE_SHAPE '{config.CASE_SHAPE}' specified in config.py.")
 
 # Get the CAD objects
 cad_objects = case.get_cad_objects()
@@ -49,16 +42,16 @@ for name, value in cad_objects.items():
 
 # Create the puzzle
 puzzle = Puzzle(
-    node_size=NODE_SIZE,
-    seed=SEED,
-    case_shape=CASE_SHAPE
+    node_size=config.NODE_SIZE,
+    seed=config.SEED,
+    case_shape=config.CASE_SHAPE
 )
 
 # Get the total path nodes
 CAD_nodes = puzzle.total_path
 
 # Initialize the PathBuilder
-path_builder = PathBuilder(seed=SEED)
+path_builder = PathBuilder(seed=config.SEED)
 
 # Build the path step by step
 # Assign path types and group nodes
@@ -114,13 +107,13 @@ path_body = path_body.cut(cut_shape)
 node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
 
 # Place the ball at the second node position
-ball = cq.Workplane("XY").sphere(BALL_DIAMETER / 2).translate(node_positions[1])
+ball = cq.Workplane("XY").sphere(config.BALL_DIAMETER / 2).translate(node_positions[1])
 
 # Create a circular profile on a rotated work plane at the ball's position
 ball_path_profile = (
     cq.Workplane("XY")
     .transformed(offset=cq.Vector(node_positions[1]), rotate=(0, 90, 270))
-    .circle(BALL_DIAMETER / 10)
+    .circle(config.BALL_DIAMETER / 10)
 )
 
 # Create the 3D path using a polyline starting from the second node
@@ -150,7 +143,7 @@ show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 # Chosen step over stl format for improved scaling units and curved line accuracy
 
 # Construct folder name and path
-folder_name = f"Case-{CASE_SHAPE}-Seed-{SEED}"
+folder_name = f"Case-{config.CASE_SHAPE}-Seed-{config.SEED}"
 path = os.path.join("..", "CAD", "STEP", folder_name)
 
 # Check if path exists, if not create the folder
@@ -166,7 +159,11 @@ objects_to_export = {
     "Ball": ball,
 }
 
+# Todo, step path is incorrect, use stl
+
 # Export each object
 for name, obj in objects_to_export.items():
     file_path = os.path.join(path, f"{name}.stl")
     obj.val().exportStl(file_path)
+    file_path = os.path.join(path, f"{name}.step")
+    obj.val().exportStep(file_path)

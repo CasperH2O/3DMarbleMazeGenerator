@@ -1,6 +1,4 @@
 # shapes/path_shapes.py
-import math
-
 import cadquery as cq
 
 

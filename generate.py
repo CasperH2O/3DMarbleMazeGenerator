@@ -2,14 +2,14 @@
 
 from puzzle.puzzle import Puzzle
 from puzzle.visualization import *
-from config import (NODE_SIZE, SEED, CASE_SHAPE)
+import config
 
 if __name__ == "__main__":
     # Create the puzzle
     puzzle = Puzzle(
-        node_size=NODE_SIZE,
-        seed=SEED,
-        case_shape=CASE_SHAPE
+        node_size=config.NODE_SIZE,
+        seed=config.SEED,
+        case_shape=config.CASE_SHAPE
     )
 
     print(f"Total path length: {len(puzzle.total_path)}")
