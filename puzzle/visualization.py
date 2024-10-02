@@ -263,7 +263,8 @@ def visualize_nodes_and_paths_curve_fit(nodes, total_path, casing):
     """
     Visualizes the nodes and the path in a 3D plot using matplotlib.
     Fits parametric splines using chord-length parameterization to approximate the path
-    for overlapping chunks of 5 nodes, alternating colors between light blue and dark blue.
+    using the nodes where `waypoint` is True, and also including the nodes directly
+    before and after each waypoint node.
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -297,26 +298,38 @@ def visualize_nodes_and_paths_curve_fit(nodes, total_path, casing):
 
     ax.scatter(xs, ys, zs, c=colors, marker='o', s=sizes)
 
-    # Divide total_path into overlapping chunks of 5 nodes
-    chunk_size = 5
-    curve_colors = ['lightblue', 'darkblue']
+    # Collect waypoint nodes along with the nodes immediately before and after each waypoint
+    relevant_nodes = set()  # Using a set to avoid duplicate nodes
+    for i, node in enumerate(total_path):
+        if node.waypoint:
+            # Add the current waypoint node
+            relevant_nodes.add(node)
 
-    for i in range(0, len(total_path) - chunk_size + 1,
-                   chunk_size - 1):  # Step by chunk_size - 1 to overlap the last node
-        chunk = total_path[i:i + chunk_size]
+            # Add the node before the current waypoint (if it exists)
+            if i > 0:
+                relevant_nodes.add(total_path[i - 1])
 
-        xs_chunk = [node.x for node in chunk]
-        ys_chunk = [node.y for node in chunk]
-        zs_chunk = [node.z for node in chunk]
+            # Add the node after the current waypoint (if it exists)
+            if i < len(total_path) - 1:
+                relevant_nodes.add(total_path[i + 1])
+
+    # Sort the relevant nodes by their original order in the total_path
+    relevant_nodes = sorted(relevant_nodes, key=lambda node: total_path.index(node))
+
+    if len(relevant_nodes) > 1:  # Ensure there are enough points to fit a curve
+        # Extract the x, y, z coordinates of the relevant nodes
+        xs_relevant = [node.x for node in relevant_nodes]
+        ys_relevant = [node.y for node in relevant_nodes]
+        zs_relevant = [node.z for node in relevant_nodes]
 
         # Fit parametric splines for x(u), y(u), z(u) using chord-length parameterization
-        xyz = np.vstack([xs_chunk, ys_chunk, zs_chunk]).T  # Stack xs, ys, zs into an (N, 3) array
+        xyz = np.vstack([xs_relevant, ys_relevant, zs_relevant]).T  # Stack xs, ys, zs into an (N, 3) array
         u = np.cumsum(np.r_[[0], np.linalg.norm(np.diff(xyz, axis=0), axis=1)])  # Chord-length parameterization
 
         # Create splines for each coordinate
-        sx = interpolate.InterpolatedUnivariateSpline(u, xs_chunk)  # x(u)
-        sy = interpolate.InterpolatedUnivariateSpline(u, ys_chunk)  # y(u)
-        sz = interpolate.InterpolatedUnivariateSpline(u, zs_chunk)  # z(u)
+        sx = interpolate.InterpolatedUnivariateSpline(u, xs_relevant)  # x(u)
+        sy = interpolate.InterpolatedUnivariateSpline(u, ys_relevant)  # y(u)
+        sz = interpolate.InterpolatedUnivariateSpline(u, zs_relevant)  # z(u)
 
         # Sample the spline with fine values of u
         uu = np.linspace(u[0], u[-1], 100)  # 100 sample points along the spline
@@ -324,10 +337,10 @@ def visualize_nodes_and_paths_curve_fit(nodes, total_path, casing):
         yy = sy(uu)
         zz = sz(uu)
 
-        # Plot the parametric spline for the current chunk
-        ax.plot(xx, yy, zz, color=curve_colors[i // (chunk_size - 1) % 2], linewidth=2)
+        # Plot the parametric spline using a single color
+        ax.plot(xx, yy, zz, color='blue', linewidth=2)
 
-    # Plot casing based on its type
+    # Plot casing based on its type (retained from original code)
     if isinstance(casing, SphereCasing):
         # Plot circles in the XY, XZ, and YZ planes
         theta = np.linspace(0, 2 * np.pi, 100)
@@ -352,7 +365,7 @@ def visualize_nodes_and_paths_curve_fit(nodes, total_path, casing):
         ax.plot(x_circle_yz, y_circle_yz, z_circle_yz, color='yellow')
 
     elif isinstance(casing, BoxCasing):
-        # Plot the box edges
+        # Plot the box edges (retained from original code)
         hw = casing.half_width
         hh = casing.half_height
         hl = casing.half_length
