@@ -1,14 +1,19 @@
 # puzzle/visualization.py
 
-from geomdl import BSpline, utilities
-#from geomdl.visualization import VisMPL
 from puzzle.casing import SphereCasing, BoxCasing
+
+from geomdl import BSpline, utilities
+from geomdl.visualization import VisMPL
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
 import plotly.graph_objects as go
 import plotly.offline as pyo
+
 from scipy import interpolate
+from scipy.interpolate import BSpline
 
 
 def visualize_nodes_and_paths(nodes, total_path, casing):
@@ -254,6 +259,158 @@ def visualize_nodes_and_paths_nurbs(nodes, total_path, casing):
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')
     ax.set_zlabel('Z axis')
+    ax.set_box_aspect([1, 1, 1])  # Equal aspect ratio
+
+    plt.show()
+
+def visualize_nodes_and_paths_spline(nodes, total_path, casing):
+    """
+    Visualizes the nodes, the B-spline curve, and the path in a 3D plot using matplotlib.
+    """
+    # Prepare the matplotlib figure and axis
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Extract node coordinates
+    xs = [node.x for node in nodes]
+    ys = [node.y for node in nodes]
+    zs = [node.z for node in nodes]
+
+    # Plot all nodes with colors and sizes
+    colors = []
+    sizes = []
+    for node in nodes:
+        if node.start:
+            colors.append('yellow')  # Start node
+            sizes.append(40)
+        elif node.end:
+            colors.append('orange')  # End node
+            sizes.append(40)
+        elif node.mounting:
+            colors.append('purple')  # Mounting nodes
+            sizes.append(30)
+        elif node.waypoint:
+            colors.append('blue')  # Waypoints
+            sizes.append(20)
+        elif node.occupied:
+            colors.append('red')  # Occupied nodes
+            sizes.append(20)
+        else:
+            colors.append('green')  # Unoccupied nodes
+            sizes.append(1)  # Smaller size for unoccupied nodes
+
+    ax.scatter(xs, ys, zs, c=colors, marker='o', s=sizes)
+
+    # Plot the path
+    if total_path:
+        path_xs = [node.x for node in total_path]
+        path_ys = [node.y for node in total_path]
+        path_zs = [node.z for node in total_path]
+        ax.plot(path_xs, path_ys, path_zs, color='black', linewidth=1)
+
+    # Add B-spline curve (using total_path nodes as control points)
+    if len(total_path) >= 4:  # Need at least degree+1 control points
+        # Extract control points
+        ctrl_pts = np.array([[node.x, node.y, node.z] for node in total_path])
+        degree = 3  # Cubic B-spline
+
+        # Number of control points
+        n_ctrl_pts = len(ctrl_pts)
+
+        # Generate a uniform knot vector
+        n_knots = n_ctrl_pts + degree + 1
+        knot_vector = np.linspace(0, 1, n_knots - 2 * degree)
+        knot_vector = np.concatenate((
+            np.zeros(degree),
+            knot_vector,
+            np.ones(degree)
+        ))
+
+        # Parameter values for evaluation
+        t = np.linspace(0, 1, 1000)
+
+        # Create BSpline objects for each coordinate
+        spl_x = BSpline(knot_vector, ctrl_pts[:, 0], degree)
+        spl_y = BSpline(knot_vector, ctrl_pts[:, 1], degree)
+        spl_z = BSpline(knot_vector, ctrl_pts[:, 2], degree)
+
+        # Evaluate the spline
+        x_spline = spl_x(t)
+        y_spline = spl_y(t)
+        z_spline = spl_z(t)
+
+        # Plot the spline curve
+        ax.plot(x_spline, y_spline, z_spline, color='red', linewidth=2, label='B-spline Curve')
+
+    else:
+        # If not enough points for a spline, plot a simple line
+        ax.plot(path_xs, path_ys, path_zs, color='red', linewidth=2, label='Path')
+
+    # Plot the casing (same as before)
+    if isinstance(casing, SphereCasing):
+        # Plot circles in the XY, XZ, and YZ planes
+        theta = np.linspace(0, 2 * np.pi, 100)
+        r = casing.inner_radius
+
+        # Circle in XY plane (z = 0)
+        x_circle_xy = r * np.cos(theta)
+        y_circle_xy = r * np.sin(theta)
+        z_circle_xy = np.zeros_like(theta)
+        ax.plot(x_circle_xy, y_circle_xy, z_circle_xy, color='cyan')
+
+        # Circle in XZ plane (y = 0)
+        x_circle_xz = r * np.cos(theta)
+        y_circle_xz = np.zeros_like(theta)
+        z_circle_xz = r * np.sin(theta)
+        ax.plot(x_circle_xz, y_circle_xz, z_circle_xz, color='magenta')
+
+        # Circle in YZ plane (x = 0)
+        x_circle_yz = np.zeros_like(theta)
+        y_circle_yz = r * np.cos(theta)
+        z_circle_yz = r * np.sin(theta)
+        ax.plot(x_circle_yz, y_circle_yz, z_circle_yz, color='yellow')
+
+    elif isinstance(casing, BoxCasing):
+        # Plot the box edges
+        hw = casing.half_width
+        hh = casing.half_height
+        hl = casing.half_length
+
+        # Define the 8 corners of the box
+        corners = np.array([
+            [-hw, -hh, -hl],
+            [hw, -hh, -hl],
+            [hw, hh, -hl],
+            [-hw, hh, -hl],
+            [-hw, -hh, hl],
+            [hw, -hh, hl],
+            [hw, hh, hl],
+            [-hw, hh, hl]
+        ])
+
+        # Define the edges of the box
+        edges = [
+            [corners[0], corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], corners[3]],
+            [corners[3], corners[0]],
+            [corners[4], corners[5]],
+            [corners[5], corners[6]],
+            [corners[6], corners[7]],
+            [corners[7], corners[4]],
+            [corners[0], corners[4]],
+            [corners[1], corners[5]],
+            [corners[2], corners[6]],
+            [corners[3], corners[7]]
+        ]
+
+        edge_collection = Line3DCollection(edges, colors='cyan', linewidths=1)
+        ax.add_collection3d(edge_collection)
+
+    ax.set_xlabel('X axis')
+    ax.set_ylabel('Y axis')
+    ax.set_zlabel('Z axis')
+    ax.legend()
     ax.set_box_aspect([1, 1, 1])  # Equal aspect ratio
 
     plt.show()
