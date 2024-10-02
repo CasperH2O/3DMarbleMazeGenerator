@@ -7,7 +7,7 @@ import os
 from puzzle.puzzle import Puzzle
 from shapes.path_shapes import *
 from shapes.path_builder import PathBuilder
-from utils.config import (
+from config import (
     BALL_DIAMETER, NODE_SIZE,
     SEED, CASE_SHAPE,
 )
@@ -15,7 +15,7 @@ from shapes.case_sphere import CaseSphere
 from shapes.case_box import CaseBox
 from shapes.case_sphere_with_flange import CaseSphereWithFlange
 
-from utils import config
+import config
 
 ########
 # Case #

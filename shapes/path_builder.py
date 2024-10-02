@@ -2,7 +2,7 @@
 
 import random
 import cadquery as cq
-from utils.config import PATH_TYPES, PATH_TYPE_PARAMETERS, SEED, NODE_SIZE
+from config import PATH_TYPES, PATH_TYPE_PARAMETERS, SEED, NODE_SIZE
 from shapes.path_shapes import *
 
 

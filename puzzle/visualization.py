@@ -537,7 +537,7 @@ def plot_box_casing_plotly(casing):
         y=y_lines,
         z=z_lines,
         mode='lines',
-        line=dict(color='cyan', width=1),
+        line=dict(color='gray', width=1),
         showlegend=False
     )
 

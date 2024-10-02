@@ -2,7 +2,7 @@
 
 import random
 import numpy as np
-from utils import config  # Import config to access configuration variables
+import config
 
 
 class Puzzle:
