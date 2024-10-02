@@ -110,3 +110,18 @@ class CaseSphereWithFlange(CaseBase):
             "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
         }
+
+    def get_cut_shape(self):
+        # Create the cross-sectional profile of the hollow sphere
+        hollow_sphere_profile = (
+            cq.Workplane("XZ")
+            .moveTo(0, self.outer_radius * 2)
+            .threePointArc((-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
+            .lineTo(0, -self.inner_radius)
+            .threePointArc((-self.inner_radius, 0), (0, self.inner_radius))
+            .close()
+        )
+
+        # Revolve the profile to create the hollow sphere solid
+        hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
+        return hollow_sphere

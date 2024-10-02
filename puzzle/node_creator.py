@@ -54,6 +54,7 @@ class SphereGridNodeCreator(NodeCreator):
         else:
             min_x = 0  # If no nodes exist, start from 0
 
+        # Extend the start point with two additional nodes
         # Calculate positions for the two new nodes in the negative x direction
         x1 = min_x - node_size
         x2 = x1 - node_size
@@ -121,14 +122,31 @@ class BoxGridNodeCreator(NodeCreator):
 
         node_dict = {(node.x, node.y, node.z): node for node in nodes}
 
-        # Define the start node
-        # For the box, the start node is at the minimum x, y, z
+        # Define the start node for the box case
+
+        # Find the minimum x, y, and z among existing nodes
         min_x = min(node.x for node in nodes)
         min_y = min(node.y for node in nodes)
         min_z = min(node.z for node in nodes)
-        start_node = node_dict.get((min_x, min_y, min_z))
-        if start_node:
-            start_node.start = True
+
+        # Decide along which axis to extend the path
+        # For simplicity, we'll extend along the negative x-direction
+        # Calculate positions for the two new nodes in the negative x direction
+        x1 = min_x - node_size
+        x2 = x1 - node_size
+
+        # Create two new nodes at positions (x1, min_y, min_z) and (x2, min_y, min_z)
+        node1 = Node(x1, min_y, min_z)
+        node2 = Node(x2, min_y, min_z)
+
+        # Add them to nodes and node_dict
+        nodes.extend([node1, node2])
+        node_dict[(node1.x, node1.y, node1.z)] = node1
+        node_dict[(node2.x, node2.y, node2.z)] = node2
+
+        # Mark the furthest node as the start node
+        node2.start = True  # node2 is the start node since it's furthest along -x
+        start_node = node2
 
         return nodes, node_dict, start_node
 

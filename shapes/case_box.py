@@ -35,3 +35,22 @@ class CaseBox(CaseBase):
         return {
             "casing": (self.casing, {"alpha": 0.9, "color": (1, 1, 1)}),
         }
+
+    def get_cut_shape(self):
+        # Create an extended inner box to ensure it cuts the path_body properly
+        # Extend the outer box dimensions to make sure it intersects with the path_body
+        outer_box = cq.Workplane("XY").box(self.width * 2, self.height * 2, self.length * 2)
+
+        # Create the inner box to hollow out the outer box
+        inner_width = self.width - 2 * self.panel_thickness
+        inner_length = self.length - 2 * self.panel_thickness
+        inner_height = self.height - 2 * self.panel_thickness
+
+        inner_box = (cq.Workplane("XY")
+                     .box(inner_width, inner_height, inner_length)
+                     )
+
+        # Subtract the inner box from the outer box
+        cut_shape = outer_box.cut(inner_box)
+
+        return cut_shape

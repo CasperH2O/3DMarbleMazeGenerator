@@ -100,25 +100,11 @@ for idx, body in enumerate(path_bodies):
     actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
     #show_object(body, name=f"Swept_Body_{actual_idx}")
 
-'''
-# Prepare for cutting around path body, makes start flush with sphere edge
-# Create the cross-sectional profile of the hollow sphere
-hollow_sphere_profile = (
-    cq.Workplane("XZ")
-    .moveTo(0, sphere_flange_radius)
-    .threePointArc((-sphere_flange_radius, 0), (0, -sphere_flange_radius))
-    .lineTo(0, -sphere_inner_radius)
-    .threePointArc((-sphere_inner_radius, 0), (0, sphere_inner_radius))
-    .close()
-)
+# Get the shape to cut for the current case
+cut_shape = case.get_cut_shape()
 
-# Revolve the profile to create the hollow sphere solid
-hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
-
-# Perform the cut operation to make start flush with sphere on the inside
-path_body = path_body.cut(hollow_sphere)
-
-'''
+# Perform the cut operation to make the path body flush with the case
+path_body = path_body.cut(cut_shape)
 
 ######################
 # Ball and ball path #
