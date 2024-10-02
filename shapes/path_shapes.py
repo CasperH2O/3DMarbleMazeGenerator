@@ -118,9 +118,6 @@ def create_v_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
     else:
         wp = work_plane
 
-    # Calculate the diagonal
-    diagonal = math.sqrt(wall_thickness ** 2 + wall_thickness ** 2)
-
     v_shape = (
         wp
         .moveTo(-wall_thickness, -height_width / 2)   # 1 start bottom left outer corner

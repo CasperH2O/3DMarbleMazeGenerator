@@ -91,18 +91,14 @@ for idx, segment in enumerate(selected_segments):
 # Now sweep the selected profiles along the paths
 path_bodies = path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
 
-# Build the final path body if any path bodies were created
-if path_bodies:
-    final_path_body = path_builder.build_final_path_body(path_bodies)
-    # Use final_path_body in the rest of your CAD model
-    path_body = final_path_body
-    # Optionally, display the swept bodies
-    for idx, body in enumerate(path_bodies):
-        actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
-        #show_object(body, name=f"Swept_Body_{actual_idx}")
-else:
-    print("No path bodies were created.")
+final_path_body = path_builder.build_final_path_body(path_bodies)
+# Use final_path_body in the rest of your CAD model
+path_body = final_path_body
 
+# Optionally, display the swept bodies
+for idx, body in enumerate(path_bodies):
+    actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
+    #show_object(body, name=f"Swept_Body_{actual_idx}")
 
 '''
 # Prepare for cutting around path body, makes start flush with sphere edge

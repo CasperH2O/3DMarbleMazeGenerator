@@ -1,7 +1,7 @@
 # puzzle/visualization.py
 
 from geomdl import BSpline, utilities
-from geomdl.visualization import VisMPL
+#from geomdl.visualization import VisMPL
 from puzzle.casing import SphereCasing, BoxCasing
 import numpy as np
 import matplotlib.pyplot as plt
@@ -129,7 +129,7 @@ def visualize_nodes_and_paths_nurbs(nodes, total_path, casing):
     """
     Visualizes the nodes, the NURBS curve, and the path in a 3D plot using matplotlib and geomdl.
     """
-    #  Setup the matplotlib figure and axis
+    #  Prepare the matplotlib figure and axis
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 

@@ -104,7 +104,7 @@ class PathBuilder:
         previous_end_point = None  # To store the end point of the previous segment
 
         for idx, (path_type, segment_nodes) in enumerate(segments):
-            # Get the subpath points (positions of nodes in the segment)
+            # Get the sub path points (positions of nodes in the segment)
             subpath_points = [cq.Vector(node.x, node.y, node.z) for node in segment_nodes]
 
             # Compute the entering direction vector for the start point
@@ -146,7 +146,7 @@ class PathBuilder:
             # Create a plane at the adjusted start point with normal along the entering direction
             plane = self.create_plane_at_point(adjusted_start_point, entering_direction)
 
-            # Now create the Workplane on this plane
+            # Now create the work plane on this plane
             wp = cq.Workplane(plane)
 
             # Get parameters for the path_type
@@ -243,8 +243,6 @@ class PathBuilder:
 
         # Compute the X direction vector as cross product of arbitrary vector and normal
         x_dir = arbitrary.cross(normal).normalized()
-        # Now compute Y direction as cross product of normal and X direction
-        y_dir = normal.cross(x_dir).normalized()
 
         # Now create the plane
         plane = cq.Plane(origin=origin, xDir=x_dir, normal=normal)
