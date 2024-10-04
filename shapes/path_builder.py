@@ -17,9 +17,10 @@ class PathBuilder:
         random.seed(self.seed)
         self.path_type_parameters = config.PATH_TYPE_PARAMETERS
         self.profile_functions = {
-            'u_shape': create_u_shape,
             'l_shape': create_l_shape,
+            'l_shape_adjusted_height': create_l_shape_adjusted_height,
             'tube_shape': create_tube_shape,
+            'u_shape': create_u_shape,
             'u_shape_adjusted_height': create_u_shape_adjusted_height,
             'v_shape': create_v_shape
         }

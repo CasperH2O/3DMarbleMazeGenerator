@@ -5,7 +5,7 @@ CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'B
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
-NUMBER_OF_WAYPOINTS = 1
+NUMBER_OF_WAYPOINTS = 3
 
 # Sphere case
 SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
@@ -22,29 +22,36 @@ LENGTH = 150
 PANEL_THICKNESS = 3
 
 # Path types and their parameters
-PATH_TYPES = ['u_shape',
-              # 'l_shape',
-              'tube_shape',
-              # 'u_shape_adjusted_height',
-              'v_shape']
+PATH_TYPES = [#'l_shape',
+              #'l_shape_adjusted_height',
+              #'tube_shape',
+              #'u_shape',
+              'u_shape_adjusted_height',
+              'v_shape'
+              ]
 
 PATH_TYPE_PARAMETERS = {
-    'u_shape': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
-    },
     'l_shape': {
         'height_width': 10.0 - 0.0001,
         'wall_thickness': 1.2,
+    },
+    'l_shape_adjusted_height': {
+        'height_width': 10.0 - 0.0001,
+        'wall_thickness': 1.2,
+        'lower_distance': 7
     },
     'tube_shape': {
         'outer_diameter': 10.0 - 0.0001,
         'wall_thickness': 1.2
     },
+    'u_shape': {
+        'height_width': 10.0 - 0.0001,
+        'wall_thickness': 1.2,
+    },
     'u_shape_adjusted_height': {
         'height_width': 10.0 - 0.0001,
         'wall_thickness': 1.2,
-        'lower_distance': 3.5
+        'lower_distance': 7
     },
     'v_shape': {
         'height_width': 10.0 - 0.0001,
