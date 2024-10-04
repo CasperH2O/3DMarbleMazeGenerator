@@ -204,5 +204,62 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="3d_nodes_and_paths_curve_fit.html")
+    pyo.plot(fig, filename="../3d_nodes_and_paths_curve_fit.html")
 
+
+def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
+    """
+    Visualizes the nodes and the interpolated path in a 3D plot using Plotly.
+    """
+    # Plot nodes
+    scatter = plot_nodes_plotly(nodes)
+
+    # Prepare path traces from interpolated segments
+    path_traces = []
+    colors = {
+        'straight': 'blue',
+        'bezier': 'green',
+        'spline': 'purple'
+    }
+    legend_added = set()
+    for segment in interpolated_segments:
+        segment_type = segment['type']
+        points = np.array(segment['points'])
+        show_legend = False
+        if segment_type not in legend_added:
+            show_legend = True
+            legend_added.add(segment_type)
+        trace = go.Scatter3d(
+            x=points[:, 0],
+            y=points[:, 1],
+            z=points[:, 2],
+            mode='lines',
+            line=dict(color=colors.get(segment_type, 'black'), width=2),
+            name=segment_type.capitalize(),
+            showlegend=show_legend
+        )
+        path_traces.append(trace)
+
+    # Get casing traces
+    casing_traces = plot_casing_plotly(casing)
+
+    # Combine all traces
+    data = [scatter] + casing_traces + path_traces
+
+    # Create the layout
+    layout = go.Layout(
+        scene=dict(
+            xaxis_title='X axis',
+            yaxis_title='Y axis',
+            zaxis_title='Z axis',
+            aspectmode='data'
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        legend=dict(itemsizing='constant')
+    )
+
+    # Create the figure
+    fig = go.Figure(data=data, layout=layout)
+
+    # Display the plot in a browser
+    pyo.plot(fig, filename="3d_interpolated_path.html")

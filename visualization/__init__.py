@@ -9,5 +9,6 @@ from .matplotlib_visualization import (
 
 from .plotly_visualization import (
     visualize_nodes_and_paths_plotly,
-visualize_nodes_and_paths_curve_fit_plotly
+    visualize_nodes_and_paths_curve_fit_plotly,
+    visualize_interpolated_path_plotly
 )

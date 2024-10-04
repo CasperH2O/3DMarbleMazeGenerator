@@ -35,7 +35,7 @@ class SphereCasing(Casing):
         random.seed(seed)
 
         # Determine the number of mounting waypoints (between 3 and 5)
-        num_mounting_waypoints = random.randint(3, 5)
+        num_mounting_waypoints = random.randint(4, 4) # Todo, make configurable in config.py
 
         # Get the outer radius at Z = 0
         outer_radius = self.inner_radius

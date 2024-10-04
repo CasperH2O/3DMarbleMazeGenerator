@@ -3,6 +3,7 @@
 import random
 import numpy as np
 import config
+from .path_interpolator import PathInterpolator
 
 
 class Puzzle:
@@ -51,6 +52,13 @@ class Puzzle:
 
         # Connect the waypoints using the pathfinder
         self.total_path = self.pathfinder.connect_waypoints(self)
+
+        # Interpolate the path
+        self.path_interpolator = PathInterpolator(
+            total_path=self.total_path,
+            seed=self.seed
+        )
+        self.interpolated_segments = self.path_interpolator.interpolated_segments
 
     def get_neighbors(self, node):
         """Delegates neighbor retrieval to the node creator."""
