@@ -18,6 +18,7 @@ class PathInterpolator:
         if self.seed is not None:
             random.seed(self.seed)
         self.interpolated_segments = []  # List to store interpolated segments with metadata
+        self._spline_cache = None  # Cache for the computed spline
 
         # Initialize interpolation methods
         self.interpolation_methods = ['straight', 'bezier', 'spline']
@@ -124,19 +125,63 @@ class PathInterpolator:
         }
         self.interpolated_segments.append(segment)
 
-    def _interpolate_spline(self, nodes):
+    def _interpolate_spline(self, segment_nodes):
         """
         Interpolates a segment using splines between nodes.
+        Returns only the segment corresponding to the provided nodes.
+        Segments are based on spline based on full route for large fluid curves
         """
-        if len(nodes) < 2:
+        # Ensure the spline has been computed
+        if not hasattr(self, '_spline_segments'):
+            self._compute_full_spline()
+
+        # Find the spline segment corresponding to the provided nodes
+        start_node = segment_nodes[0]
+        end_node = segment_nodes[-1]
+
+        # Search for the matching spline segment
+        for spline_segment in self._spline_segments:
+            if spline_segment['start_node'] == start_node and spline_segment['end_node'] == end_node:
+                # Found the matching segment
+                segment = {
+                    'type': 'spline',
+                    'points': spline_segment['points']
+                }
+                self.interpolated_segments.append(segment)
+                return
+
+        # If no matching spline segment is found, fall back to straight line
+        self._interpolate_straight(segment_nodes)
+
+    def _compute_full_spline(self):
+        """
+        Computes the full spline over the relevant nodes (waypoints and adjacent nodes), splits it at waypoints,
+        and caches the spline segments.
+        """
+        total_path_nodes = self.total_path
+
+        # Collect waypoint nodes along with the nodes immediately before and after each waypoint
+        relevant_nodes_set = set()
+        for i, node in enumerate(total_path_nodes):
+            if node.waypoint:
+                relevant_nodes_set.add(node)
+                if i > 0:
+                    relevant_nodes_set.add(total_path_nodes[i - 1])
+                if i < len(total_path_nodes) - 1:
+                    relevant_nodes_set.add(total_path_nodes[i + 1])
+
+        # Sort the relevant nodes by their original order in total_path
+        relevant_nodes = sorted(relevant_nodes_set, key=lambda node: total_path_nodes.index(node))
+
+        if len(relevant_nodes) < 2:
             # Not enough points for a spline
-            self._interpolate_straight(nodes)
+            self._interpolate_straight(total_path_nodes)
             return
 
         # Extract coordinates
-        xs = [node.x for node in nodes]
-        ys = [node.y for node in nodes]
-        zs = [node.z for node in nodes]
+        xs = [node.x for node in relevant_nodes]
+        ys = [node.y for node in relevant_nodes]
+        zs = [node.z for node in relevant_nodes]
 
         # Chord-length parameterization
         xyz = np.vstack([xs, ys, zs]).T
@@ -149,17 +194,40 @@ class PathInterpolator:
             sz = interpolate.InterpolatedUnivariateSpline(u_nodes, zs)
         except Exception as e:
             # In case of errors, fall back to straight lines
-            self._interpolate_straight(nodes)
+            self._interpolate_straight(total_path_nodes)
             return
 
         # Sample the spline
-        uu = np.linspace(u_nodes[0], u_nodes[-1], 100)
+        uu = np.linspace(u_nodes[0], u_nodes[-1], 1000)
         xx = sx(uu)
         yy = sy(uu)
         zz = sz(uu)
-        segment_points = np.vstack([xx, yy, zz]).T
-        segment = {
-            'type': 'spline',
-            'points': segment_points
-        }
-        self.interpolated_segments.append(segment)
+        spline_points = np.vstack([xx, yy, zz]).T
+
+        # Identify indices of waypoints in relevant_nodes
+        waypoint_indices = [i for i, node in enumerate(relevant_nodes) if node.waypoint]
+        u_waypoints = u_nodes[waypoint_indices]
+
+        # Split the spline at waypoints and store each segment
+        self._spline_segments = []
+        start_idx = 0
+        for i in range(len(u_waypoints)):
+            end_u = u_waypoints[i]
+            end_idx = np.searchsorted(uu, end_u)
+
+            # Get the segment points
+            segment_xx = xx[start_idx:end_idx + 1]
+            segment_yy = yy[start_idx:end_idx + 1]
+            segment_zz = zz[start_idx:end_idx + 1]
+            segment_points = np.vstack([segment_xx, segment_yy, segment_zz]).T
+
+            # Store the segment along with its corresponding waypoints
+            segment_info = {
+                'start_node': relevant_nodes[waypoint_indices[i - 1]] if i > 0 else relevant_nodes[0],
+                'end_node': relevant_nodes[waypoint_indices[i]],
+                'points': segment_points
+            }
+            self._spline_segments.append(segment_info)
+
+            # Update indices for next segment
+            start_idx = end_idx
