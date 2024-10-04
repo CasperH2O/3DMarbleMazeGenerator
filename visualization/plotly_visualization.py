@@ -13,7 +13,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     """
 
     # Plot nodes
-    scatter = plot_nodes_plotly(nodes)
+    node_traces = plot_nodes_plotly(nodes)
 
     # Prepare path data
     path_trace = None
@@ -34,7 +34,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     casing_traces = plot_casing_plotly(casing)
 
     # Combine all traces
-    data = [scatter] + casing_traces
+    data = node_traces + casing_traces
     if path_trace:
         data.append(path_trace)
 
@@ -53,7 +53,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="3d_nodes_and_paths.html")
+    pyo.plot(fig, filename="../3d_nodes_and_paths.html")
 
 
 def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
@@ -66,7 +66,7 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
     """
 
     # Plot nodes
-    scatter = plot_nodes_plotly(nodes)
+    node_traces = plot_nodes_plotly(nodes)
 
     # Collect waypoint nodes along with the nodes immediately before and after each waypoint
     relevant_nodes = set()
@@ -184,7 +184,7 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
     casing_traces = plot_casing_plotly(casing)
 
     # Combine all traces
-    data = [scatter] + casing_traces
+    data = node_traces + casing_traces
     if path_trace:
         data.append(path_trace)
     data.extend(fitted_curve_traces)
@@ -212,14 +212,14 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     Visualizes the nodes and the interpolated path in a 3D plot using Plotly.
     """
     # Plot nodes
-    scatter = plot_nodes_plotly(nodes)
+    node_traces = plot_nodes_plotly(nodes)
 
     # Prepare path traces from interpolated segments
     path_traces = []
     colors = {
-        'straight': 'blue',
-        'bezier': 'green',
-        'spline': 'purple'
+        'straight': 'black',
+        'bezier': 'orange',
+        'spline': 'lime'
     }
     legend_added = set()
     for segment in interpolated_segments:
@@ -244,7 +244,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     casing_traces = plot_casing_plotly(casing)
 
     # Combine all traces
-    data = [scatter] + casing_traces + path_traces
+    data = node_traces + casing_traces + path_traces
 
     # Create the layout
     layout = go.Layout(
@@ -262,4 +262,4 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="3d_interpolated_path.html")
+    pyo.plot(fig, filename="../3d_interpolated_path.html")

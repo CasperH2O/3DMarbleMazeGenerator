@@ -6,46 +6,87 @@ import plotly.graph_objects as go
 
 
 def plot_nodes_plotly(nodes):
+    """
+    Plots the nodes in a 3D scatter plot with different colors and sizes for different node types.
+    Adds legends for start, end, waypoint, and other node types.
+    """
+    # Prepare coordinates
     xs = [node.x for node in nodes]
     ys = [node.y for node in nodes]
     zs = [node.z for node in nodes]
 
-    # Colors and sizes based on node properties
-    colors = []
-    sizes = []
-    for node in nodes:
-        if node.start:
-            colors.append('yellow')
-            sizes.append(10)
-        elif node.end:
-            colors.append('orange')
-            sizes.append(10)
-        elif node.mounting:
-            colors.append('purple')
-            sizes.append(8)
-        elif node.waypoint:
-            colors.append('blue')
-            sizes.append(6)
-        elif node.occupied:
-            colors.append('red')
-            sizes.append(6)
-        else:
-            colors.append('green')
-            sizes.append(3)
+    # Segregate nodes based on their properties
+    start_nodes = [node for node in nodes if node.start]
+    end_nodes = [node for node in nodes if node.end]
+    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.end]  # Exclude mounting waypoints
+    mounting_nodes = [node for node in nodes if node.mounting and not node.start ]
+    occupied_nodes = [node for node in nodes if node.occupied and not node.waypoint and not node.mounting]  # Exclude occupied waypoints and mountings
+    regular_nodes = [node for node in nodes if not (node.start or node.end or node.waypoint or node.mounting or node.occupied)]
 
-    scatter = go.Scatter3d(
-        x=xs,
-        y=ys,
-        z=zs,
+    # Create scatter traces for each node type with corresponding legends
+    scatter_start = go.Scatter3d(
+        x=[node.x for node in start_nodes],
+        y=[node.y for node in start_nodes],
+        z=[node.z for node in start_nodes],
         mode='markers',
-        marker=dict(
-            size=sizes,
-            color=colors,
-            opacity=0.8
-        ),
-        name="Nodes"
+        marker=dict(color='yellow', size=5),
+        name="Start Node",
+        legendgroup="Start"
     )
-    return scatter
+
+    scatter_end = go.Scatter3d(
+        x=[node.x for node in end_nodes],
+        y=[node.y for node in end_nodes],
+        z=[node.z for node in end_nodes],
+        mode='markers',
+        marker=dict(color='magenta', size=5),
+        name="End Node",
+        legendgroup="End"
+    )
+
+    scatter_waypoint = go.Scatter3d(
+        x=[node.x for node in waypoint_nodes],
+        y=[node.y for node in waypoint_nodes],
+        z=[node.z for node in waypoint_nodes],
+        mode='markers',
+        marker=dict(color='blue', size=3),
+        name="Waypoint",
+        legendgroup="Waypoint"
+    )
+
+    scatter_mounting = go.Scatter3d(
+        x=[node.x for node in mounting_nodes],
+        y=[node.y for node in mounting_nodes],
+        z=[node.z for node in mounting_nodes],
+        mode='markers',
+        marker=dict(color='purple', size=4),
+        name="Mounting",
+        legendgroup="Mounting"
+    )
+
+    scatter_occupied = go.Scatter3d(
+        x=[node.x for node in occupied_nodes],
+        y=[node.y for node in occupied_nodes],
+        z=[node.z for node in occupied_nodes],
+        mode='markers',
+        marker=dict(color='red', size=3),
+        name="Occupied",
+        legendgroup="Occupied"
+    )
+
+    scatter_regular = go.Scatter3d(
+        x=[node.x for node in regular_nodes],
+        y=[node.y for node in regular_nodes],
+        z=[node.z for node in regular_nodes],
+        mode='markers',
+        marker=dict(color='green', size=1),
+        name="Regular Node",
+        legendgroup="Regular"
+    )
+
+    # Combine all scatter traces
+    return [scatter_start, scatter_end, scatter_waypoint, scatter_mounting, scatter_occupied, scatter_regular]
+
 
 def plot_casing_plotly(casing):
     if isinstance(casing, SphereCasing):
