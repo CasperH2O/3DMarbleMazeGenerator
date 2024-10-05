@@ -19,5 +19,5 @@ if __name__ == "__main__":
     #visualize_nodes_and_paths_nurbs(puzzle.nodes, puzzle.total_path, puzzle.casing)
     #visualize_nodes_and_paths_spline(puzzle.nodes, puzzle.total_path, puzzle.casing)
     #visualize_nodes_and_paths_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    visualize_nodes_and_paths_curve_fit_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
+    #visualize_nodes_and_paths_curve_fit_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
     visualize_interpolated_path_plotly(puzzle.nodes, puzzle.interpolated_segments, puzzle.casing)

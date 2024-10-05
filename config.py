@@ -21,6 +21,12 @@ HEIGHT = 100
 LENGTH = 150
 PANEL_THICKNESS = 3
 
+# Interpolation types for paths
+INTERPOLATION_TYPES = ['straight',
+                       'bezier',
+                       'spline'
+                       ]
+
 # Path types and their parameters
 PATH_TYPES = [#'l_shape',
               #'l_shape_adjusted_height',

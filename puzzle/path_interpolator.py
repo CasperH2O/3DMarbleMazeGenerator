@@ -4,24 +4,25 @@ import numpy as np
 from scipy import interpolate
 from geomdl import BSpline, utilities
 import random
+import config
 
 class PathInterpolator:
-    def __init__(self, total_path, seed=None):
+    def __init__(self, total_path, seed, interpolation_types=config.INTERPOLATION_TYPES):
         """
         Initializes the PathInterpolator.
 
         :param total_path: List of nodes representing the path.
         :param seed: Seed for random selection of interpolation methods.
+        :param interpolation_types: List of interpolation methods from config.
         """
         self.total_path = total_path
         self.seed = seed
-        if self.seed is not None:
-            random.seed(self.seed)
+
         self.interpolated_segments = []  # List to store interpolated segments with metadata
         self._spline_cache = None  # Cache for the computed spline
 
-        # Initialize interpolation methods
-        self.interpolation_methods = ['straight', 'bezier', 'spline']
+        # Initialize interpolation methods from config
+        self.interpolation_methods = interpolation_types.copy()
 
         # Assign interpolation methods to segments
         self.segments = self.group_nodes_by_interpolation_method()
@@ -32,12 +33,14 @@ class PathInterpolator:
     def group_nodes_by_interpolation_method(self):
         """
         Groups nodes into segments where the interpolation method is assigned.
-        The first segment always uses 'straight' interpolation.
+        The first segment uses the first method from the interpolation methods.
         At each waypoint, the interpolation method is changed randomly.
         """
         segments = []
         current_segment_nodes = []
-        current_method = 'straight'  # Start with 'straight'
+
+        # Start with the first interpolation method
+        current_method = self.interpolation_methods[0]
 
         total_path_nodes = self.total_path
         interpolation_methods = self.interpolation_methods.copy()
@@ -52,7 +55,8 @@ class PathInterpolator:
                 })
                 # Change interpolation method randomly for the next segment
                 new_methods = [m for m in interpolation_methods if m != current_method]
-                current_method = random.choice(new_methods)
+                if new_methods:
+                    current_method = random.choice(new_methods)
                 # Start a new segment beginning with the current waypoint
                 current_segment_nodes = [node]
         # After processing all nodes, add the last segment
@@ -67,17 +71,22 @@ class PathInterpolator:
         """
         Interpolates each segment using its assigned interpolation method.
         """
+        # Map method names to interpolation functions
+        interpolation_functions = {
+            'straight': self._interpolate_straight,
+            'bezier': self._interpolate_bezier,
+            'spline': self._interpolate_spline,
+            # Add other interpolation methods here if needed
+        }
+
         for segment in self.segments:
             method = segment['method']
             nodes = segment['nodes']
-            if method == 'straight':
-                self._interpolate_straight(nodes)
-            elif method == 'bezier':
-                self._interpolate_bezier(nodes)
-            elif method == 'spline':
-                self._interpolate_spline(nodes)
+            if method in interpolation_functions:
+                interpolation_functions[method](nodes)
             else:
                 raise ValueError(f"Unknown interpolation method: {method}")
+
 
     def _interpolate_straight(self, nodes):
         """
