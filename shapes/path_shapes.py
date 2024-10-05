@@ -75,6 +75,7 @@ def create_tube_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0
         wp
         .circle(outer_diameter / 2)
         .circle(inner_diameter / 2)
+        .consolidateWires()
     )
     return tube_shape
 
