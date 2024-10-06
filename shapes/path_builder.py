@@ -1,7 +1,6 @@
-# path_builder.py
+# shapes/path_builder.py
 
 import random
-import cadquery as cq
 import config
 from shapes.path_shapes import *
 
@@ -11,10 +10,10 @@ class PathBuilder:
     Handles the assignment of path types, grouping of nodes, and building of the final path body.
     """
 
-    def __init__(self, seed=config.SEED, path_types=config.PATH_TYPES, node_size=config.NODE_SIZE):
-        self.seed = seed
-        self.path_types = path_types.copy()
+    def __init__(self):
+        self.seed = config.SEED
         random.seed(self.seed)
+        self.path_types = config.PATH_TYPES.copy()
         self.path_type_parameters = config.PATH_TYPE_PARAMETERS
         self.profile_functions = {
             'l_shape': create_l_shape,
@@ -25,21 +24,22 @@ class PathBuilder:
             'v_shape': create_v_shape
         }
         self.profiles = []  # Store profiles for debugging
-        self.paths = []     # Store paths corresponding to profiles
-        self.node_size = node_size  # Store node size
+        self.paths = []  # Store paths corresponding to profiles
+        self.node_size = config.NODE_SIZE  # Store node size
+        self.waypoint_change_interval = config.WAYPOINT_CHANGE_INTERVAL  # Store the waypoint change interval
 
     def assign_path_types(self, nodes):
         """
         Assigns path types to nodes based on specified conditions.
+
+        Changes the path type every nth waypoint, where n is specified in the configuration.
         """
         path_type = 'u_shape'  # Start with 'u_shape'
-        path_type_counter = 0  # Counter for nodes since last path_type change
-        path_type_change_interval = 10  # Change path_type every 5 nodes
+        waypoint_counter = 0  # Counter for the number of waypoints encountered
         possible_path_types = self.path_types.copy()
 
         # First 3 nodes are 'u_shape'
-        for i in range(len(nodes)):
-            node = nodes[i]
+        for i, node in enumerate(nodes):
             if i < 3:
                 node.path_type = 'u_shape'
                 continue
@@ -50,25 +50,19 @@ class PathBuilder:
                 continue
 
             if node.waypoint:
-                # When node is a waypoint, change path type randomly from that point on
-                path_type_counter = 0  # Reset counter
-                # Randomly select a new path_type different from the current one
-                new_path_types = [pt for pt in possible_path_types if pt != path_type]
-                path_type = random.choice(new_path_types)
-                node.path_type = path_type
-                continue
+                waypoint_counter += 1
 
-            if path_type_counter >= path_type_change_interval:
-                # Check if the next 5 nodes contain a waypoint
-                contains_waypoint = any(n.waypoint for n in nodes[i:i + 2])
-                if not contains_waypoint:
+                if waypoint_counter % self.waypoint_change_interval == 0:
                     # Change path_type
-                    path_type_counter = 0
                     # Randomly select a new path_type different from the current one
                     new_path_types = [pt for pt in possible_path_types if pt != path_type]
-                    path_type = random.choice(new_path_types)
-            node.path_type = path_type
-            path_type_counter += 1
+                    if new_path_types:
+                        path_type = random.choice(new_path_types)
+
+                node.path_type = path_type
+            else:
+                node.path_type = path_type
+
         return nodes
 
     def group_nodes_by_path_type(self, nodes):
