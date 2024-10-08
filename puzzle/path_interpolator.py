@@ -7,7 +7,7 @@ import random
 import config
 
 class PathInterpolator:
-    def __init__(self, total_path, seed, interpolation_types=config.INTERPOLATION_TYPES):
+    def __init__(self, total_path, seed, interpolation_types=config.PATH_CURVE_TYPES):
         """
         Initializes the PathInterpolator.
 
@@ -73,7 +73,7 @@ class PathInterpolator:
         """
         # Map method names to interpolation functions
         interpolation_functions = {
-            'straight': self._interpolate_straight,
+            'polyline': self._interpolate_straight,
             'bezier': self._interpolate_bezier,
             'spline': self._interpolate_spline,
             # Add other interpolation methods here if needed

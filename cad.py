@@ -51,11 +51,11 @@ puzzle = Puzzle(
 CAD_nodes = puzzle.total_path
 
 # Initialize the PathBuilder
-path_builder = PathBuilder(seed=config.SEED)
+path_builder = PathBuilder()
 
 # Build the path step by step
 # Assign path types and group nodes
-CAD_nodes = path_builder.assign_path_types(CAD_nodes)
+CAD_nodes = path_builder.assign_path_profile_and_curve_types(CAD_nodes)
 segments = path_builder.group_nodes_by_path_type(CAD_nodes)
 
 # Prepare profiles and paths

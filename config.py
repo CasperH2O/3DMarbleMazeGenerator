@@ -6,7 +6,7 @@ BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
 NUMBER_OF_WAYPOINTS = 3
-WAYPOINT_CHANGE_INTERVAL = 2  # Change path type every n waypoints
+WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
 # Sphere case
 SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
@@ -23,21 +23,22 @@ LENGTH = 150
 PANEL_THICKNESS = 3
 
 # Interpolation types for paths
-INTERPOLATION_TYPES = ['straight',
-                       'bezier',
-                       #'spline'
-                       ]
+PATH_CURVE_TYPES = ['polyline',
+                    'bezier',
+                    #'spline'
+                    ]
 
 # Path types and their parameters
-PATH_TYPES = [#'l_shape',
-              #'l_shape_adjusted_height',
-              #'tube_shape',
-              'u_shape',
-              'u_shape_adjusted_height',
-              #'v_shape'
-              ]
+PATH_PROFILE_TYPES = ['l_shape',
+                      #'l_shape_adjusted_height',
+                      #'tube_shape',
+                      'u_shape',
+                      #'u_shape_adjusted_height',
+                      'v_shape'
+                      ]
 
-PATH_TYPE_PARAMETERS = {
+PATH_PROFILE_TYPE_PARAMETERS = \
+    {
     'l_shape': {
         'height_width': 10.0 - 0.0001,
         'wall_thickness': 1.2,

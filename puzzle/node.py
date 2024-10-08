@@ -17,7 +17,8 @@ class Node:
         self.g = float('inf')  # Cost from start to this node
         self.h = 0  # Heuristic cost to goal
         self.f = float('inf')  # Total cost
-        self.path_type = None  # Type of path shape
+        self.path_profile_type = None  # Type of path profile shape
+        self.path_curve_type = None  # Type of path curve
 
     def __repr__(self):
         return (f"Node(x={self.x}, y={self.y}, z={self.z}, "
