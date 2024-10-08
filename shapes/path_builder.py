@@ -44,7 +44,7 @@ class PathBuilder:
 
         waypoint_counter = 0  # Counter for the number of waypoints encountered
 
-        # First 3 nodes are 'u_shape'
+        # First few nodes are u shaped with linear path to get started easily
         for i, node in enumerate(nodes):
             if i < 3:
                 node.path_profile_type = 'u_shape'

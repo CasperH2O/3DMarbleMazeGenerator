@@ -5,8 +5,8 @@ CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'B
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
 SEED = 42  # Random seed
-NUMBER_OF_WAYPOINTS = 3
-WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
+NUMBER_OF_WAYPOINTS = 1
+WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
 # Sphere case
 SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
