@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import random
 
+import config
+
 
 class Casing(ABC):
     @abstractmethod
@@ -34,8 +36,8 @@ class SphereCasing(Casing):
     def get_mounting_waypoints(self, nodes, seed):
         random.seed(seed)
 
-        # Determine the number of mounting waypoints (between 3 and 5)
-        num_mounting_waypoints = random.randint(4, 4) # Todo, make configurable in config.py
+        # Use the number of mounting waypoints from config
+        num_mounting_waypoints = config.NUMBER_OF_WAYPOINTS
 
         # Get the outer radius at Z = 0
         outer_radius = self.inner_radius
