@@ -4,7 +4,7 @@
 CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'Box'
 BALL_DIAMETER = 6  # Diameter of the marble ball
 NODE_SIZE = 10  # Node size in mm
-SEED = 42  # Random seed
+SEED = 25  # Random seed
 NUMBER_OF_WAYPOINTS = 1
 WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
@@ -30,12 +30,12 @@ PATH_CURVE_TYPES = ['polyline',
                     ]
 
 # Path types and their parameters
-PATH_PROFILE_TYPES = ['l_shape',
+PATH_PROFILE_TYPES = [#'l_shape',
                       #'l_shape_adjusted_height',
                       #'tube_shape',
                       'u_shape',
                       #'u_shape_adjusted_height',
-                      'v_shape'
+                      #'v_shape'
                       ]
 
 PATH_PROFILE_TYPE_PARAMETERS = \

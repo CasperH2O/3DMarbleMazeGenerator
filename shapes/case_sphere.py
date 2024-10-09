@@ -31,7 +31,7 @@ class CaseSphere(CaseBase):
 
     def get_cut_shape(self):
         # Add small distance for tolerances
-        flush_distance_tolerance = 0.4
+        flush_distance_tolerance = 0.0
 
         # Create the cross-sectional profile of the hollow sphere
         hollow_sphere_profile = (

@@ -14,6 +14,9 @@ class CaseSphereWithFlange(CaseBase):
         self.ball_diameter = config.BALL_DIAMETER
         self.mounting_hole_diameter = config.MOUNTING_HOLE_DIAMETER
         self.mounting_hole_amount = config.MOUNTING_HOLE_AMOUNT
+        self.node_size = config.NODE_SIZE
+        self.number_of_mounting_points = config.NUMBER_OF_MOUNTING_POINTS
+        self.mounting_distance = config.SPHERE_DIAMETER - config.NODE_SIZE
 
         # Derived variables
         self.sphere_inner_diameter = self.sphere_outer_diameter - (2 * self.sphere_thickness)
@@ -30,12 +33,24 @@ class CaseSphereWithFlange(CaseBase):
         # Create the mounting ring as a difference between two circles, then extrude symmetrically
         mounting_ring = (
             cq.Workplane("XY")
-            .circle(self.sphere_flange_radius)          # Outer circle
-            .circle(self.sphere_inner_radius)          # Inner circle (hole)
-            .extrude(self.mounting_ring_thickness)   # Extrude thickness
+            .circle(self.sphere_flange_radius)      # Outer circle
+            .circle(self.sphere_inner_radius)       # Inner circle (hole)
+            .extrude(self.mounting_ring_thickness)  # Extrude thickness
         )
         # Move to center
         mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
+
+        # Add the rectangular nodes around the mounting ring, skipping the first one and rotating 180 degrees
+        nodes = (
+            cq.Workplane("XY")
+            .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
+            .rect(self.node_size * 2, self.node_size)  # Define the rectangle
+            .extrude(self.mounting_ring_thickness / 2, both=True)  # Extrude symmetrically
+        )
+
+        # Combine the ring and the nodes
+        mounting_ring = mounting_ring.union(nodes)
+
         return mounting_ring
 
     def create_domes(self):
@@ -113,7 +128,7 @@ class CaseSphereWithFlange(CaseBase):
 
     def get_cut_shape(self):
         # Add small distance for tolerances
-        flush_distance_tolerance = 0.4
+        flush_distance_tolerance = 0.0
 
         # Create the cross-sectional profile of the hollow sphere
         hollow_sphere_profile = (
