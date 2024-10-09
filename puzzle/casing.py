@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import random
-
 import config
 
 
@@ -15,11 +14,6 @@ class Casing(ABC):
 
     @abstractmethod
     def get_mounting_waypoints(self, nodes, seed):
-        pass
-
-    @abstractmethod
-    def get_dimensions(self):
-        """Return the dimensions of the casing."""
         pass
 
 
@@ -75,9 +69,6 @@ class SphereCasing(Casing):
 
         print(f"Defined {len(mounting_nodes)} mounting waypoints: {mounting_nodes}")
         return mounting_nodes
-
-    def get_dimensions(self):
-        return {'diameter': self.diameter, 'shell_thickness': self.shell_thickness}
 
 
 class BoxCasing(Casing):
@@ -139,6 +130,3 @@ class BoxCasing(Casing):
 
         print(f"Defined {len(mounting_nodes)} mounting waypoints for Box: {mounting_nodes}")
         return mounting_nodes
-
-    def get_dimensions(self):
-        return {'width': self.width, 'height': self.height, 'length': self.length}
