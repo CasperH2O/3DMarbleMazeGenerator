@@ -1,54 +1,67 @@
 # puzzle/casing.py
 
 from abc import ABC, abstractmethod
-import numpy as np
-import random
+import math
+from typing import List, Dict, Tuple, Optional
 import config
+from puzzle.node import Node
 
 
 class Casing(ABC):
     @abstractmethod
-    def contains_point(self, x, y, z) -> bool:
+    def contains_point(self, x: float, y: float, z: float) -> bool:
         """Check if a point is inside the casing."""
         pass
 
     @abstractmethod
-    def get_mounting_waypoints(self, nodes, seed):
+    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+        """Get mounting waypoints for the casing."""
         pass
 
 
 class SphereCasing(Casing):
-    def __init__(self, diameter, shell_thickness):
+    def __init__(self, diameter: float, shell_thickness: float):
+        """
+        Initialize a spherical casing.
+
+        :param diameter: Diameter of the sphere.
+        :param shell_thickness: Thickness of the shell.
+        """
         self.diameter = diameter
         self.shell_thickness = shell_thickness
         self.inner_radius = (diameter / 2) - shell_thickness
 
-    def contains_point(self, x, y, z) -> bool:
-        distance = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-        return distance <= self.inner_radius
+    def contains_point(self, x: float, y: float, z: float) -> bool:
+        """
+        Check if the point is inside the inner sphere.
 
-    def get_mounting_waypoints(self, nodes, seed):
-        random.seed(seed)
+        :param x: X-coordinate of the point.
+        :param y: Y-coordinate of the point.
+        :param z: Z-coordinate of the point.
+        :return: True if the point is inside the sphere, False otherwise.
+        """
+        distance_squared = x ** 2 + y ** 2 + z ** 2
+        return distance_squared <= self.inner_radius ** 2
 
-        # Use the number of mounting waypoints from config
-        num_mounting_waypoints = config.NUMBER_OF_WAYPOINTS
+    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+        """
+        Get mounting waypoints for the spherical casing.
 
-        # Get the outer radius at Z = 0
-        outer_radius = self.inner_radius
-
-        # Calculate the angle between waypoints
-        angle_increment = 2 * np.pi / num_mounting_waypoints
-
+        :param nodes: List of nodes to consider.
+        :return: List of mounting nodes.
+        """
+        num_mounting_waypoints = config.NUMBER_OF_MOUNTING_POINTS
+        radius = self.inner_radius
+        angle_increment = 2 * math.pi / num_mounting_waypoints
         mounting_nodes = []
 
+        # Define mounting waypoints around the sphere
         for i in range(num_mounting_waypoints):
-            angle = i * angle_increment + np.pi  # Start from angle π (180 degrees)
+            # Start from angle π (180 degrees) to position waypoints appropriately
+            angle = i * angle_increment + math.pi
+            x = radius * math.cos(angle)
+            y = radius * math.sin(angle)
 
-            # Calculate the (x, y) coordinates for this mounting node
-            x = outer_radius * np.cos(angle)
-            y = outer_radius * np.sin(angle)
-
-            # Find the nearest unoccupied node at Z = 0
             candidates = [
                 node for node in nodes
                 if node.z == 0 and not node.occupied and node not in mounting_nodes
@@ -60,11 +73,10 @@ class SphereCasing(Casing):
 
             nearest_node = min(
                 candidates,
-                key=lambda node: np.sqrt((node.x - x) ** 2 + (node.y - y) ** 2)
+                key=lambda node: (node.x - x) ** 2 + (node.y - y) ** 2
             )
             nearest_node.mounting = True
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
-
             mounting_nodes.append(nearest_node)
 
         print(f"Defined {len(mounting_nodes)} mounting waypoints: {mounting_nodes}")
@@ -72,7 +84,15 @@ class SphereCasing(Casing):
 
 
 class BoxCasing(Casing):
-    def __init__(self, width, height, length, panel_thickness):
+    def __init__(self, width: float, height: float, length: float, panel_thickness: float):
+        """
+        Initialize a box casing.
+
+        :param width: Width of the box.
+        :param height: Height of the box.
+        :param length: Length of the box.
+        :param panel_thickness: Thickness of the panels.
+        """
         self.width = width
         self.height = height
         self.length = length
@@ -81,13 +101,30 @@ class BoxCasing(Casing):
         self.half_length = length / 2
         self.panel_thickness = panel_thickness
 
-    def contains_point(self, x, y, z) -> bool:
+    def contains_point(self, x: float, y: float, z: float) -> bool:
+        """
+        Check if the point is inside the box.
+
+        :param x: X-coordinate of the point.
+        :param y: Y-coordinate of the point.
+        :param z: Z-coordinate of the point.
+        :return: True if the point is inside the box, False otherwise.
+        """
         return (-self.half_width <= x <= self.half_width and
                 -self.half_height <= y <= self.half_height and
                 -self.half_length <= z <= self.half_length)
 
-    def get_start_node(self, node_dict):
-        # Start node at one corner of the box
+    def get_start_node(self, node_dict: Dict[Tuple[float, float, float], Node]) -> Optional[Node]:
+        """
+        Get the start node at one corner of the box.
+
+        :param node_dict: Dictionary mapping coordinates to nodes.
+        :return: The start node, if found.
+        """
+        if not node_dict:
+            print("Node dictionary is empty. Cannot determine start node.")
+            return None
+
         min_x = min(x for x, y, z in node_dict.keys())
         min_y = min(y for x, y, z in node_dict.keys())
         min_z = min(z for x, y, z in node_dict.keys())
@@ -96,36 +133,38 @@ class BoxCasing(Casing):
             start_node.start = True
         return start_node
 
-    def get_mounting_waypoints(self, nodes, seed):
-        # Implement mounting waypoints logic for box casing
-        random.seed(seed)
+    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+        """
+        Get mounting waypoints for the box casing.
 
-        # For example, select nodes at the center of each face
+        :param nodes: List of nodes to consider.
+        :return: List of mounting nodes.
+        """
+
+        # Place mounting points in the center of every panel face
         face_centers = [
-            (0, 0, -self.half_length),  # Front face
-            (0, 0, self.half_length),  # Back face
-            (self.half_width, 0, 0),  # Right face
-            (-self.half_width, 0, 0),  # Left face
-            (0, self.half_height, 0),  # Top face
-            (0, -self.half_height, 0),  # Bottom face
+            (0, 0, -self.half_length),    # Front face
+            (0, 0, self.half_length),     # Back face
+            (self.half_width, 0, 0),      # Right face
+            (-self.half_width, 0, 0),     # Left face
+            (0, self.half_height, 0),     # Top face
+            (0, -self.half_height, 0),    # Bottom face
         ]
-
         mounting_nodes = []
 
         for x_face, y_face, z_face in face_centers:
-            # Find the nearest unoccupied node to the face center
-            candidates = [
-                node for node in nodes
-                if not node.occupied
-            ]
+            candidates = [node for node in nodes if not node.occupied]
+
+            if not candidates:
+                print("No available nodes for mounting waypoints.")
+                continue
 
             nearest_node = min(
                 candidates,
-                key=lambda node: np.sqrt((node.x - x_face) ** 2 + (node.y - y_face) ** 2 + (node.z - z_face) ** 2)
+                key=lambda node: (node.x - x_face) ** 2 + (node.y - y_face) ** 2 + (node.z - z_face) ** 2
             )
             nearest_node.mounting = True
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
-
             mounting_nodes.append(nearest_node)
 
         print(f"Defined {len(mounting_nodes)} mounting waypoints for Box: {mounting_nodes}")

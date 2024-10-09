@@ -15,6 +15,7 @@ SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
 MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring
 MOUNTING_HOLE_DIAMETER = 4  # Diameter of the mounting holes
 MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
+NUMBER_OF_MOUNTING_POINTS = 4
 
 # Box case
 WIDTH = 100

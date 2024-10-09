@@ -42,7 +42,7 @@ class Puzzle:
         self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(self)
 
         # Define mounting waypoints
-        self.casing.get_mounting_waypoints(self.nodes, self.seed)
+        self.casing.get_mounting_waypoints(self.nodes)
 
         # Randomly occupy nodes within the casing as obstacles
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
