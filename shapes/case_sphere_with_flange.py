@@ -25,7 +25,7 @@ class CaseSphereWithFlange(CaseBase):
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
         # Create the components
-        self.mounting_ring = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
         self.add_mounting_holes()
 
@@ -40,18 +40,30 @@ class CaseSphereWithFlange(CaseBase):
         # Move to center
         mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
 
-        # Add the rectangular nodes around the mounting ring, skipping the first one and rotating 180 degrees
-        nodes = (
+        # Add rectangular mounting bridges for the mounting ring, skipping the first one and rotating 180 degrees
+        mounting_ring_bridges = (
             cq.Workplane("XY")
             .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
             .rect(self.node_size * 2, self.node_size)  # Define the rectangle
             .extrude(self.mounting_ring_thickness / 2, both=True)  # Extrude symmetrically
         )
 
-        # Combine the ring and the nodes
-        mounting_ring = mounting_ring.union(nodes)
+        # Add rectangular mounting bridges for the path within, skipping the first one and rotating 180 degrees
+        printing_layer_thickness = 0.2
+        printing_nozzle_diameter = 0.4
 
-        return mounting_ring
+        path_bridges = (
+            cq.Workplane("XY")
+            .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
+            .rect(self.node_size * 2, self.node_size - 4 * printing_nozzle_diameter)  # Define the rectangle
+            .extrude(self.mounting_ring_thickness / 2 - printing_layer_thickness * 4, both=True)  # Extrude symmetrically
+        )
+
+        # Combine the ring and the nodes, cut out path bridge
+        path_bridges = path_bridges.cut(mounting_ring)
+        mounting_ring = mounting_ring.union(mounting_ring_bridges.cut(path_bridges))
+
+        return mounting_ring, path_bridges
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
@@ -124,6 +136,7 @@ class CaseSphereWithFlange(CaseBase):
             "Mounting Ring": self.mounting_ring,
             "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
+            "Path Bridge": self.path_bridges,
         }
 
     def get_cut_shape(self):
