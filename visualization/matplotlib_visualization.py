@@ -69,7 +69,7 @@ def visualize_nodes_and_paths_nurbs(nodes, total_path, casing):
         curve.knotvector = utilities.generate_knot_vector(curve.degree, len(control_points))
 
         # Increase the evaluation resolution for smoother curves
-        curve.delta = 0.001  # Lower delta for smoother evaluation
+        curve.delta = 0.01  # Lower delta for smoother evaluation
 
         # Evaluate the curve points
         curve.evaluate()
@@ -79,6 +79,21 @@ def visualize_nodes_and_paths_nurbs(nodes, total_path, casing):
         x_spline = curve_points[:, 0]
         y_spline = curve_points[:, 1]
         z_spline = curve_points[:, 2]
+
+        if False:
+            print('# Define the points for the spline path')
+            print('pts = [')
+    
+            for i, node in enumerate(curve_points):
+                x, y, z = node  # Extract x, y, z coordinates from the current node
+                coords = f'    ({x}, {y}, {z}),'
+                comment = ''
+                if i == 0:
+                    comment = '  # Start point'
+                elif i == len(curve_points) - 1:
+                    comment = '  # End point'
+                print(coords + comment)
+            print(']')
 
         # Plot the NURBS curve
         ax.plot(x_spline, y_spline, z_spline, color='red', linewidth=2, label='NURBS Curve')

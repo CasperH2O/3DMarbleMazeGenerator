@@ -1,35 +1,34 @@
 import cadquery as cq
 
-# Create a circular profile (the inner and outer circles)
-diameter_inner = 8
-diameter_outer = 10
+# Define the points for the different paths to try
 
-# Define the points for the spline path
+# 90-degree curve, single plane
 pts = [
     (-50, 0, 0),  # Start point
     (-40, 0, 0),
-    (-30, 0, 0),
-    (-20, 0, 0),
-    (-10, 0, 0),
-    (0, 0, 0),
-    (0, -10, 0),
-    (0, -20, 0),
-    (0, -30, 0),  # Waypoint
-    (10, -30, 0),
-    (10, -20, 0),
-    (10, -10, 0),  # Waypoint
-    (20, -10, 0),
-    (30, -10, 0),
-    (30, 0, 0),  # Waypoint
-    (20, 0, 0),
-    (10, 0, 0),
-    (10, 10, 0),
-    (0, 10, 0),
-    (0, 20, 0),
-    (0, 30, 0),  # End point
+    (-40, 10, 0),
 ]
 
-# Workplane on the XY plane
+# S-Curve, dual plane
+pts = [
+    (-50, 0, 0),  # Start point
+    (-40, 0, 0),
+    (-30, 10, 0),
+    (-20, 10, 0),
+]
+
+# 90 degree, 3D
+pts = [
+    (-50, 0, 0),
+    (-40, 0, 0),
+    (-40, 10, 0),
+    (-40, 10, 10),
+]
+
+# Create a tube profile (the inner and outer circles)
+diameter_inner = 8
+diameter_outer = 10
+
 circle_profile = (
     cq.Workplane("ZY")
     .workplane(offset=50)
@@ -37,13 +36,13 @@ circle_profile = (
     .circle(diameter_inner / 2)
 )
 
-# Create a path for the sweep
-path = cq.Workplane("XY").spline(pts)
+# Create a path for the sweep, different curve options
+#path = cq.Workplane("XY").spline(pts)
 #path = cq.Workplane("XY").polyline(pts)
-#path = cq.Workplane("XY").bezier(pts)
+path = cq.Workplane("XY").bezier(pts)
 
 # Sweep the profile along the path
-swept_shape = circle_profile.sweep(path, transition='right')
+swept_shape = circle_profile.sweep(path, transition='round')
 
 # Display the results
 show_object(circle_profile)
