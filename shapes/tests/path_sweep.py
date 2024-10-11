@@ -27,7 +27,7 @@ pts = [
 
 # Create a tube profile (the inner and outer circles)
 diameter_inner = 8
-diameter_outer = 10
+diameter_outer = 10 - 0.0001
 
 circle_profile = (
     cq.Workplane("ZY")
