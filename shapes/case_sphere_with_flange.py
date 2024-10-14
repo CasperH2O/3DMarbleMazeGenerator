@@ -4,6 +4,53 @@ from .case_base import CaseBase
 import cadquery as cq
 import math
 
+# Include the faceOnWire method
+def _faceOnWire(self, path: cq.Wire) -> cq.Face:
+    """Reposition a face from alignment to the x-axis to the provided path"""
+    path_length = path.Length()
+
+    bbox = self.BoundingBox()
+    face_bottom_center = cq.Vector((bbox.xmin + bbox.xmax) / 2, 0, 0)
+    relative_position_on_wire = face_bottom_center.x / path_length
+    wire_tangent = path.tangentAt(relative_position_on_wire)
+    wire_angle = math.degrees(math.atan2(wire_tangent.y, wire_tangent.x))
+    wire_position = path.positionAt(relative_position_on_wire)
+
+    return self.rotate(
+        face_bottom_center, face_bottom_center + cq.Vector(0, 0, 1), wire_angle
+    ).translate(wire_position - face_bottom_center)
+
+# Attach the method to cq.Face
+cq.Face.faceOnWire = _faceOnWire
+
+
+def textOnWire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float) -> cq.Solid:
+    """Create 3D text with a baseline following the given path"""
+    # Create the text as faces
+    linear_faces = (
+        cq.Workplane("XY")
+        .text(
+            txt=txt,
+            fontsize=fontsize,
+            distance=0,  # Create text as faces (2D)
+            kind="bold",
+            #font="Freestyle Script",
+            #fontPath="C:\\Users\\caspe\\Desktop\\freestyle-script\\FREESCPT.TTF",
+            halign="center",
+            valign="center",
+        )
+        .faces()
+        .vals()
+    )
+    # Reposition faces along the path
+    faces_on_path = [f.faceOnWire(path) for f in linear_faces]
+    # Extrude the faces by the specified depth using extrudeLinear
+    extruded_solids = [
+        cq.Solid.extrudeLinear(f, cq.Vector(0, 0, extrude_depth)) for f in faces_on_path
+    ]
+    # Combine all extruded solids into one compound
+    return cq.Compound.makeCompound(extruded_solids)
+
 
 class CaseSphereWithFlange(CaseBase):
     def __init__(self, config):
@@ -25,7 +72,7 @@ class CaseSphereWithFlange(CaseBase):
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
         # Create the components
-        self.mounting_ring, self.path_bridges = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges, self.start_text = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
         self.add_mounting_holes()
 
@@ -39,6 +86,27 @@ class CaseSphereWithFlange(CaseBase):
         )
         # Move to center
         mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
+
+        # Define the circular path for the text
+        text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
+        path = cq.Workplane("XY").circle(text_radius).edges().val()
+
+        # Rotate the path by 180 degrees around the Z-axis
+        path = path.rotate((0, 0, 0), (0, 0, 1), 180)
+
+        # Create the text along the path
+        start_text = textOnWire(
+            txt="START",
+            fontsize=6,
+            path=path,
+            extrude_depth=-1  # Negative value to cut into the ring
+        )
+
+        # Position the text at the top surface of the ring
+        start_text = start_text.translate((0, 0, 0.5 * self.mounting_ring_thickness))
+
+        # Subtract the text from the mounting ring
+        mounting_ring = mounting_ring.cut(start_text)
 
         # Add rectangular mounting bridges for the mounting ring, skipping the first one and rotating 180 degrees
         mounting_ring_bridges = (
@@ -63,7 +131,7 @@ class CaseSphereWithFlange(CaseBase):
         path_bridges = path_bridges.cut(mounting_ring)
         mounting_ring = mounting_ring.union(mounting_ring_bridges.cut(path_bridges))
 
-        return mounting_ring, path_bridges
+        return mounting_ring, path_bridges, start_text
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
@@ -121,7 +189,7 @@ class CaseSphereWithFlange(CaseBase):
         holes = (
             wp
             .workplane()
-            .polarArray(hole_pattern_radius, 0, 360, self.mounting_hole_amount, fill=True)
+            .polarArray(hole_pattern_radius, 45, 360, self.mounting_hole_amount, fill=True)
             .circle(self.mounting_hole_diameter / 2)
             .extrude(3 * self.sphere_thickness, both=True)  # Extrude length sufficient to cut through the bodies
         )
@@ -133,10 +201,11 @@ class CaseSphereWithFlange(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "Mounting Ring": self.mounting_ring,
+            "Mounting Ring": (self.mounting_ring,{"color": (40, 40, 43)}),
             "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
-            "Path Bridge": self.path_bridges,
+            "Path Bridge": (self.path_bridges, {"color": (57, 255, 20)}),
+            "Start Text": (self.start_text, {"color": (57, 255, 20)}),
         }
 
     def get_cut_shape(self):
