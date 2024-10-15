@@ -5,7 +5,7 @@ import cadquery as cq
 import math
 
 # Include the faceOnWire method
-def _faceOnWire(self, path: cq.Wire) -> cq.Face:
+def _face_on_wire(self, path: cq.Wire) -> cq.Face:
     """Reposition a face from alignment to the x-axis to the provided path"""
     path_length = path.Length()
 
@@ -21,33 +21,43 @@ def _faceOnWire(self, path: cq.Wire) -> cq.Face:
     ).translate(wire_position - face_bottom_center)
 
 # Attach the method to cq.Face
-cq.Face.faceOnWire = _faceOnWire
+cq.Face.faceOnWire = _face_on_wire
 
 
-def textOnWire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float) -> cq.Solid:
+def text_on_wire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float) -> cq.Solid:
     """Create 3D text with a baseline following the given path"""
     # Create the text as faces
-    linear_faces = (
-        cq.Workplane("XY")
-        .text(
-            txt=txt,
-            fontsize=fontsize,
-            distance=0,  # Create text as faces (2D)
-            kind="bold",
-            #font="Freestyle Script",
-            #fontPath="C:\\Users\\caspe\\Desktop\\freestyle-script\\FREESCPT.TTF",
-            halign="center",
-            valign="center",
-        )
-        .faces()
-        .vals()
+    text_wp = cq.Workplane("XY").text(
+        txt=txt,
+        fontsize=fontsize,
+        distance=0,  # Create text as faces (2D)
+        halign="center",
+        valign="center",
+        font='Pacifico-Regular',
+        fontPath="resources\\Pacifico-Regular.ttf",
     )
-    # Reposition faces along the path
-    faces_on_path = [f.faceOnWire(path) for f in linear_faces]
-    # Extrude the faces by the specified depth using extrudeLinear
+    linear_faces = text_wp.faces().vals()
+
+    # Fuse the faces together and clean the result
+    text_flat = linear_faces[0]
+    if len(linear_faces) > 1:
+        for face in linear_faces[1:]:
+            text_flat = text_flat.fuse(face)
+        text_flat = text_flat.clean()
+    else:
+        text_flat = text_flat.clean()
+
+    # After fusing, text_flat is a Compound. Extract the faces
+    fused_faces = text_flat.Faces()
+
+    # Reposition each face along the path
+    faces_on_path = [face.faceOnWire(path) for face in fused_faces]
+
+    # Extrude each face by the specified depth using extrudeLinear
     extruded_solids = [
-        cq.Solid.extrudeLinear(f, cq.Vector(0, 0, extrude_depth)) for f in faces_on_path
+        cq.Solid.extrudeLinear(face, cq.Vector(0, 0, extrude_depth)) for face in faces_on_path
     ]
+
     # Combine all extruded solids into one compound
     return cq.Compound.makeCompound(extruded_solids)
 
@@ -77,36 +87,36 @@ class CaseSphereWithFlange(CaseBase):
         self.add_mounting_holes()
 
     def create_mounting_ring(self):
-        # Create the mounting ring as a difference between two circles, then extrude symmetrically
+        # Create the mounting ring
         mounting_ring = (
             cq.Workplane("XY")
-            .circle(self.sphere_flange_radius)      # Outer circle
-            .circle(self.sphere_inner_radius)       # Inner circle (hole)
+            .circle(self.sphere_flange_radius)  # Outer circle
+            .circle(self.sphere_inner_radius)  # Inner circle (hole)
             .extrude(self.mounting_ring_thickness)  # Extrude thickness
         )
-        # Move to center
+        # Move to center in Z
         mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
 
         # Define the circular path for the text
         text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
         path = cq.Workplane("XY").circle(text_radius).edges().val()
 
-        # Rotate the path by 180 degrees around the Z-axis
+        # Rotate the path by 180 degrees around the Z-axis if needed
         path = path.rotate((0, 0, 0), (0, 0, 1), 180)
 
         # Create the text along the path
-        start_text = textOnWire(
+        text_on_path = text_on_wire(
             txt="START",
-            fontsize=6,
+            fontsize=6,  # Adjust fontsize as needed
             path=path,
-            extrude_depth=-1  # Negative value to cut into the ring
+            extrude_depth=-1  # Negative value to extrude into the ring
         )
 
         # Position the text at the top surface of the ring
-        start_text = start_text.translate((0, 0, 0.5 * self.mounting_ring_thickness))
+        text_on_path = text_on_path.translate((0, 0, 0.5 * self.mounting_ring_thickness))
 
         # Subtract the text from the mounting ring
-        mounting_ring = mounting_ring.cut(start_text)
+        mounting_ring = mounting_ring.cut(text_on_path)
 
         # Add rectangular mounting bridges for the mounting ring, skipping the first one and rotating 180 degrees
         mounting_ring_bridges = (
@@ -131,7 +141,7 @@ class CaseSphereWithFlange(CaseBase):
         path_bridges = path_bridges.cut(mounting_ring)
         mounting_ring = mounting_ring.union(mounting_ring_bridges.cut(path_bridges))
 
-        return mounting_ring, path_bridges, start_text
+        return mounting_ring, path_bridges, text_on_path
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
