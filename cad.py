@@ -78,8 +78,8 @@ for idx, segment in enumerate(selected_segments):
     actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
     profile = segment['profile']
     path = segment['path']
-    show_object(profile, name=f"Profile_{actual_idx}")
-    show_object(path, name=f"Path_{actual_idx}")
+    #show_object(profile, name=f"Profile_{actual_idx}")
+    #show_object(path, name=f"Path_{actual_idx}")
 
 # Now sweep the selected profiles along the paths
 path_bodies = path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
@@ -131,7 +131,7 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 ###########
 
 # Show the final path
-#show_object(path_body, name="Path", options={"alpha": 0.0})
+show_object(path_body, name="Path", options={"alpha": 0.0, "color": (57, 255, 20)})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
