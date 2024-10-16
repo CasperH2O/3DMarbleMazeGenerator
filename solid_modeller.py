@@ -1,4 +1,4 @@
-# cad.py
+# solid_modeller.py
 
 import cadquery as cq
 import os

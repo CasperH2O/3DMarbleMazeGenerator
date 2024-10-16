@@ -1,10 +1,13 @@
 # generate.py
 
 from puzzle.puzzle import Puzzle
-from visualization import *
+from visualization import visualize_interpolated_path_plotly
 import config
 
-if __name__ == "__main__":
+
+def main():
+    """Generate the puzzle and visualize it."""
+
     # Create the puzzle
     puzzle = Puzzle(
         node_size=config.NODE_SIZE,
@@ -12,27 +15,14 @@ if __name__ == "__main__":
         case_shape=config.CASE_SHAPE,
     )
 
+    # Print puzzle information
+    print("Puzzle Information")
     print(f"Total path length: {len(puzzle.total_path)}")
-    #Visualize the nodes and the path
-    #visualize_nodes_and_paths(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    #visualize_nodes_and_paths_curve_fit(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    #visualize_nodes_and_paths_nurbs(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    #visualize_nodes_and_paths_spline(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    #visualize_nodes_and_paths_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
-    #visualize_nodes_and_paths_curve_fit_plotly(puzzle.nodes, puzzle.total_path, puzzle.casing)
+    print(f"Number of segments: {len(puzzle.interpolated_segments)}")
+
+    # Visualize the interpolated path using plotly
     visualize_interpolated_path_plotly(puzzle.nodes, puzzle.interpolated_segments, puzzle.casing)
 
-    if not True:
-        print('# Define the points for the spline path')
-        print('pts = [')
-        for node in puzzle.total_path:
-            coords = f'    ({node.x}, {node.y}, {node.z}),'
-            comment = ''
-            if node.start:
-                comment = '  # Start point'
-            elif node.end:
-                comment = '  # End point'
-            elif node.waypoint:
-                comment = '  # Waypoint'
-            print(coords + comment)
-        print(']')
+
+if __name__ == "__main__":
+    main()

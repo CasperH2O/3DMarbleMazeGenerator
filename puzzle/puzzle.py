@@ -71,12 +71,8 @@ class Puzzle:
         random.seed(self.seed)
 
         percentage_to_occupy = random.randint(min_percentage, max_percentage)
-        print(f"Percentage to occupy: {percentage_to_occupy}%")
 
         num_cubes_to_occupy = int(len(self.nodes) * (percentage_to_occupy / 100))
-
-        print(f"Number of nodes to occupy: {num_cubes_to_occupy}")
-        print(f"Total number of nodes: {len(self.nodes)}")
 
         occupied_nodes = random.sample(self.nodes, num_cubes_to_occupy)
         for node in occupied_nodes:
@@ -124,4 +120,3 @@ class Puzzle:
             waypoints.append(best_candidate)
             unoccupied_nodes.remove(best_candidate)
 
-        print(f"Selected {num_waypoints} waypoints using Mitchell's Best-Candidate Algorithm.")

@@ -79,7 +79,6 @@ class SphereCasing(Casing):
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
             mounting_nodes.append(nearest_node)
 
-        print(f"Defined {len(mounting_nodes)} mounting waypoints: {mounting_nodes}")
         return mounting_nodes
 
 

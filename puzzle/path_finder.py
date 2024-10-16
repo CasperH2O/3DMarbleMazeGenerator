@@ -109,7 +109,6 @@ class AStarPathFinder(PathFinder):
         if total_path:
             end_node = total_path[-1]
             end_node.end = True
-            print(f"End node set at: {end_node}")
 
         return total_path
 
