@@ -3,6 +3,8 @@
 from .case_base import CaseBase
 import cadquery as cq
 import math
+from config import Config
+
 
 # Include the faceOnWire method
 def _face_on_wire(self, path: cq.Wire) -> cq.Face:
@@ -19,6 +21,7 @@ def _face_on_wire(self, path: cq.Wire) -> cq.Face:
     return self.rotate(
         face_bottom_center, face_bottom_center + cq.Vector(0, 0, 1), wire_angle
     ).translate(wire_position - face_bottom_center)
+
 
 # Attach the method to cq.Face
 cq.Face.faceOnWire = _face_on_wire
@@ -63,17 +66,17 @@ def text_on_wire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float)
 
 
 class CaseSphereWithFlange(CaseBase):
-    def __init__(self, config):
-        self.sphere_outer_diameter = config.SPHERE_DIAMETER
-        self.sphere_flange_diameter = config.SPHERE_FLANGE_DIAMETER
-        self.sphere_thickness = config.SHELL_THICKNESS
-        self.mounting_ring_thickness = config.MOUNTING_RING_THICKNESS
-        self.ball_diameter = config.BALL_DIAMETER
-        self.mounting_hole_diameter = config.MOUNTING_HOLE_DIAMETER
-        self.mounting_hole_amount = config.MOUNTING_HOLE_AMOUNT
-        self.node_size = config.NODE_SIZE
-        self.number_of_mounting_points = config.NUMBER_OF_MOUNTING_POINTS
-        self.mounting_distance = config.SPHERE_DIAMETER - config.NODE_SIZE
+    def __init__(self):
+        self.sphere_outer_diameter = Config.Sphere.SPHERE_DIAMETER
+        self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
+        self.sphere_thickness = Config.Sphere.SHELL_THICKNESS
+        self.mounting_ring_thickness = Config.Sphere.MOUNTING_RING_THICKNESS
+        self.ball_diameter = Config.Sphere.BALL_DIAMETER
+        self.mounting_hole_diameter = Config.Sphere.MOUNTING_HOLE_DIAMETER
+        self.mounting_hole_amount = Config.Sphere.MOUNTING_HOLE_AMOUNT
+        self.node_size = Config.Sphere.NODE_SIZE
+        self.number_of_mounting_points = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
+        self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Sphere.NODE_SIZE
 
         # Derived variables
         self.sphere_inner_diameter = self.sphere_outer_diameter - (2 * self.sphere_thickness)
@@ -211,7 +214,7 @@ class CaseSphereWithFlange(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "Mounting Ring": (self.mounting_ring,{"color": (40, 40, 43)}),
+            "Mounting Ring": (self.mounting_ring, {"color": (40, 40, 43)}),
             "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": (57, 255, 20)}),

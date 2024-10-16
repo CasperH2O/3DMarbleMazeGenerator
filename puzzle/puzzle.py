@@ -2,7 +2,8 @@
 
 import random
 import numpy as np
-import config
+from config import Config
+from config import CaseShape
 from .path_interpolator import PathInterpolator
 
 
@@ -13,21 +14,21 @@ class Puzzle:
         self.case_shape = case_shape
 
         # Initialize the casing, node_creator, and pathfinder based on case_shape
-        if case_shape == 'Sphere' or case_shape == 'Sphere with flange':
+        if case_shape == CaseShape.SPHERE or case_shape == CaseShape.SPHERE_WITH_FLANGE:
             from .casing import SphereCasing
             self.casing = SphereCasing(
-                diameter=config.SPHERE_DIAMETER,
-                shell_thickness=config.SHELL_THICKNESS
+                diameter=Config.Sphere.SPHERE_DIAMETER,
+                shell_thickness=Config.Sphere.SHELL_THICKNESS
             )
             from .node_creator import SphereGridNodeCreator
             self.node_creator = SphereGridNodeCreator()
-        elif case_shape == 'Box':
+        elif case_shape == CaseShape.BOX:
             from .casing import BoxCasing
             self.casing = BoxCasing(
-                width=config.WIDTH,
-                height=config.HEIGHT,
-                length=config.LENGTH,
-                panel_thickness=config.PANEL_THICKNESS,
+                width=Config.Box.WIDTH,
+                height=Config.Box.HEIGHT,
+                length=Config.Box.LENGTH,
+                panel_thickness=Config.Box.PANEL_THICKNESS,
             )
             from .node_creator import BoxGridNodeCreator
             self.node_creator = BoxGridNodeCreator()
@@ -48,7 +49,7 @@ class Puzzle:
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
         # Randomly select waypoints
-        self.randomly_select_waypoints(num_waypoints=config.NUMBER_OF_WAYPOINTS)
+        self.randomly_select_waypoints(num_waypoints=Config.Puzzle.NUMBER_OF_WAYPOINTS)
 
         # Connect the waypoints using the pathfinder
         self.total_path = self.pathfinder.connect_waypoints(self)
@@ -65,7 +66,7 @@ class Puzzle:
         return self.node_creator.get_neighbors(node, self.node_dict, self.node_size)
 
     def define_mounting_waypoints(self):
-        self.casing.get_mounting_waypoints(self.nodes, self.seed)
+        self.casing.get_mounting_waypoints(self.nodes)
 
     def randomly_occupy_nodes(self, min_percentage=0, max_percentage=0):
         random.seed(self.seed)

@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 import math
 from typing import List, Dict, Tuple, Optional
-import config
+from config import Config
 from puzzle.node import Node
 
 
@@ -50,7 +50,7 @@ class SphereCasing(Casing):
         :param nodes: List of nodes to consider.
         :return: List of mounting nodes.
         """
-        num_mounting_waypoints = config.NUMBER_OF_MOUNTING_POINTS
+        num_mounting_waypoints = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
         radius = self.inner_radius
         angle_increment = 2 * math.pi / num_mounting_waypoints
         mounting_nodes = []

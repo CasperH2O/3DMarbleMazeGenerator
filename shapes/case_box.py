@@ -2,14 +2,15 @@
 
 from .case_base import CaseBase
 import cadquery as cq
+from config import Config
 
 
 class CaseBox(CaseBase):
-    def __init__(self, config):
-        self.width = config.WIDTH
-        self.height = config.HEIGHT
-        self.length = config.LENGTH
-        self.panel_thickness = config.PANEL_THICKNESS
+    def __init__(self):
+        self.width = Config.Box.WIDTH
+        self.height = Config.Box.HEIGHT
+        self.length = Config.Box.LENGTH
+        self.panel_thickness = Config.Box.PANEL_THICKNESS
 
         # Create the box casing
         self.casing = self.create_casing()

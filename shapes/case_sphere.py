@@ -2,11 +2,12 @@
 
 from .case_base import CaseBase
 import cadquery as cq
+from config import Config
 
 class CaseSphere(CaseBase):
-    def __init__(self, config):
-        self.diameter = config.SPHERE_DIAMETER
-        self.shell_thickness = config.SHELL_THICKNESS
+    def __init__(self):
+        self.diameter = Config.Sphere.SPHERE_DIAMETER
+        self.shell_thickness = Config.Sphere.SHELL_THICKNESS
         self.inner_radius = (self.diameter / 2) - self.shell_thickness
         self.outer_radius = self.diameter / 2
 

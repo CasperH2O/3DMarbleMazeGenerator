@@ -1,69 +1,97 @@
 # config.py
 
+from enum import Enum
+
+
+class CaseShape(Enum):
+    SPHERE = 'Sphere'
+    SPHERE_WITH_FLANGE = 'Sphere with flange'
+    BOX = 'Box'
+
+
 # Puzzle configuration
-CASE_SHAPE = 'Sphere with flange'  # Options: 'Sphere', 'Sphere with flange', 'Box'
-BALL_DIAMETER = 6  # Diameter of the marble ball
-NODE_SIZE = 10  # Node size in mm
-SEED = 25  # Random seed
-NUMBER_OF_WAYPOINTS = 1
-WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
+class Puzzle:
+    CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE  # Options: 'Sphere', 'Sphere with flange', 'Box'
+    BALL_DIAMETER = 6  # Diameter of the marble ball in mm
+    NODE_SIZE = 10  # Node size in mm
+    SEED = 25  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 1
+    WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
-# Sphere case
-SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
-SPHERE_FLANGE_DIAMETER = 120  # Flange diameter
-SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
-MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring
-MOUNTING_HOLE_DIAMETER = 4.2  # Diameter of the mounting holes
-MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
-NUMBER_OF_MOUNTING_POINTS = 4
 
-# Box case
-WIDTH = 100
-HEIGHT = 100
-LENGTH = 150
-PANEL_THICKNESS = 3
+# Sphere case configuration
+class Sphere:
+    SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
+    SPHERE_FLANGE_DIAMETER = 120  # Diameter of the flange
+    SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
+    MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring in mm
+    MOUNTING_HOLE_DIAMETER = 4.2  # Diameter of the mounting holes in mm
+    MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
+    NUMBER_OF_MOUNTING_POINTS = 4
 
-# Interpolation types for paths
-PATH_CURVE_TYPES = ['polyline',
-                    'bezier',
-                    #'spline'
-                    ]
 
-# Path types and their parameters
-PATH_PROFILE_TYPES = [#'l_shape',
-                      #'l_shape_adjusted_height',
-                      #'tube_shape',
-                      'u_shape',
-                      #'u_shape_adjusted_height',
-                      #'v_shape'
-                      ]
+# Box case configuration
+class Box:
+    WIDTH = 100  # Width of the box in mm
+    HEIGHT = 100  # Height of the box in mm
+    LENGTH = 150  # Length of the box in mm
+    PANEL_THICKNESS = 3  # Thickness of the box panels in mm
 
-PATH_PROFILE_TYPE_PARAMETERS = \
-    {
-    'l_shape': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
-    },
-    'l_shape_adjusted_height': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
-        'lower_distance': 7
-    },
-    'tube_shape': {
-        'outer_diameter': 10.0 - 0.0001,
-        'wall_thickness': 1.2
-    },
-    'u_shape': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
-    },
-    'u_shape_adjusted_height': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
-        'lower_distance': 7
-    },
-    'v_shape': {
-        'height_width': 10.0 - 0.0001,
-        'wall_thickness': 1.2,
+
+# Path interpolation and profile configuration
+class Path:
+    PATH_CURVE_TYPES = [
+        'polyline',
+        'bezier',
+        # 'spline' # Uncomment if spline interpolation becomes supported
+    ]
+
+    PATH_PROFILE_TYPES = [
+        'u_shape',
+        # 'l_shape',
+        # 'l_shape_adjusted_height',
+        # 'tube_shape',
+        # 'u_shape_adjusted_height',
+        # 'v_shape'
+    ]
+
+    PATH_PROFILE_TYPE_PARAMETERS = {
+        'l_shape': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        },
+        'l_shape_adjusted_height': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+            'lower_distance': 7
+        },
+        'tube_shape': {
+            'outer_diameter': 10.0 - 0.0001,
+            'wall_thickness': 1.2
+        },
+        'u_shape': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        },
+        'u_shape_adjusted_height': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+            'lower_distance': 7
+        },
+        'v_shape': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        }
     }
-}
+
+
+# General Configuration Access
+class Config:
+    Puzzle = Puzzle
+    Sphere = Sphere
+    Box = Box
+    Path = Path
+
+# Example usage:
+# from config import Config
+# print(Config.Puzzle.CASE_SHAPE)

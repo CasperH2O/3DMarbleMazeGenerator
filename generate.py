@@ -2,7 +2,7 @@
 
 from puzzle.puzzle import Puzzle
 from visualization import visualize_interpolated_path_plotly
-import config
+from config import Config
 
 
 def main():
@@ -10,9 +10,9 @@ def main():
 
     # Create the puzzle
     puzzle = Puzzle(
-        node_size=config.NODE_SIZE,
-        seed=config.SEED,
-        case_shape=config.CASE_SHAPE,
+        node_size=Config.Puzzle.NODE_SIZE,
+        seed=Config.Puzzle.SEED,
+        case_shape=Config.Puzzle.CASE_SHAPE,
     )
 
     # Print puzzle information

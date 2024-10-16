@@ -1,12 +1,11 @@
 # shapes/case_base.py
 
 from abc import ABC, abstractmethod
-import cadquery as cq
 
 
 class CaseBase(ABC):
     @abstractmethod
-    def __init__(self, config):
+    def __init__(self):
         pass
 
     @abstractmethod

@@ -26,6 +26,7 @@ def create_l_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
     )
     return l_shape
 
+
 def create_l_shape_adjusted_height(work_plane=None, height_width=9.9999, wall_thickness=2.0, lower_distance=2.0):
     """
     Creates an L-shaped cross-section with adjusted height centered at the origin or on the given work plane.
@@ -47,12 +48,12 @@ def create_l_shape_adjusted_height(work_plane=None, height_width=9.9999, wall_th
 
     l_shape_adjusted_height = (
         wp
-        .moveTo(-half_width, -half_width)  # 1
-        .lineTo(-half_width,adjusted_top_y )  # 2
-        .lineTo(-inner_half_width,adjusted_top_y )  # 3
-        .lineTo(-inner_half_width,-inner_half_width )  # 4
-        .lineTo(half_width,-inner_half_width )  # 5
-        .lineTo(half_width,-half_width )  # 8
+        .moveTo(-half_width, -half_width)               # 1
+        .lineTo(-half_width, adjusted_top_y)            # 2
+        .lineTo(-inner_half_width, adjusted_top_y)      # 3
+        .lineTo(-inner_half_width, -inner_half_width)   # 4
+        .lineTo(half_width, -inner_half_width)          # 5
+        .lineTo(half_width, -half_width)                # 8
         .close()
     )
     return l_shape_adjusted_height
@@ -78,6 +79,7 @@ def create_tube_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0
         .consolidateWires()
     )
     return tube_shape
+
 
 def create_u_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
     """
@@ -127,14 +129,14 @@ def create_u_shape_adjusted_height(work_plane=None, height_width=9.9999, wall_th
 
     u_shape_adjusted_height = (
         wp
-        .moveTo(-half_width, -half_width)  # 1
-        .lineTo(-half_width,adjusted_top_y )  # 2
-        .lineTo(-inner_half_width,adjusted_top_y )  # 3
-        .lineTo(-inner_half_width,-inner_half_width )  # 4
-        .lineTo(inner_half_width,-inner_half_width )  # 5
-        .lineTo(inner_half_width,adjusted_top_y )  # 6
-        .lineTo(half_width,adjusted_top_y )  # 7
-        .lineTo(half_width,-half_width )  # 8
+        .moveTo(-half_width, -half_width)               # 1
+        .lineTo(-half_width, adjusted_top_y)            # 2
+        .lineTo(-inner_half_width, adjusted_top_y)      # 3
+        .lineTo(-inner_half_width, -inner_half_width)   # 4
+        .lineTo(inner_half_width, -inner_half_width)    # 5
+        .lineTo(inner_half_width, adjusted_top_y)       # 6
+        .lineTo(half_width, adjusted_top_y)             # 7
+        .lineTo(half_width, -half_width)                # 8
         .close()
     )
     return u_shape_adjusted_height
