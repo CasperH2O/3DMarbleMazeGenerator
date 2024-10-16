@@ -43,7 +43,7 @@ class Path:
     PATH_CURVE_TYPES = [
         'polyline',
         'bezier',
-        # 'spline' # Uncomment if spline interpolation becomes supported
+        'spline'  # Uncomment if spline interpolation becomes supported
     ]
 
     PATH_PROFILE_TYPES = [
@@ -91,7 +91,3 @@ class Config:
     Sphere = Sphere
     Box = Box
     Path = Path
-
-# Example usage:
-# from config import Config
-# print(Config.Puzzle.CASE_SHAPE)

@@ -88,7 +88,6 @@ class PathInterpolator:
             else:
                 raise ValueError(f"Unknown interpolation method: {method}")
 
-
     def _interpolate_straight(self, nodes):
         """
         Interpolates a segment using straight lines between nodes.
@@ -212,7 +211,6 @@ class PathInterpolator:
         xx = sx(uu)
         yy = sy(uu)
         zz = sz(uu)
-        spline_points = np.vstack([xx, yy, zz]).T
 
         # Identify indices of waypoints in relevant_nodes
         waypoint_indices = [i for i, node in enumerate(relevant_nodes) if node.waypoint]

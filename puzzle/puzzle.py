@@ -120,4 +120,3 @@ class Puzzle:
             best_candidate.waypoint = True
             waypoints.append(best_candidate)
             unoccupied_nodes.remove(best_candidate)
-
