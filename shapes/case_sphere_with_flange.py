@@ -130,13 +130,14 @@ class CaseSphereWithFlange(CaseBase):
         )
 
         # Add rectangular mounting bridges for the path within, skipping the first one and rotating 180 degrees
+        # Todo, add to config
         printing_layer_thickness = 0.2
         printing_nozzle_diameter = 0.4
 
         path_bridges = (
             cq.Workplane("XY")
             .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
-            .rect(self.node_size * 2, self.node_size - 4 * printing_nozzle_diameter)  # Define the rectangle
+            .rect(self.node_size * 2 + 4 * printing_nozzle_diameter, self.node_size - 4 * printing_nozzle_diameter)  # Define the rectangle
             .extrude(self.mounting_ring_thickness / 2 - printing_layer_thickness * 4, both=True)  # Extrude symmetrically
         )
 
