@@ -15,9 +15,12 @@ class Puzzle:
     BALL_DIAMETER = 6  # Diameter of the marble ball in mm
     NODE_SIZE = 10  # Node size in mm
     SEED = 25  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 1
+    NUMBER_OF_WAYPOINTS = 5
     WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
+class Manufacturing:
+    LAYER_THICKNESS = 0.2
+    NOZZLE_DIAMETER = 0.4
 
 # Sphere case configuration
 class Sphere:
@@ -48,11 +51,11 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         'u_shape',
-        # 'l_shape',
-        # 'l_shape_adjusted_height',
-        # 'tube_shape',
-        # 'u_shape_adjusted_height',
-        # 'v_shape'
+        'l_shape',
+        'l_shape_adjusted_height',
+        'tube_shape',
+        'u_shape_adjusted_height',
+        'v_shape'
     ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
@@ -63,7 +66,7 @@ class Path:
         'l_shape_adjusted_height': {
             'height_width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
-            'lower_distance': 7
+            'lower_distance': 3.5
         },
         'tube_shape': {
             'outer_diameter': 10.0 - 0.0001,
@@ -76,11 +79,14 @@ class Path:
         'u_shape_adjusted_height': {
             'height_width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
-            'lower_distance': 7
+            'lower_distance': 3.5
         },
         'v_shape': {
             'height_width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
+        },
+        'rectangle_shape': {
+            'height_width': 10.0 - 0.0001,
         }
     }
 
@@ -91,3 +97,4 @@ class Config:
     Sphere = Sphere
     Box = Box
     Path = Path
+    Manufacturing = Manufacturing

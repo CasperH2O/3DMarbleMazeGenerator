@@ -5,11 +5,15 @@ import os
 from config import Config
 from config import CaseShape
 from puzzle.puzzle import Puzzle
-from shapes.path_shapes import *
+from shapes.path_profile_type_shapes import *
 from shapes.path_builder import PathBuilder
 from shapes.case_sphere import CaseSphere
 from shapes.case_box import CaseBox
 from shapes.case_sphere_with_flange import CaseSphereWithFlange
+
+if 'show_object' not in globals():
+    def show_object(*args, **kwargs):
+        pass
 
 ########
 # Case #

@@ -1,8 +1,10 @@
 # shapes/path_builder.py
 
 import random
+
+import config
 from config import *
-from shapes.path_shapes import *
+from shapes.path_profile_type_shapes import *
 
 
 class PathBuilder:
@@ -23,7 +25,8 @@ class PathBuilder:
             'tube_shape': create_tube_shape,
             'u_shape': create_u_shape,
             'u_shape_adjusted_height': create_u_shape_adjusted_height,
-            'v_shape': create_v_shape
+            'v_shape': create_v_shape,
+            'rectangle_shape': create_rectangle_shape
         }
         self.path_profiles = []  # Store profiles for debugging
         self.paths = []  # Store paths corresponding to profiles
@@ -52,9 +55,9 @@ class PathBuilder:
                 continue
 
             if node.end:
-                # For the final node, do not change the path type
-                node.path_profile_type = path_profile_type
-                node.path_curve_type = path_curve_type
+                # For the final node, adjust the path type
+                node.path_profile_type = 'u_shape'
+                node.path_curve_type = 'polyline'
                 continue
 
             if node.waypoint:
@@ -106,13 +109,13 @@ class PathBuilder:
             segments.append((current_path_type, current_segment))
         return segments
 
-
     def prepare_profiles_and_paths(self, segments):
         """
         Creates profiles and paths for each segment and stores them along with the path_profile_type.
         """
         self.segments_data = []  # List to store profiles, paths, and path_types
         previous_end_point = None  # To store the end point of the previous segment
+        last_exiting_direction = None  # To store the exiting direction of the last segment
 
         for idx, (path_profile_type, segment_nodes) in enumerate(segments):
             # Get the sub path points (positions of nodes in the segment)
@@ -177,6 +180,40 @@ class PathBuilder:
             # Update previous_end_point to the adjusted end point of the current segment
             previous_end_point = adjusted_end_point
 
+            # Store the exiting_direction for use after the loop
+            last_exiting_direction = exiting_direction
+
+        #  Add closing shape (rectangle) at the end of the last segment
+        if last_exiting_direction is not None and previous_end_point is not None:
+            # The rectangle starts at the adjusted_end_point from the last segment
+            rectangle_start_point = previous_end_point
+
+            # Define the rectangle end point by adding n mm along the exiting_direction
+            rectangle_end_point = rectangle_start_point + last_exiting_direction * 3 * config.Manufacturing.NOZZLE_DIAMETER
+
+            # Create the path for the rectangle sweep (n mm long)
+            path_points = [rectangle_start_point.toTuple(), rectangle_end_point.toTuple()]
+            rectangle_path = cq.Workplane("XY").polyline(path_points)
+
+            # Create a plane at rectangle_start_point with normal along last_exiting_direction
+            plane = self.create_plane_at_point(rectangle_start_point, last_exiting_direction)
+
+            # Create the work plane on this plane
+            wp = cq.Workplane(plane)
+
+            # Get parameters for the rectangle profile
+            parameters = self.path_profile_type_parameters.get('rectangle_shape', {})
+            # Create the rectangle profile using the new function
+            profile_function = self.path_profile_type_functions.get('rectangle_shape', create_rectangle_shape)
+            profile = profile_function(work_plane=wp, **parameters)
+
+            # Store the profile, path, and path profile type
+            segment_data = {
+                'profile': profile,
+                'path': rectangle_path,
+                'path_profile_type': 'rectangle_shape'
+            }
+            self.segments_data.append(segment_data)
 
     def sweep_profiles_along_paths(self, indices=None):
         """
