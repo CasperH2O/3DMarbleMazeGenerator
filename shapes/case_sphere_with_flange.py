@@ -71,12 +71,12 @@ class CaseSphereWithFlange(CaseBase):
         self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
         self.sphere_thickness = Config.Sphere.SHELL_THICKNESS
         self.mounting_ring_thickness = Config.Sphere.MOUNTING_RING_THICKNESS
-        self.ball_diameter = Config.Sphere.BALL_DIAMETER
+        self.ball_diameter = Config.Puzzle.BALL_DIAMETER
         self.mounting_hole_diameter = Config.Sphere.MOUNTING_HOLE_DIAMETER
         self.mounting_hole_amount = Config.Sphere.MOUNTING_HOLE_AMOUNT
-        self.node_size = Config.Sphere.NODE_SIZE
+        self.node_size = Config.Puzzle.NODE_SIZE
         self.number_of_mounting_points = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
-        self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Sphere.NODE_SIZE
+        self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Puzzle.NODE_SIZE
 
         # Derived variables
         self.sphere_inner_diameter = self.sphere_outer_diameter - (2 * self.sphere_thickness)

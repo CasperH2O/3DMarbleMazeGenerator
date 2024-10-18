@@ -1,7 +1,7 @@
 # shapes/path_builder.py
 
 import random
-import config
+from config import *
 from shapes.path_shapes import *
 
 
@@ -11,12 +11,12 @@ class PathBuilder:
     """
 
     def __init__(self):
-        random.seed(config.SEED)
-        self.waypoint_change_interval = config.WAYPOINT_CHANGE_INTERVAL  # Store the waypoint change interval
-        self.node_size = config.NODE_SIZE  # Store node size
+        random.seed(Config.Puzzle.SEED)
+        self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL  # Store the waypoint change interval
+        self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
 
-        self.path_profile_types = config.PATH_PROFILE_TYPES.copy()
-        self.path_profile_type_parameters = config.PATH_PROFILE_TYPE_PARAMETERS
+        self.path_profile_types = Config.Path.PATH_PROFILE_TYPES.copy()
+        self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
         self.path_profile_type_functions = {
             'l_shape': create_l_shape,
             'l_shape_adjusted_height': create_l_shape_adjusted_height,
@@ -28,7 +28,7 @@ class PathBuilder:
         self.path_profiles = []  # Store profiles for debugging
         self.paths = []  # Store paths corresponding to profiles
 
-        self.path_curve_types = config.PATH_CURVE_TYPES.copy()
+        self.path_curve_types = Config.Path.PATH_CURVE_TYPES.copy()
 
     def assign_path_profile_and_curve_types(self, nodes):
         """
