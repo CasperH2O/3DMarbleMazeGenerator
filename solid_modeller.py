@@ -19,7 +19,7 @@ if 'show_object' not in globals():
 # Case #
 ########
 
-# Instantiate the appropriate case
+# Create the appropriate case
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE:
     case = CaseSphere()
 elif Config.Puzzle.CASE_SHAPE == CaseShape.BOX:
@@ -29,14 +29,17 @@ elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
 else:
     raise ValueError(f"Unknown CASE_SHAPE '{Config.Puzzle.CASE_SHAPE}' specified in config.py.")
 
-# Get the CAD objects
-cad_objects = case.get_cad_objects()
+# Get the case objects
+case_objects = case.get_cad_objects()
 
-# Display CAD objects, if they have options, apply them
-for name, value in cad_objects.items():
+# Display case objects, with options if applicable
+for name, value in case_objects.items():
     if isinstance(value, tuple):
         obj, options = value
-        show_object(obj, name=name, options=options)
+        if name == 'Mounting Ring' and Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+            mounting_ring = obj
+        else:
+            show_object(obj, name=name, options=options)
     else:
         obj = value
         show_object(obj, name=name)
@@ -62,6 +65,7 @@ path_builder = PathBuilder()
 # Assign path types and group nodes
 CAD_nodes = path_builder.assign_path_profile_and_curve_types(CAD_nodes)
 segments = path_builder.group_nodes_by_path_type(CAD_nodes)
+start_area = path_builder.create_loft_between_nodes(CAD_nodes)
 
 # Prepare profiles and paths
 path_builder.prepare_profiles_and_paths(segments)
@@ -98,11 +102,17 @@ for idx, body in enumerate(path_bodies):
     actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
     #show_object(body, name=f"Swept_Body_{actual_idx}")
 
+# Combine path and start area
+path_body = path_body.union(start_area)
+
 # Get the shape to cut for the current case
 cut_shape = case.get_cut_shape()
 
 # Perform the cut operation to make the path body flush with the case
 path_body = path_body.cut(cut_shape)
+if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+    mounting_ring = mounting_ring.cut(path_body)
+
 
 ######################
 # Ball and ball path #
@@ -137,6 +147,8 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 
 # Show the final path
 show_object(path_body, name="Path", options={"alpha": 0.0, "color": (57, 255, 20)})
+if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+    show_object(mounting_ring, name="Mounting Ring", options={"alpha": 0.0, "color": (40, 40, 43)})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})

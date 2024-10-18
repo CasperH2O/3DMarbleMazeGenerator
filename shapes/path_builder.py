@@ -22,7 +22,7 @@ class PathBuilder:
         self.path_profile_type_functions = {
             'l_shape': create_l_shape,
             'l_shape_adjusted_height': create_l_shape_adjusted_height,
-            'tube_shape': create_tube_shape,
+            'o_shape': create_o_shape,
             'u_shape': create_u_shape,
             'u_shape_adjusted_height': create_u_shape_adjusted_height,
             'v_shape': create_v_shape,
@@ -49,6 +49,8 @@ class PathBuilder:
 
         # First few nodes are u shaped with linear path to get started easily
         for i, node in enumerate(nodes):
+
+            # Todo, remove, done with loft?
             if i < 3:
                 node.path_profile_type = 'u_shape'
                 node.path_curve_type = 'polyline'
@@ -81,7 +83,6 @@ class PathBuilder:
 
         return nodes
 
-
     def group_nodes_by_path_type(self, nodes):
         """
         Groups nodes into segments where the path and curve is constant.
@@ -91,7 +92,7 @@ class PathBuilder:
         current_segment = []
         current_path_type = None
 
-        for node in nodes:
+        for node in nodes[2:]:
             if current_path_type is None:
                 current_path_type = node.path_profile_type
                 current_segment = [node]
@@ -107,6 +108,7 @@ class PathBuilder:
         # Add the last segment
         if current_segment:
             segments.append((current_path_type, current_segment))
+
         return segments
 
     def prepare_profiles_and_paths(self, segments):
@@ -281,3 +283,77 @@ class PathBuilder:
         # Now create the plane
         plane = cq.Plane(origin=origin, xDir=x_dir, normal=normal)
         return plane
+
+    def create_loft_between_nodes(self, total_path):
+        """
+        Creates a lofted shape between the first two nodes in total path using U-shaped profiles.
+        The profile at the start node has a factor of 3 applied to the width, while the profile at the second node has a factor of 1.
+        Only the second node's position is adjusted forward by half the node size along the exiting direction.
+        Uses Config parameters for the U shape.
+        """
+        if len(total_path) < 2:
+            raise ValueError("Total path must contain at least two nodes.")
+
+        # Extract first and second nodes
+        first_node = total_path[0]
+        second_node = total_path[1]
+
+        # Get positions
+        first_node_pos = cq.Vector(first_node.x, first_node.y, first_node.z)
+        second_node_pos = cq.Vector(second_node.x, second_node.y, second_node.z)
+
+        # Compute the direction vector from first to second node
+        direction_vector = second_node_pos - first_node_pos
+        distance = direction_vector.Length
+        if distance == 0:
+            raise ValueError("First and second node positions are the same.")
+
+        direction = direction_vector.normalized()
+
+        # Compute the exiting direction vector for the second node
+        if len(total_path) > 2:
+            # Next node exists, use it to compute the exiting direction
+            third_node = total_path[2]
+            third_node_pos = cq.Vector(third_node.x, third_node.y, third_node.z)
+            exiting_direction = (third_node_pos - second_node_pos).normalized()
+        else:
+            # Use the same direction as from first to second node
+            exiting_direction = direction
+
+        # Adjust the second node position forward along the exiting direction by half the node size
+        adjusted_second_node_pos = second_node_pos + exiting_direction * (self.node_size / 2)
+
+        # Compute the adjusted direction vector and adjusted distance
+        adjusted_direction_vector = adjusted_second_node_pos - first_node_pos
+        adjusted_distance = adjusted_direction_vector.Length
+        if adjusted_distance == 0:
+            raise ValueError("Adjusted second node position is the same as first node position.")
+
+        adjusted_direction = adjusted_direction_vector.normalized()
+
+        # Create a plane at the first node position with the normal pointing along the adjusted direction
+        plane = self.create_plane_at_point(first_node_pos, adjusted_direction)
+
+        # Start the work plane at the first node position
+        wp = cq.Workplane(plane)
+
+        # Get the parameters for 'u_shape' from Config
+        u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS['u_shape']
+
+        # Create the first U-shaped profile with factor 3 applied to width
+        profile = create_u_shape(work_plane=wp, factor=3, **u_shape_params)
+
+        # Move the work plane along the adjusted direction by the adjusted distance
+        profile = profile.workplane(offset=adjusted_distance)
+
+        # Create the second U-shaped profile with factor 1 (no scaling)
+        profile = create_u_shape(work_plane=profile, factor=1, **u_shape_params)
+
+        # Loft between the two profiles
+        lofted_shape = profile.loft(combine=True)
+
+        # Optionally, store the lofted shape in an attribute
+        self.lofted_shape = lofted_shape
+
+        # Return the lofted shape
+        return lofted_shape

@@ -59,7 +59,7 @@ def create_l_shape_adjusted_height(work_plane=None, height_width=9.9999, wall_th
     return l_shape_adjusted_height
 
 
-def create_tube_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0):
+def create_o_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0):
     """
     Creates a tube-shaped cross-section centered at the origin or on the given work plane.
     """
@@ -81,28 +81,44 @@ def create_tube_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0
     return tube_shape
 
 
-def create_u_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
+def create_u_shape(work_plane=None, height=9.9999, width=9.9999, wall_thickness=2, factor=1.0):
     """
     Creates a U-shaped cross-section centered at the origin or on the given work plane.
+    The width of the shape can be scaled using the factor parameter.
+    Optionally, the wall thickness can also be scaled.
+
+    Parameters:
+    - work_plane: The CadQuery workplane to create the shape on.
+    - height: The total height of the U-shape (along the Y-axis).
+    - width: The total width of the U-shape (along the X-axis).
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - factor: Scaling factor applied only to the width.
+    - scale_wall_thickness: If True, wall thickness scales with the factor.
     """
     if work_plane is None:
         wp = cq.Workplane("XY")
     else:
         wp = work_plane
 
-    half_width = height_width / 2
+    # Apply the factor only to the width
+    adjusted_width = width * factor
+    adjusted_height = height  # Height remains unchanged
+
+    half_width = adjusted_width / 2
+    half_height = adjusted_height / 2
     inner_half_width = half_width - wall_thickness
+    inner_half_height = half_height - wall_thickness
 
     u_shape = (
         wp
-        .moveTo(-half_width, half_width)  # 1
-        .lineTo(-inner_half_width, half_width)  # 2
-        .lineTo(-inner_half_width, -inner_half_width)  # 3
-        .lineTo(inner_half_width, -inner_half_width)  # 4
-        .lineTo(inner_half_width, half_width)  # 5
-        .lineTo(half_width, half_width)  # 6
-        .lineTo(half_width, -half_width)  # 7
-        .lineTo(-half_width, -half_width)  # 8
+        .moveTo(-half_width, half_height)  # Start at top-left corner of outer rectangle
+        .lineTo(-inner_half_width, half_height)  # Move to top-left inner corner
+        .lineTo(-inner_half_width, -inner_half_height)  # Down inner left wall
+        .lineTo(inner_half_width, -inner_half_height)  # Across bottom inner
+        .lineTo(inner_half_width, half_height)  # Up inner right wall
+        .lineTo(half_width, half_height)  # Move to top-right outer corner
+        .lineTo(half_width, -half_height)  # Down outer right wall
+        .lineTo(-half_width, -half_height)  # Across bottom outer
         .close()
     )
     return u_shape

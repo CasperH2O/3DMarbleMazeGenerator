@@ -2,12 +2,10 @@
 
 from enum import Enum
 
-
 class CaseShape(Enum):
     SPHERE = 'Sphere'
     SPHERE_WITH_FLANGE = 'Sphere with flange'
     BOX = 'Box'
-
 
 # Puzzle configuration
 class Puzzle:
@@ -52,10 +50,10 @@ class Path:
     PATH_PROFILE_TYPES = [
         'u_shape',
         'l_shape',
-        'l_shape_adjusted_height',
-        'tube_shape',
+        #'l_shape_adjusted_height',
+        'o_shape',
         'u_shape_adjusted_height',
-        'v_shape'
+        #'v_shape'
     ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
@@ -68,12 +66,13 @@ class Path:
             'wall_thickness': 1.2,
             'lower_distance': 3.5
         },
-        'tube_shape': {
+        'o_shape': {
             'outer_diameter': 10.0 - 0.0001,
             'wall_thickness': 1.2
         },
         'u_shape': {
-            'height_width': 10.0 - 0.0001,
+            'height': 10.0 - 0.0001,
+            'width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
         },
         'u_shape_adjusted_height': {

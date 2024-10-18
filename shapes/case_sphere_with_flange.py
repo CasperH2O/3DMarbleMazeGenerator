@@ -215,7 +215,7 @@ class CaseSphereWithFlange(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "Mounting Ring": (self.mounting_ring, {"color": (40, 40, 43)}),
+            "Mounting Ring": (self.mounting_ring, {"alpha": 0.0, "color": (40, 40, 43)}),
             "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": (57, 255, 20)}),
@@ -226,16 +226,47 @@ class CaseSphereWithFlange(CaseBase):
         # Add small distance for tolerances
         flush_distance_tolerance = 0.0
 
+        # Define the outer and inner radii
+        R_outer = self.sphere_flange_diameter
+        R_inner = self.sphere_inner_radius - flush_distance_tolerance
+
+        # Calculate the midpoint for the outer arc
+        mid_outer_x = R_outer / math.sqrt(2)
+        mid_outer_y = R_outer / math.sqrt(2)
+
+        # Calculate the midpoint for the inner arc
+        mid_inner_x = R_inner / math.sqrt(2)
+        mid_inner_y = R_inner / math.sqrt(2)
+
         # Create the cross-sectional profile of the hollow sphere
         hollow_sphere_profile = (
             cq.Workplane("XZ")
-            .moveTo(0, self.sphere_outer_radius * 2)
-            .threePointArc((-self.sphere_outer_radius * 2, 0), (0, -self.sphere_outer_radius * 2))
-            .lineTo(0, -self.sphere_inner_radius + flush_distance_tolerance)
-            .threePointArc((-self.sphere_inner_radius + flush_distance_tolerance, 0), (0, self.sphere_inner_radius - flush_distance_tolerance))
+            # Start at point A: (0, R_outer)
+            .moveTo(0, R_outer)
+            # Draw the outer quarter-circle arc from A to B: (R_outer, 0), via midpoint
+            .threePointArc((mid_outer_x, mid_outer_y), (R_outer, 0))
+            # Draw a vertical line down to the inner radius at point C: (R_outer, R_inner)
+            .lineTo(R_inner, 0)
+            # Draw the inner quarter-circle arc from C to D: (0, R_inner), via midpoint
+            .threePointArc((mid_inner_x, mid_inner_y), (0, R_inner))
+            # Close the profile
             .close()
         )
 
         # Revolve the profile to create the hollow sphere solid
-        hollow_sphere = hollow_sphere_profile.revolve(angleDegrees=360)
-        return hollow_sphere
+        hollow_sphere_top = hollow_sphere_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
+
+        # Mirror the sphere for the other side
+        hollow_sphere_bottom = hollow_sphere_top.mirror(mirrorPlane="XY")
+
+        # Compensate for the original translation amount in create_domes
+        translation_z = (0.5 * self.mounting_ring_thickness + 0.01) - 0.33333 * self.mounting_ring_thickness
+
+        # Adjust the domes by translating them along the Z-axis
+        hollow_sphere_top = hollow_sphere_top.translate((0, 0, translation_z))
+        hollow_sphere_bottom = hollow_sphere_bottom.translate((0, 0, -translation_z))
+
+        # Combine the domes using union
+        cut_shape = hollow_sphere_top.union(hollow_sphere_bottom)
+
+        return cut_shape
