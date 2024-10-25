@@ -8,7 +8,7 @@ import config
 
 
 class PathInterpolator:
-    def __init__(self, total_path, seed, interpolation_types=config.Path.PATH_CURVE_TYPES):
+    def __init__(self, total_path, seed, interpolation_types=config.Path.PATH_CURVE_MODEL):
         """
         Initializes the PathInterpolator.
 

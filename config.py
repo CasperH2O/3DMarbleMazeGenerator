@@ -41,10 +41,16 @@ class Box:
 
 # Path interpolation and profile configuration
 class Path:
-    PATH_CURVE_TYPES = [
+    PATH_CURVE_MODEL = [
         'polyline',
-        'bezier',
+        #'bezier',
         'spline'  # Uncomment if spline interpolation becomes supported
+    ]
+
+    PATH_CURVE_TYPE = [
+        's_curve',
+        '90_degree_single_plane_small',
+        '90_degree_single_plane_big'
     ]
 
     PATH_PROFILE_TYPES = [

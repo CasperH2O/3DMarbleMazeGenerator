@@ -19,6 +19,8 @@ class Node:
         self.f = float('inf')  # Total cost
         self.path_profile_type = None  # Type of path profile shape
         self.path_curve_type = None  # Type of path curve
+        self.segment_start = False  # Indicates the start node of a segment
+        self.segment_end = False  # Indicates the end node of a segment
 
     def __repr__(self):
         return (f"Node(x={self.x}, y={self.y}, z={self.z}, "

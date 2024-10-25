@@ -31,7 +31,7 @@ class PathBuilder:
         self.path_profiles = []  # Store profiles for debugging
         self.paths = []  # Store paths corresponding to profiles
 
-        self.path_curve_types = Config.Path.PATH_CURVE_TYPES.copy()
+        self.path_curve_types = Config.Path.PATH_CURVE_MODEL.copy()
 
     def assign_path_profile_and_curve_types(self, nodes):
         """

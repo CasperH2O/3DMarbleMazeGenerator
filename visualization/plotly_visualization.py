@@ -1,4 +1,5 @@
 # plotly_visualization.py
+import random
 
 import plotly.graph_objects as go
 import plotly.offline as pyo
@@ -263,3 +264,66 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
 
     # Display the plot in a browser
     pyo.plot(fig, filename="../3d_interpolated_path.html")
+
+
+def visualize_path_architect(nodes, segments, casing):
+    # Visualize the path and segments using Plotly
+    fig = go.Figure()
+
+    # Plot all nodes using the updated plotting method
+    node_traces = plot_nodes_plotly(nodes)
+    for trace in node_traces:
+        fig.add_trace(trace)
+
+    # Plot segments with different colors based on main_index
+    colors = ['blue', 'green', 'red', 'purple', 'orange', 'pink', 'brown', 'cyan', 'magenta']
+    main_index_colors = {}
+    color_index = 0
+
+    for segment in segments:
+        x_vals = [node.x for node in segment.nodes]
+        y_vals = [node.y for node in segment.nodes]
+        z_vals = [node.z for node in segment.nodes]
+
+        # Use marker colors to indicate segment start and end
+        marker_colors = [
+            'red' if getattr(node, 'segment_start', False)
+            else 'green' if getattr(node, 'segment_end', False)
+            else 'blue' for node in segment.nodes
+        ]
+
+        # Assign a consistent color for each main_index
+        if segment.main_index not in main_index_colors:
+            main_index_colors[segment.main_index] = colors[color_index % len(colors)]
+            color_index += 1
+        segment_color = main_index_colors[segment.main_index]
+
+        segment_name = (
+            f"Segment ({segment.main_index}, {segment.secondary_index}) "
+            f"({segment.path_curve_model}, {segment.curve_type}, {segment.path_profile_type})"
+        )
+
+        fig.add_trace(go.Scatter3d(
+            x=x_vals,
+            y=y_vals,
+            z=z_vals,
+            mode='lines+markers',
+            name=segment_name,
+            line=dict(color=segment_color),
+            marker=dict(size=4, color=marker_colors)
+        ))
+
+    # Get casing traces
+    casing_traces = plot_casing_plotly(casing)
+    for trace in casing_traces:
+        fig.add_trace(trace)
+
+    fig.update_layout(
+        title='Path Visualization',
+        scene=dict(
+            xaxis_title='X Axis',
+            yaxis_title='Y Axis',
+            zaxis_title='Z Axis'
+        )
+    )
+    fig.show()

@@ -5,7 +5,8 @@ import numpy as np
 from config import Config
 from config import CaseShape
 from .path_interpolator import PathInterpolator
-
+from shapes.path_architect import PathArchitect
+from .path_finder import AStarPathFinder
 
 class Puzzle:
     def __init__(self, node_size, seed, case_shape):
@@ -36,7 +37,6 @@ class Puzzle:
             raise ValueError(f"Unknown case_shape '{case_shape}' specified.")
 
         # Initialize the pathfinder
-        from .path_finder import AStarPathFinder
         self.pathfinder = AStarPathFinder()
 
         # Generate nodes using the node creator
@@ -60,6 +60,8 @@ class Puzzle:
             seed=self.seed
         )
         self.interpolated_segments = self.path_interpolator.interpolated_segments
+
+        self.path_architect = PathArchitect(self.total_path)
 
     def get_neighbors(self, node):
         """Delegates neighbor retrieval to the node creator."""
