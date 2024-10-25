@@ -1,9 +1,10 @@
 from typing import List
 from puzzle.node import Node
+import math
 
 def detect_curves(nodes: List[Node]):
     detect_s_curves(nodes)
-    detect_arcs(nodes)
+    #detect_arcs(nodes) # todo, enable when ready
 
 def detect_s_curves(nodes: List[Node]):
     s_curve_length = 6  # Number of nodes in an S-curve
@@ -20,11 +21,27 @@ def detect_s_curves(nodes: List[Node]):
 
             # Check if first and last parts are linear in the same direction and middle segment changes direction
             for axis in ['x', 'y', 'z']:
-                if (is_linear(first_part, axis) and is_linear(last_part, axis) and not is_linear(middle_segment, axis)):
-                    # Mark nodes as part of an S-curve
-                    for node in segment[1:-1]:  # Exclude first and last nodes
-                        node.path_curve_type = 's_curve'
-                    break  # No need to check other axes
+                if is_linear(first_part, axis) and is_linear(last_part, axis) and not is_linear(middle_segment, axis):
+                    # Compute direction vectors
+                    first_vector = vector_between_nodes(first_part[0], first_part[1])
+                    last_vector = vector_between_nodes(last_part[-2], last_part[-1])
+
+                    # Normalize vectors
+                    first_vector_normalized = normalize_vector(first_vector)
+                    last_vector_normalized = normalize_vector(last_vector)
+
+                    # Compute dot product
+                    dot_product = sum(f * l for f, l in zip(first_vector_normalized, last_vector_normalized))
+
+                    # Threshold for same direction
+                    direction_threshold = 0.95
+
+                    if dot_product > direction_threshold:
+                        # Mark nodes as part of an S-curve
+                        for node in segment[1:-1]:  # Exclude first and last nodes
+                            node.path_curve_type = 's_curve'
+                        break  # No need to check other axes
+
 
 def detect_arcs(nodes: List[Node]):
     # Small 90-degree arc detection (5 nodes)
@@ -59,6 +76,15 @@ def is_linear(pts: List[Node], axis: str) -> bool:
     elif axis == 'z':
         return all(pt.x == pts[0].x and pt.y == pts[0].y for pt in pts)
     return False
+
+def vector_between_nodes(n1: Node, n2: Node):
+    return n2.x - n1.x, n2.y - n1.y, n2.z - n1.z
+
+def normalize_vector(v):
+    magnitude = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+    if magnitude == 0:
+        return 0, 0, 0
+    return v[0] / magnitude, v[1] / magnitude, v[2] / magnitude
 
 def check_90_deg_curve(segment: List[Node], large=False) -> bool:
     if not is_in_plane(segment):

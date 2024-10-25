@@ -275,9 +275,13 @@ def visualize_path_architect(nodes, segments, casing):
     for trace in node_traces:
         fig.add_trace(trace)
 
-    # Plot segments with different colors based on main_index
-    colors = ['blue', 'green', 'red', 'purple', 'orange', 'pink', 'brown', 'cyan', 'magenta']
-    main_index_colors = {}
+    # Plot segments with unique colors based on main_index and secondary_index
+    colors = [
+        'blue', 'green', 'red', 'purple', 'orange', 'pink', 'brown',
+        'cyan', 'magenta', 'yellow', 'lime', 'teal', 'olive', 'navy',
+        'maroon', 'aquamarine', 'coral', 'gold', 'indigo', 'lavender'
+    ]
+    segment_colors = {}
     color_index = 0
 
     for segment in segments:
@@ -285,33 +289,67 @@ def visualize_path_architect(nodes, segments, casing):
         y_vals = [node.y for node in segment.nodes]
         z_vals = [node.z for node in segment.nodes]
 
-        # Use marker colors to indicate segment start and end
-        marker_colors = [
-            'red' if getattr(node, 'segment_start', False)
-            else 'green' if getattr(node, 'segment_end', False)
-            else 'blue' for node in segment.nodes
-        ]
-
-        # Assign a consistent color for each main_index
-        if segment.main_index not in main_index_colors:
-            main_index_colors[segment.main_index] = colors[color_index % len(colors)]
+        # Assign a unique color for each (main_index, secondary_index)
+        segment_key = (segment.main_index, segment.secondary_index)
+        if segment_key not in segment_colors:
+            segment_colors[segment_key] = colors[color_index % len(colors)]
             color_index += 1
-        segment_color = main_index_colors[segment.main_index]
+        segment_color = segment_colors[segment_key]
 
+        # Create a hover text with line breaks
         segment_name = (
-            f"Segment ({segment.main_index}, {segment.secondary_index}) "
-            f"({segment.path_curve_model}, {segment.curve_type}, {segment.path_profile_type})"
+            f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
+            f"Path Curve Model: {segment.path_curve_model}<br>"
+            f"Curve Type: {segment.curve_type}<br>"
+            f"Path Profile Type: {segment.path_profile_type}"
         )
 
+        # Plot the lines for the segment
         fig.add_trace(go.Scatter3d(
             x=x_vals,
             y=y_vals,
             z=z_vals,
-            mode='lines+markers',
-            name=segment_name,
+            mode='lines',
+            name=f"Segment {segment.main_index}.{segment.secondary_index}",
             line=dict(color=segment_color),
-            marker=dict(size=4, color=marker_colors)
+            hoverinfo='text',
+            text=segment_name,
+            showlegend=True
         ))
+
+        # Plot markers only at segment start and end nodes
+        start_end_nodes = [
+            node for node in segment.nodes
+            if getattr(node, 'segment_start', False) or getattr(node, 'segment_end', False)
+        ]
+        if start_end_nodes:
+            x_marker_vals = [node.x for node in start_end_nodes]
+            y_marker_vals = [node.y for node in start_end_nodes]
+            z_marker_vals = [node.z for node in start_end_nodes]
+            # Use the segment color for markers
+            marker_colors = [segment_color for _ in start_end_nodes]
+            # Create hover text for markers
+            marker_texts = []
+            for node in start_end_nodes:
+                node_type = 'Segment Start' if getattr(node, 'segment_start', False) else 'Segment End'
+                marker_texts.append(
+                    f"{node_type}<br>"
+                    f"Node ID: {getattr(node, 'id', 'N/A')}<br>"
+                    f"Coordinates: ({node.x}, {node.y}, {node.z})"
+                )
+
+            fig.add_trace(go.Scatter3d(
+                x=x_marker_vals,
+                y=y_marker_vals,
+                z=z_marker_vals,
+                mode='markers',
+                name=f"Segment {segment.main_index}.{segment.secondary_index} Markers",
+                marker=dict(size=4, color=marker_colors),
+                legendgroup=f"Segment {segment.main_index}.{segment.secondary_index}",
+                showlegend=False,  # Avoid duplicate legend entries
+                hoverinfo='text',
+                text=marker_texts
+            ))
 
     # Get casing traces
     casing_traces = plot_casing_plotly(casing)
