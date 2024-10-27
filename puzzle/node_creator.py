@@ -99,7 +99,7 @@ class SphereGridNodeCreator(NodeCreator):
         node_dict[(node2.x, node2.y, node2.z)] = node2
 
         # Mark the furthest node as the start node
-        node2.start = True  # node2 is the start node since it's furthest along -x
+        node2.puzzle_start = True  # node2 is the start node since it's furthest along -x
         start_node = node2
 
         return nodes, node_dict, start_node
@@ -189,7 +189,7 @@ class BoxGridNodeCreator(NodeCreator):
         node_dict[(node2.x, node2.y, node2.z)] = node2
 
         # Mark the furthest node as the start node
-        node2.start = True  # node2 is the start node since it's furthest along -x
+        node2.puzzle_start = True  # node2 is the start node since it's furthest along -x
         start_node = node2
 
         return nodes, node_dict, start_node

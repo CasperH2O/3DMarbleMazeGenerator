@@ -14,10 +14,10 @@ def plot_nodes(ax, nodes):
     colors = []
     sizes = []
     for node in nodes:
-        if node.start:
+        if node.puzzle_start:
             colors.append('yellow')  # Start node
             sizes.append(40)
-        elif node.end:
+        elif node.puzzle_end:
             colors.append('orange')  # End node
             sizes.append(40)
         elif node.mounting:

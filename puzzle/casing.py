@@ -129,7 +129,7 @@ class BoxCasing(Casing):
         min_z = min(z for x, y, z in node_dict.keys())
         start_node = node_dict.get((min_x, min_y, min_z))
         if start_node:
-            start_node.start = True
+            start_node.puzzle_start = True
         return start_node
 
     def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:

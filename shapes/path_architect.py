@@ -24,18 +24,23 @@ class PathSegment:
             return
 
         if len(self.nodes) >= 2:
-            # Compute entering direction for the start point (existing logic)
-            start_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
-            next_node_point = cq.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
-            if previous_end_point is not None:
-                entering_direction = (start_node_point - previous_end_point).normalized()
+            # Check if the first node is marked as a puzzle start node
+            if not self.nodes[0].puzzle_start:
+                # Compute entering direction for the start point
+                start_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
+                next_node_point = cq.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
+                if previous_end_point is not None:
+                    entering_direction = (start_node_point - previous_end_point).normalized()
+                else:
+                    entering_direction = (next_node_point - start_node_point).normalized()
+                # Adjust the start point
+                adjusted_start = start_node_point - entering_direction * (node_size / 2)
+                start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
+                start_node.segment_start = True
+                self.nodes.insert(0, start_node)
             else:
-                entering_direction = (next_node_point - start_node_point).normalized()
-            # Adjust the start point
-            adjusted_start = start_node_point - entering_direction * (node_size / 2)
-            start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
-            start_node.segment_start = True
-            self.nodes.insert(0, start_node)
+                # Do not adjust the start point
+                self.nodes[0].segment_start = True  # Mark the first node as segment start
 
             # Compute exiting direction for the end point
             end_node_point = cq.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
@@ -45,8 +50,8 @@ class PathSegment:
             else:
                 exiting_direction = (end_node_point - prev_node_point).normalized()
 
-            # Check if the last node is marked as an end node
-            if not self.nodes[-1].end:
+            # Check if the last node is marked as a puzzle end node
+            if not self.nodes[-1].puzzle_end:
                 # Adjust the end point
                 adjusted_end = end_node_point + exiting_direction * (node_size / 2)
                 end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
@@ -59,7 +64,7 @@ class PathSegment:
             # Handle segments with only one node (e.g., mounting nodes)
             node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
 
-            # Compute entering and exiting directions (existing logic)
+            # Compute entering and exiting directions
             if previous_end_point is not None:
                 entering_direction = (node_point - previous_end_point).normalized()
             elif next_start_point is not None:
@@ -74,14 +79,13 @@ class PathSegment:
             else:
                 exiting_direction = cq.Vector(1, 0, 0)  # Default direction
 
-            # Check if the node is marked as an end node
-            if not self.nodes[0].end:
-                # Adjust the start point
+            # Check if the node is marked as a puzzle start or end node
+            if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
+                # Adjust the segment start and end points
                 adjusted_start = node_point - entering_direction * (node_size / 2)
                 start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
                 start_node.segment_start = True
 
-                # Adjust the end point
                 adjusted_end = node_point + exiting_direction * (node_size / 2)
                 end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
                 end_node.segment_end = True
@@ -89,8 +93,9 @@ class PathSegment:
                 self.nodes.insert(0, start_node)
                 self.nodes.append(end_node)
             else:
-                # Do not adjust the end point
-                self.nodes[0].segment_end = True  # Mark the node as segment end
+                # Do not adjust the puzzle start or end point
+                self.nodes[0].segment_start = self.nodes[0].puzzle_start
+                self.nodes[0].segment_end = self.nodes[0].puzzle_end
 
     def generate_geometry(self):
         # Prepare 3D geometry data for construction
@@ -131,10 +136,28 @@ class PathArchitect:
         current_segment_nodes = []
         waypoint_counter = 0
 
-        for i, node in enumerate(self.nodes):
+        nodes_length = len(self.nodes)
+
+        # Handle the first two nodes as a special segment, the start ramp
+        if nodes_length >= 2:
+            # Create a segment with the first two nodes
+            first_two_nodes = self.nodes[:2]
+            segment = PathSegment(
+                first_two_nodes,
+                main_index=self.main_index_counter
+            )
+            self.segments.append(segment)
+            self.main_index_counter += 1
+            # Start processing from the third node
+            node_iter = self.nodes[2:]
+        else:
+            # If less than two nodes, include all nodes
+            node_iter = self.nodes
+
+        # Continue with the rest of the nodes
+        for node in node_iter:
             current_segment_nodes.append(node)
 
-            # todo, rethink, as mounting waypoints can currently only be polyline of profile type u or o without rounded sweep
             if node.waypoint and not node.mounting:
                 waypoint_counter += 1
                 if waypoint_counter % self.waypoint_change_interval == 0:
@@ -290,17 +313,21 @@ class PathArchitect:
             previous_end_point = cq.Vector(last_node.x, last_node.y, last_node.z)
 
     def create_start_ramp(self):
-        start_nodes = [node for node in self.nodes if node.start]
-        if start_nodes:
-            # Use main_index = 0 for the start segment
-            segment = PathSegment(
-                start_nodes,
-                main_index=0,
-                secondary_index=0
-            )
-            segment.path_profile_type = 'u_shape'
-            segment.curve_type = 'straight'
-            self.segments.append(segment)
+        # This method finds the segment containing the start node and creates the start ramp
+
+        # Find the segment that contains the puzzle start node
+        start_segment = None
+        for segment in self.segments:
+            for node in segment.nodes:
+                if node.puzzle_start:
+                    start_segment = segment
+                    break  # Exit the inner loop once the start node is found
+            if start_segment:
+                break  # Exit the outer loop once the start segment is identified
+
+        if start_segment:
+            # Set the path_profile_type to 'u_shape' for the start segment
+            start_segment.path_profile_type = 'u_shape'
 
     def create_finish_box(self):
         # This method adds a closing shape at the end of the path to close off the route.
@@ -311,7 +338,7 @@ class PathArchitect:
         end_node_index = None
         for segment in self.segments:
             for i, node in enumerate(segment.nodes):
-                if node.end:
+                if node.puzzle_end:
                     end_segment = segment
                     end_node_index = i
                     break

@@ -76,7 +76,7 @@ class AStarPathFinder(PathFinder):
             return []
 
         # Ensure the start node is the first node in the route
-        start_node = next((node for node in puzzle.nodes if node.start), None)
+        start_node = next((node for node in puzzle.nodes if node.puzzle_start), None)
         if start_node:
             current_node = start_node
             if start_node in waypoints:
@@ -108,7 +108,7 @@ class AStarPathFinder(PathFinder):
         # Set the last node in the path as the end node
         if total_path:
             end_node = total_path[-1]
-            end_node.end = True
+            end_node.puzzle_end = True
 
         return total_path
 

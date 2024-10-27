@@ -16,12 +16,12 @@ def plot_nodes_plotly(nodes):
     zs = [node.z for node in nodes]
 
     # Segregate nodes based on their properties
-    start_nodes = [node for node in nodes if node.start]
-    end_nodes = [node for node in nodes if node.end]
-    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.end]  # Exclude mounting waypoints
-    mounting_nodes = [node for node in nodes if node.mounting and not node.start ]
+    start_nodes = [node for node in nodes if node.puzzle_start]
+    end_nodes = [node for node in nodes if node.puzzle_end]
+    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.puzzle_end]  # Exclude mounting waypoints
+    mounting_nodes = [node for node in nodes if node.mounting and not node.puzzle_start]
     occupied_nodes = [node for node in nodes if node.occupied and not node.waypoint and not node.mounting]  # Exclude occupied waypoints and mountings
-    regular_nodes = [node for node in nodes if not (node.start or node.end or node.waypoint or node.mounting or node.occupied)]
+    regular_nodes = [node for node in nodes if not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
 
     # Create scatter traces for each node type with corresponding legends
     scatter_start = go.Scatter3d(

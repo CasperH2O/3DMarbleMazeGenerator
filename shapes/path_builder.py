@@ -56,7 +56,7 @@ class PathBuilder:
                 node.path_curve_type = 'polyline'
                 continue
 
-            if node.end:
+            if node.puzzle_end:
                 # For the final node, adjust the path type
                 node.path_profile_type = 'u_shape'
                 node.path_curve_type = 'polyline'
