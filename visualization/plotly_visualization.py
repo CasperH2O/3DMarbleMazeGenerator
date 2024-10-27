@@ -26,7 +26,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             y=path_ys,
             z=path_zs,
             mode='lines',
-            line=dict(color='black', width=2),
+            line=dict(color='gray', width=2),
             name="Path"
         )
 
@@ -38,7 +38,7 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     if path_trace:
         data.append(path_trace)
 
-    # Create the layout
+    # Create the layout with dark theme
     layout = go.Layout(
         scene=dict(
             xaxis_title='X axis',
@@ -46,14 +46,15 @@ def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
             zaxis_title='Z axis',
             aspectmode='data'
         ),
-        margin=dict(l=0, r=0, b=0, t=0)
+        margin=dict(l=0, r=0, b=0, t=0),
+        template="plotly_dark"
     )
 
     # Create the figure
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="../3d_nodes_and_paths.html")
+    fig.show()
 
 
 def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
@@ -176,7 +177,7 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
             y=path_ys,
             z=path_zs,
             mode='lines',
-            line=dict(color='black', width=1),
+            line=dict(color='gray', width=1),
             name="Path"
         )
 
@@ -189,7 +190,7 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
         data.append(path_trace)
     data.extend(fitted_curve_traces)
 
-    # Create the layout
+    # Create the layout with dark theme
     layout = go.Layout(
         scene=dict(
             xaxis_title='X axis',
@@ -197,14 +198,15 @@ def visualize_nodes_and_paths_curve_fit_plotly(nodes, total_path, casing):
             zaxis_title='Z axis',
             aspectmode='data'
         ),
-        margin=dict(l=0, r=0, b=0, t=0)
+        margin=dict(l=0, r=0, b=0, t=0),
+        template="plotly_dark"
     )
 
     # Create the figure
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="../3d_nodes_and_paths_curve_fit.html")
+    fig.show()
 
 
 def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
@@ -217,7 +219,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     # Prepare path traces from interpolated segments
     path_traces = []
     colors = {
-        'straight': 'black',
+        'straight': 'gray',
         'bezier': 'orange',
         'spline': 'lime'
     }
@@ -234,7 +236,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
             y=points[:, 1],
             z=points[:, 2],
             mode='lines',
-            line=dict(color=colors.get(segment_type, 'black'), width=2),
+            line=dict(color=colors.get(segment_type, 'gray'), width=2),
             name=segment_type.capitalize(),
             showlegend=show_legend
         )
@@ -246,7 +248,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     # Combine all traces
     data = node_traces + casing_traces + path_traces
 
-    # Create the layout
+    # Create the layout with dark theme
     layout = go.Layout(
         scene=dict(
             xaxis_title='X axis',
@@ -255,6 +257,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
             aspectmode='data'
         ),
         margin=dict(l=0, r=0, b=0, t=0),
+        template="plotly_dark",
         legend=dict(itemsizing='constant')
     )
 
@@ -262,7 +265,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     fig = go.Figure(data=data, layout=layout)
 
     # Display the plot in a browser
-    pyo.plot(fig, filename="../3d_interpolated_path.html")
+    fig.show()
 
 
 def visualize_path_architect(nodes, segments, casing):
@@ -361,6 +364,7 @@ def visualize_path_architect(nodes, segments, casing):
             xaxis_title='X Axis',
             yaxis_title='Y Axis',
             zaxis_title='Z Axis'
-        )
+        ),
+        template="plotly_dark"
     )
     fig.show()
