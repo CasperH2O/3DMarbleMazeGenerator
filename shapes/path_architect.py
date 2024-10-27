@@ -30,9 +30,17 @@ class PathSegment:
                 start_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
                 next_node_point = cq.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
                 if previous_end_point is not None:
-                    entering_direction = (start_node_point - previous_end_point).normalized()
+                    entering_vector = start_node_point - previous_end_point
+                    if entering_vector.Length == 0:
+                        # Use alternative vector
+                        entering_vector = next_node_point - start_node_point
                 else:
-                    entering_direction = (next_node_point - start_node_point).normalized()
+                    entering_vector = next_node_point - start_node_point
+
+                if entering_vector.Length == 0:
+                    entering_vector = cq.Vector(1, 0, 0)  # Default direction
+
+                entering_direction = entering_vector.normalized()
                 # Adjust the start point
                 adjusted_start = start_node_point - entering_direction * (node_size / 2)
                 start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
@@ -46,9 +54,17 @@ class PathSegment:
             end_node_point = cq.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
             prev_node_point = cq.Vector(self.nodes[-2].x, self.nodes[-2].y, self.nodes[-2].z)
             if next_start_point is not None:
-                exiting_direction = (next_start_point - end_node_point).normalized()
+                exiting_vector = next_start_point - end_node_point
+                if exiting_vector.Length == 0:
+                    # Use alternative vector
+                    exiting_vector = end_node_point - prev_node_point
             else:
-                exiting_direction = (end_node_point - prev_node_point).normalized()
+                exiting_vector = end_node_point - prev_node_point
+
+            if exiting_vector.Length == 0:
+                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+
+            exiting_direction = exiting_vector.normalized()
 
             # Check if the last node is marked as a puzzle end node
             if not self.nodes[-1].puzzle_end:
@@ -64,20 +80,31 @@ class PathSegment:
             # Handle segments with only one node (e.g., mounting nodes)
             node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
 
-            # Compute entering and exiting directions
+            # Compute entering direction
             if previous_end_point is not None:
-                entering_direction = (node_point - previous_end_point).normalized()
+                entering_vector = node_point - previous_end_point
             elif next_start_point is not None:
-                entering_direction = (next_start_point - node_point).normalized()
+                entering_vector = next_start_point - node_point
             else:
-                entering_direction = cq.Vector(1, 0, 0)  # Default direction
+                entering_vector = cq.Vector(1, 0, 0)  # Default direction
 
+            if entering_vector.Length == 0:
+                entering_vector = cq.Vector(1, 0, 0)  # Default direction
+
+            entering_direction = entering_vector.normalized()
+
+            # Compute exiting direction
             if next_start_point is not None:
-                exiting_direction = (next_start_point - node_point).normalized()
+                exiting_vector = next_start_point - node_point
             elif previous_end_point is not None:
-                exiting_direction = (node_point - previous_end_point).normalized()
+                exiting_vector = node_point - previous_end_point
             else:
-                exiting_direction = cq.Vector(1, 0, 0)  # Default direction
+                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+
+            if exiting_vector.Length == 0:
+                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+
+            exiting_direction = exiting_vector.normalized()
 
             # Check if the node is marked as a puzzle start or end node
             if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
@@ -185,7 +212,7 @@ class PathArchitect:
         new_segments = []
 
         for segment in self.segments:
-            # todo, rethink, because splines also can't be mounting waypoints...
+            # todo, rethink, because splines also can't be mounting waypoints either...
             if segment.path_curve_model == 'polyline':
                 # Split the segment into sub-segments around mounting nodes, can't make curves of those
                 sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
@@ -211,7 +238,9 @@ class PathArchitect:
         secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
 
         for node in nodes:
-            if node.mounting:
+            # Filter out the puzzle start node, as we don't want that broken up
+            if node.mounting and not node.puzzle_start:
+                print(node, node.x, node.y, node.z)
                 if current_segment_nodes:
                     segment = PathSegment(
                         current_segment_nodes,
