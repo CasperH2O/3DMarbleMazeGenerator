@@ -18,21 +18,20 @@ class PathSegment:
         self.path_profile_location = None  # Location and orientation data
         self.geometry_data = None  # Data for 3D solid modelling
 
-    def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None):
+    def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
+                                   previous_curve_type=None, next_curve_type=None):
         # Do not adjust end points in case of curves
         if self.curve_type is not None:
             return
 
         if len(self.nodes) >= 2:
-            # Check if the first node is marked as a puzzle start node
+            # Adjust start point
             if not self.nodes[0].puzzle_start:
-                # Compute entering direction for the start point
                 start_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
                 next_node_point = cq.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
                 if previous_end_point is not None:
                     entering_vector = start_node_point - previous_end_point
                     if entering_vector.Length == 0:
-                        # Use alternative vector
                         entering_vector = next_node_point - start_node_point
                 else:
                     entering_vector = next_node_point - start_node_point
@@ -41,22 +40,22 @@ class PathSegment:
                     entering_vector = cq.Vector(1, 0, 0)  # Default direction
 
                 entering_direction = entering_vector.normalized()
-                # Adjust the start point
-                adjusted_start = start_node_point - entering_direction * (node_size / 2)
+
+                # Adjust distance based on previous segment's curve_type
+                adjust_distance = node_size if previous_curve_type is not None else node_size / 2
+                adjusted_start = start_node_point - entering_direction * adjust_distance
                 start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
                 start_node.segment_start = True
                 self.nodes.insert(0, start_node)
             else:
-                # Do not adjust the start point
                 self.nodes[0].segment_start = True  # Mark the first node as segment start
 
-            # Compute exiting direction for the end point
+            # Adjust end point
             end_node_point = cq.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
             prev_node_point = cq.Vector(self.nodes[-2].x, self.nodes[-2].y, self.nodes[-2].z)
             if next_start_point is not None:
                 exiting_vector = next_start_point - end_node_point
                 if exiting_vector.Length == 0:
-                    # Use alternative vector
                     exiting_vector = end_node_point - prev_node_point
             else:
                 exiting_vector = end_node_point - prev_node_point
@@ -66,15 +65,14 @@ class PathSegment:
 
             exiting_direction = exiting_vector.normalized()
 
-            # Check if the last node is marked as a puzzle end node
             if not self.nodes[-1].puzzle_end:
-                # Adjust the end point
-                adjusted_end = end_node_point + exiting_direction * (node_size / 2)
+                # Adjust distance based on next segment's curve_type
+                adjust_distance = node_size if next_curve_type is not None else node_size / 2
+                adjusted_end = end_node_point + exiting_direction * adjust_distance
                 end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
                 end_node.segment_end = True
                 self.nodes.append(end_node)
             else:
-                # Do not adjust the end point
                 self.nodes[-1].segment_end = True  # Mark the last node as segment end
         else:
             # Handle segments with only one node (e.g., mounting nodes)
@@ -106,21 +104,22 @@ class PathSegment:
 
             exiting_direction = exiting_vector.normalized()
 
-            # Check if the node is marked as a puzzle start or end node
             if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
-                # Adjust the segment start and end points
-                adjusted_start = node_point - entering_direction * (node_size / 2)
+                # Adjust distances based on previous and next segments' curve_type
+                adjust_distance_start = node_size if previous_curve_type is not None else node_size / 2
+                adjust_distance_end = node_size if next_curve_type is not None else node_size / 2
+
+                adjusted_start = node_point - entering_direction * adjust_distance_start
                 start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
                 start_node.segment_start = True
 
-                adjusted_end = node_point + exiting_direction * (node_size / 2)
+                adjusted_end = node_point + exiting_direction * adjust_distance_end
                 end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
                 end_node.segment_end = True
 
                 self.nodes.insert(0, start_node)
                 self.nodes.append(end_node)
             else:
-                # Do not adjust the puzzle start or end point
                 self.nodes[0].segment_start = self.nodes[0].puzzle_start
                 self.nodes[0].segment_end = self.nodes[0].puzzle_end
 
@@ -331,15 +330,30 @@ class PathArchitect:
     def adjust_segments(self):
         # Adjust start and end points of segments as needed
         previous_end_point = None
+        previous_curve_type = None
         for i, segment in enumerate(self.segments):
             next_start_point = None
+            next_curve_type = None
             if i + 1 < len(self.segments):
-                next_node = self.segments[i + 1].nodes[0]
+                next_segment = self.segments[i + 1]
+                next_node = next_segment.nodes[0]
                 next_start_point = cq.Vector(next_node.x, next_node.y, next_node.z)
-            segment.adjust_start_and_endpoints(self.node_size, previous_end_point, next_start_point)
-            # Update previous_end_point to the last node of the current segment
-            last_node = segment.nodes[-1]
-            previous_end_point = cq.Vector(last_node.x, last_node.y, last_node.z)
+                next_curve_type = next_segment.curve_type
+            segment.adjust_start_and_endpoints(
+                self.node_size,
+                previous_end_point,
+                next_start_point,
+                previous_curve_type,
+                next_curve_type
+            )
+            # Update previous_end_point and previous_curve_type
+            if segment.nodes:
+                last_node = segment.nodes[-1]
+                previous_end_point = cq.Vector(last_node.x, last_node.y, last_node.z)
+                previous_curve_type = segment.curve_type
+            else:
+                previous_end_point = None
+                previous_curve_type = None
 
     def create_start_ramp(self):
         # This method finds the segment containing the start node and creates the start ramp
