@@ -1,23 +1,21 @@
 # shapes/path_builder.py
 
-import random
-
-import config
 from config import *
 from shapes.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel  # Import the enums
 
 class PathBuilder:
     """
-    Handles the assignment of path types, grouping of nodes, and building of the final path body.
+    Handles the creation of segment shapes using profiles, sweeping along paths, and building the final path body.
     """
 
-    def __init__(self):
-        random.seed(Config.Puzzle.SEED)
-        self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL  # Store the waypoint change interval
+    def __init__(self, path_architect):
+        """
+        Initializes the PathBuilder with a reference to the PathArchitect.
+        """
+        self.path_architect = path_architect
         self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
 
-        self.path_profile_types = list(PathProfileType)
         self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
         self.path_profile_type_functions = {
             PathProfileType.L_SHAPE: create_l_shape,
@@ -28,144 +26,48 @@ class PathBuilder:
             PathProfileType.V_SHAPE: create_v_shape,
             PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
         }
-        self.path_profiles = []  # Store profiles for debugging
-        self.paths = []  # Store paths corresponding to profiles
+        self.segments_data = []  # Store profiles, paths, and path_types
+        self.path_profiles = []  # For debugging
+        self.paths = []  # For debugging
 
-        self.path_curve_types = list(PathCurveModel)
-
-    def assign_path_profile_and_curve_types(self, nodes):
-        """
-        Assigns path profile and curve types to nodes based on specified conditions.
-
-        Changes the path profile and curve type every nth waypoint, where n is specified in the configuration.
-        """
-        path_profile_type = PathProfileType.U_SHAPE  # Start with 'u_shape'
-        possible_path_profile_types = self.path_profile_types.copy()
-
-        path_curve_type = PathCurveModel.POLYLINE
-        possible_path_curve_types = self.path_curve_types.copy()
-
-        waypoint_counter = 0  # Counter for the number of waypoints encountered
-
-        # First few nodes are u shaped with linear path to get started easily
-        for i, node in enumerate(nodes):
-
-            # Todo, remove, done with loft?
-            if i < 3:
-                node.path_profile_type = PathProfileType.U_SHAPE
-                node.path_curve_type = PathCurveModel.POLYLINE
-                continue
-
-            if node.puzzle_end:
-                # For the final node, adjust the path type
-                node.path_profile_type = PathProfileType.U_SHAPE
-                node.path_curve_type = PathCurveModel.POLYLINE
-                continue
-
-            if node.waypoint:
-                waypoint_counter += 1
-
-                if waypoint_counter % self.waypoint_change_interval == 0:
-                    # Change path profile and curve type
-                    # Randomly select a type different from the current one
-                    new_path_profile_types = [pt for pt in possible_path_profile_types if pt != path_profile_type]
-                    new_path_curve_types = [ct for ct in possible_path_curve_types if ct != path_curve_type]
-                    if new_path_profile_types:
-                        path_profile_type = random.choice(new_path_profile_types)
-                    if new_path_curve_types:
-                        path_curve_type = random.choice(new_path_curve_types)
-
-                node.path_profile_type = path_profile_type
-                node.path_curve_type = path_curve_type
-            else:
-                node.path_profile_type = path_profile_type
-                node.path_curve_type = path_curve_type
-
-        return nodes
-
-    def group_nodes_by_path_type(self, nodes):
-        """
-        Groups nodes into segments where the path and curve is constant.
-        Since both of these change at the same time, only the path profile type is checked here.
-        """
-        segments = []
-        current_segment = []
-        current_path_type = None
-
-        for node in nodes[2:]:
-            if current_path_type is None:
-                current_path_type = node.path_profile_type
-                current_segment = [node]
-            elif node.path_profile_type == current_path_type:
-                current_segment.append(node)
-            else:
-                # Save the current segment
-                segments.append((current_path_type, current_segment))
-                # Start a new segment
-                current_path_type = node.path_profile_type
-                current_segment = [node]
-
-        # Add the last segment
-        if current_segment:
-            segments.append((current_path_type, current_segment))
-
-        return segments
-
-    def prepare_profiles_and_paths(self, segments):
+    def prepare_profiles_and_paths(self):
         """
         Creates profiles and paths for each segment and stores them along with the path_profile_type.
+        Skips segments that contain the puzzle start node.
         """
-        self.segments_data = []  # List to store profiles, paths, and path_types
-        previous_end_point = None  # To store the end point of the previous segment
-        last_exiting_direction = None  # To store the exiting direction of the last segment
+        segments = self.path_architect.segments
 
-        for idx, (path_profile_type, segment_nodes) in enumerate(segments):
-            # Get the sub path points (positions of nodes in the segment)
-            subpath_points = [cq.Vector(node.x, node.y, node.z) for node in segment_nodes]
+        for idx, segment in enumerate(segments):
+            # Skip segments that contain a node with .puzzle_start == True
+            if any(node.puzzle_start for node in segment.nodes):
+                continue
 
-            # Compute the entering direction vector for the start point
-            if previous_end_point is not None:
-                # Use the vector from previous end point to current start point
-                entering_direction = (subpath_points[0] - previous_end_point).normalized()
-            elif len(subpath_points) >= 2:
-                # For the first segment, use the vector from first to second point
-                entering_direction = (subpath_points[1] - subpath_points[0]).normalized()
-            else:
-                # Default entering direction
+            # Get the sub_path points (positions of nodes in the segment)
+            sub_path_points = [cq.Vector(node.x, node.y, node.z) for node in segment.nodes]
+
+            # Create the path using the nodes as provided
+            # Todo, handle arcs and bezier here for curves
+            path = cq.Workplane("XY").polyline([p.toTuple() for p in sub_path_points])
+
+            # Determine entering direction at the start of the segment
+            if len(sub_path_points) >= 2:
+                entering_direction = (sub_path_points[1] - sub_path_points[0]).normalized()
+            elif len(sub_path_points) == 1 and segment.nodes[0].segment_start and segment.nodes[0].segment_end:
+                # For segments with a single node (start and end), use default direction
                 entering_direction = cq.Vector(1, 0, 0)
-
-            # Adjust the start point back along the entering direction by half the node size
-            adjusted_start_point = subpath_points[0] - entering_direction * (self.node_size / 2)
-
-            # Compute the exiting direction vector for the end point
-            if idx + 1 < len(segments):
-                # Next segment exists, use it to compute the exiting direction
-                next_segment_nodes = segments[idx + 1][1]
-                next_start_point = cq.Vector(next_segment_nodes[0].x, next_segment_nodes[0].y, next_segment_nodes[0].z)
-                exiting_direction = (next_start_point - subpath_points[-1]).normalized()
-            elif len(subpath_points) >= 2:
-                # Use the vector from second last to last point
-                exiting_direction = (subpath_points[-1] - subpath_points[-2]).normalized()
             else:
-                # Default exiting direction
-                exiting_direction = entering_direction
+                # Cannot determine direction, skip this segment
+                print(f"Segment {idx} has insufficient nodes to determine direction.")
+                continue
 
-            # Adjust the end point forward along the exiting direction by half the node size
-            adjusted_end_point = subpath_points[-1] + exiting_direction * (self.node_size / 2)
-
-            # Build the adjusted subpath points
-            adjusted_subpath_points = [adjusted_start_point] + subpath_points + [adjusted_end_point]
-
-            # Create the path with adjusted points
-            path = cq.Workplane("XY").polyline([p.toTuple() for p in adjusted_subpath_points])
-
-            # Create a plane at the adjusted start point with normal along the entering direction
-            plane = self.create_plane_at_point(adjusted_start_point, entering_direction)
+            # Create a plane at the start point with normal along the entering direction
+            plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
 
             # Now create the work plane on this plane
             wp = cq.Workplane(plane)
 
             # Get parameters for the path profile type
+            path_profile_type = segment.path_profile_type
             parameters = self.path_profile_type_parameters.get(path_profile_type.value, {})
             # Create the profile on this work plane
             profile_function = self.path_profile_type_functions.get(path_profile_type, create_u_shape)
@@ -176,44 +78,6 @@ class PathBuilder:
                 'profile': profile,
                 'path': path,
                 'path_profile_type': path_profile_type
-            }
-            self.segments_data.append(segment_data)
-
-            # Update previous_end_point to the adjusted end point of the current segment
-            previous_end_point = adjusted_end_point
-
-            # Store the exiting_direction for use after the loop
-            last_exiting_direction = exiting_direction
-
-        #  Add closing shape (rectangle) at the end of the last segment
-        if last_exiting_direction is not None and previous_end_point is not None:
-            # The rectangle starts at the adjusted_end_point from the last segment
-            rectangle_start_point = previous_end_point
-
-            # Define the rectangle end point by adding n mm along the exiting_direction
-            rectangle_end_point = rectangle_start_point + last_exiting_direction * 3 * config.Manufacturing.NOZZLE_DIAMETER
-
-            # Create the path for the rectangle sweep (n mm long)
-            path_points = [rectangle_start_point.toTuple(), rectangle_end_point.toTuple()]
-            rectangle_path = cq.Workplane("XY").polyline(path_points)
-
-            # Create a plane at rectangle_start_point with normal along last_exiting_direction
-            plane = self.create_plane_at_point(rectangle_start_point, last_exiting_direction)
-
-            # Create the work plane on this plane
-            wp = cq.Workplane(plane)
-
-            # Get parameters for the rectangle profile
-            parameters = self.path_profile_type_parameters.get(PathProfileType.RECTANGLE_SHAPE.value, {})
-            # Create the rectangle profile using the new function
-            profile_function = self.path_profile_type_functions.get(PathProfileType.RECTANGLE_SHAPE, create_rectangle_shape)
-            profile = profile_function(work_plane=wp, **parameters)
-
-            # Store the profile, path, and path profile type
-            segment_data = {
-                'profile': profile,
-                'path': rectangle_path,
-                'path_profile_type': PathProfileType.RECTANGLE_SHAPE
             }
             self.segments_data.append(segment_data)
 
@@ -232,10 +96,10 @@ class PathBuilder:
         else:
             selected_segments = self.segments_data
 
-        for idx, segment in enumerate(selected_segments):
-            profile = segment['profile']
-            path = segment['path']
-            path_profile_type = segment['path_profile_type']
+        for idx, segment_data in enumerate(selected_segments):
+            profile = segment_data['profile']
+            path = segment_data['path']
+            path_profile_type = segment_data['path_profile_type']
             try:
                 # Adjust the sweep parameters based on path_profile_type
                 if path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
@@ -253,6 +117,8 @@ class PathBuilder:
         """
         Combines all path bodies into the final path body.
         """
+        if not path_bodies:
+            raise ValueError("No path bodies to combine.")
         final_path_body = path_bodies[0]
         for body in path_bodies[1:]:
             final_path_body = final_path_body.union(body)
@@ -289,6 +155,10 @@ class PathBuilder:
         Only the second node's position is adjusted forward by half the node size along the exiting direction.
         Uses Config parameters for the U shape.
         """
+
+        # Todo, rename, this is not just lof between nodes, this creates the start area body
+        # Todo, probably no longer requires third node creation, otherwise, do that in PathArchitect
+
         if len(total_path) < 2:
             raise ValueError("Total path must contain at least two nodes.")
 
@@ -349,9 +219,6 @@ class PathBuilder:
 
         # Loft between the two profiles
         lofted_shape = profile.loft(combine=True)
-
-        # Optionally, store the lofted shape in an attribute
-        self.lofted_shape = lofted_shape
 
         # Return the lofted shape
         return lofted_shape

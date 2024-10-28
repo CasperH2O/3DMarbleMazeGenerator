@@ -59,16 +59,14 @@ puzzle = Puzzle(
 CAD_nodes = puzzle.total_path
 
 # Initialize the PathBuilder
-path_builder = PathBuilder()
+path_builder = PathBuilder(puzzle.path_architect)
 
-# Build the path step by step
-# Assign path types and group nodes
-CAD_nodes = path_builder.assign_path_profile_and_curve_types(CAD_nodes)
-segments = path_builder.group_nodes_by_path_type(CAD_nodes)
+# Create the loft between the first two nodes
+# todo, improve/fix/investigate start area creation
 start_area = path_builder.create_loft_between_nodes(CAD_nodes)
 
 # Prepare profiles and paths
-path_builder.prepare_profiles_and_paths(segments)
+path_builder.prepare_profiles_and_paths()
 
 # For debugging: show all profiles before the sweep
 #for idx, profile in enumerate(path_builder.profiles):
@@ -182,5 +180,5 @@ objects_to_export = {
 for name, obj in objects_to_export.items():
     file_path = os.path.join(path, f"{name}.stl")
     obj.val().exportStl(file_path)
-    file_path = os.path.join(path, f"{name}.step")
+    file_path = os.path.join(path, f"{name}.stl")
     obj.val().exportStep(file_path)
