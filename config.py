@@ -23,7 +23,7 @@ class Manufacturing:
 # Sphere case configuration
 class Sphere:
     SPHERE_DIAMETER = 200  # Diameter of the sphere in mm
-    SPHERE_FLANGE_DIAMETER = 120  # Diameter of the flange
+    SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
     SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
     MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring in mm
     MOUNTING_HOLE_DIAMETER = 4.2  # Diameter of the mounting holes in mm
@@ -44,7 +44,7 @@ class Path:
     PATH_CURVE_MODEL = [
         'polyline',
         #'bezier',
-        #'spline'  # Uncomment if spline interpolation becomes supported
+        'spline'  # Uncomment if spline interpolation becomes supported
     ]
 
     PATH_CURVE_TYPE = [

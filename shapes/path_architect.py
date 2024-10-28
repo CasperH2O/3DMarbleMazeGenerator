@@ -239,7 +239,6 @@ class PathArchitect:
         for node in nodes:
             # Filter out the puzzle start node, as we don't want that broken up
             if node.mounting and not node.puzzle_start:
-                print(node, node.x, node.y, node.z)
                 if current_segment_nodes:
                     segment = PathSegment(
                         current_segment_nodes,

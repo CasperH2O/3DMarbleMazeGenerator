@@ -17,6 +17,7 @@ class Node:
 
         self.path_profile_type = None   # Type of path profile shape
         self.path_curve_type = None     # Type of path curve
+        self.used_in_curve = False     # Todo, improve
         self.segment_start = False      # Indicates the start node of a segment
         self.segment_end = False        # Indicates the end node of a segment
 

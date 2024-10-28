@@ -22,8 +22,8 @@ def main():
     print(f"Number of segments: {len(puzzle.interpolated_segments)}")
 
     # Visualize the interpolated path using plotly
-    visualize_interpolated_path_plotly(puzzle.nodes, puzzle.interpolated_segments, puzzle.casing)
-    #visualize_path_architect(puzzle.nodes, puzzle.path_architect.segments, puzzle.casing)
+    #visualize_interpolated_path_plotly(puzzle.nodes, puzzle.interpolated_segments, puzzle.casing)
+    visualize_path_architect(puzzle.nodes, puzzle.path_architect.segments, puzzle.casing)
 
 if __name__ == "__main__":
     main()
