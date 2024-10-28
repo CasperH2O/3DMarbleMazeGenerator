@@ -1,4 +1,4 @@
-# path_interpolator.py
+# puzzle/path_interpolator.py
 
 import numpy as np
 from scipy import interpolate

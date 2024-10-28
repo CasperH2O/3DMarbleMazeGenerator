@@ -1,4 +1,5 @@
 # puzzle/node.py
+
 from typing import Optional
 from config import PathCurveType, PathProfileType
 
@@ -19,9 +20,9 @@ class Node:
 
         self.path_profile_type: Optional[PathProfileType] = None   # Type of path profile shape
         self.path_curve_type: Optional[PathCurveType] = None       # Type of path curve
-        self.used_in_curve = False     # Todo, improve
-        self.segment_start = False      # Indicates the start node of a segment
-        self.segment_end = False        # Indicates the end node of a segment
+        self.used_in_curve = False  # Todo, improve
+        self.segment_start = False  # Indicates the start node of a segment
+        self.segment_end = False    # Indicates the end node of a segment
 
         self.parent = None          # For path reconstruction
         self.g = float('inf')       # Cost from start to this node

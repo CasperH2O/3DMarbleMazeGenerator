@@ -12,8 +12,8 @@ class Puzzle:
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE  # Options: 'Sphere', 'Sphere with flange', 'Box'
     BALL_DIAMETER = 6  # Diameter of the marble ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 42  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 5
+    SEED = 34  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 6
     WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
 class Manufacturing:
@@ -22,7 +22,7 @@ class Manufacturing:
 
 # Sphere case configuration
 class Sphere:
-    SPHERE_DIAMETER = 200  # Diameter of the sphere in mm
+    SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
     SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
     SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
     MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring in mm
@@ -67,7 +67,7 @@ class Path:
                        PathCurveType.DEGREE_90_SINGLE_PLANE]
 
     PATH_PROFILE_TYPES = [
-        #PathProfileType.U_SHAPE,
+        PathProfileType.U_SHAPE,
         PathProfileType.L_SHAPE,
         PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.O_SHAPE,

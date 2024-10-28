@@ -1,3 +1,5 @@
+# shapes/path_architect.py
+
 import random
 from typing import List
 
@@ -472,7 +474,7 @@ class PathArchitect:
         self.segments.sort(key=lambda s: (s.main_index, s.secondary_index))
 
         # Reassign main_index and secondary_index sequentially
-        new_main_index_counter = 0
+        new_main_index_counter = 1
         main_index_mapping = {}
         secondary_index_counters = {}
 

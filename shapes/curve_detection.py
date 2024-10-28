@@ -1,3 +1,5 @@
+# shapes/curve_detection.py
+
 from typing import List
 from puzzle.node import Node
 import math
