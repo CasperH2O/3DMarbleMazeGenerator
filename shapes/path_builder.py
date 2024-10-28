@@ -5,7 +5,7 @@ import random
 import config
 from config import *
 from shapes.path_profile_type_shapes import *
-
+from config import PathProfileType, PathCurveModel  # Import the enums
 
 class PathBuilder:
     """
@@ -17,21 +17,21 @@ class PathBuilder:
         self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL  # Store the waypoint change interval
         self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
 
-        self.path_profile_types = Config.Path.PATH_PROFILE_TYPES.copy()
+        self.path_profile_types = list(PathProfileType)
         self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
         self.path_profile_type_functions = {
-            'l_shape': create_l_shape,
-            'l_shape_adjusted_height': create_l_shape_adjusted_height,
-            'o_shape': create_o_shape,
-            'u_shape': create_u_shape,
-            'u_shape_adjusted_height': create_u_shape_adjusted_height,
-            'v_shape': create_v_shape,
-            'rectangle_shape': create_rectangle_shape
+            PathProfileType.L_SHAPE: create_l_shape,
+            PathProfileType.L_SHAPE_ADJUSTED_HEIGHT: create_l_shape_adjusted_height,
+            PathProfileType.O_SHAPE: create_o_shape,
+            PathProfileType.U_SHAPE: create_u_shape,
+            PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
+            PathProfileType.V_SHAPE: create_v_shape,
+            PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
         }
         self.path_profiles = []  # Store profiles for debugging
         self.paths = []  # Store paths corresponding to profiles
 
-        self.path_curve_types = Config.Path.PATH_CURVE_MODEL.copy()
+        self.path_curve_types = list(PathCurveModel)
 
     def assign_path_profile_and_curve_types(self, nodes):
         """
@@ -39,10 +39,10 @@ class PathBuilder:
 
         Changes the path profile and curve type every nth waypoint, where n is specified in the configuration.
         """
-        path_profile_type = 'u_shape'  # Start with 'u_shape'
+        path_profile_type = PathProfileType.U_SHAPE  # Start with 'u_shape'
         possible_path_profile_types = self.path_profile_types.copy()
 
-        path_curve_type = 'polyline'
+        path_curve_type = PathCurveModel.POLYLINE
         possible_path_curve_types = self.path_curve_types.copy()
 
         waypoint_counter = 0  # Counter for the number of waypoints encountered
@@ -52,14 +52,14 @@ class PathBuilder:
 
             # Todo, remove, done with loft?
             if i < 3:
-                node.path_profile_type = 'u_shape'
-                node.path_curve_type = 'polyline'
+                node.path_profile_type = PathProfileType.U_SHAPE
+                node.path_curve_type = PathCurveModel.POLYLINE
                 continue
 
             if node.puzzle_end:
                 # For the final node, adjust the path type
-                node.path_profile_type = 'u_shape'
-                node.path_curve_type = 'polyline'
+                node.path_profile_type = PathProfileType.U_SHAPE
+                node.path_curve_type = PathCurveModel.POLYLINE
                 continue
 
             if node.waypoint:
@@ -166,7 +166,7 @@ class PathBuilder:
             wp = cq.Workplane(plane)
 
             # Get parameters for the path profile type
-            parameters = self.path_profile_type_parameters.get(path_profile_type, {})
+            parameters = self.path_profile_type_parameters.get(path_profile_type.value, {})
             # Create the profile on this work plane
             profile_function = self.path_profile_type_functions.get(path_profile_type, create_u_shape)
             profile = profile_function(work_plane=wp, **parameters)
@@ -204,16 +204,16 @@ class PathBuilder:
             wp = cq.Workplane(plane)
 
             # Get parameters for the rectangle profile
-            parameters = self.path_profile_type_parameters.get('rectangle_shape', {})
+            parameters = self.path_profile_type_parameters.get(PathProfileType.RECTANGLE_SHAPE.value, {})
             # Create the rectangle profile using the new function
-            profile_function = self.path_profile_type_functions.get('rectangle_shape', create_rectangle_shape)
+            profile_function = self.path_profile_type_functions.get(PathProfileType.RECTANGLE_SHAPE, create_rectangle_shape)
             profile = profile_function(work_plane=wp, **parameters)
 
             # Store the profile, path, and path profile type
             segment_data = {
                 'profile': profile,
                 'path': rectangle_path,
-                'path_profile_type': 'rectangle_shape'
+                'path_profile_type': PathProfileType.RECTANGLE_SHAPE
             }
             self.segments_data.append(segment_data)
 
@@ -238,7 +238,7 @@ class PathBuilder:
             path_profile_type = segment['path_profile_type']
             try:
                 # Adjust the sweep parameters based on path_profile_type
-                if path_profile_type == 'tube_shape' or path_profile_type == 'v_shape':
+                if path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
                     path_body = profile.sweep(path, transition='round')
                 else:
                     path_body = profile.sweep(path, transition='right')
@@ -249,7 +249,6 @@ class PathBuilder:
                 print(f"Error sweeping segment at index {actual_idx}: {e}")
         return path_bodies
 
-
     def build_final_path_body(self, path_bodies):
         """
         Combines all path bodies into the final path body.
@@ -258,7 +257,6 @@ class PathBuilder:
         for body in path_bodies[1:]:
             final_path_body = final_path_body.union(body)
         return final_path_body
-
 
     def create_plane_at_point(self, origin, normal_vector):
         """
@@ -338,7 +336,7 @@ class PathBuilder:
         wp = cq.Workplane(plane)
 
         # Get the parameters for 'u_shape' from Config
-        u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS['u_shape']
+        u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE.value]
 
         # Create the first U-shaped profile with factor 3 applied to width
         profile = create_u_shape(work_plane=wp, factor=3, **u_shape_params)

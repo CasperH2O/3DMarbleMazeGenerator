@@ -1,6 +1,7 @@
 from typing import List
 from puzzle.node import Node
 import math
+from config import PathCurveType
 
 def detect_curves(nodes: List[Node]):
     detect_s_curves(nodes)
@@ -40,7 +41,7 @@ def detect_s_curves(nodes: List[Node]):
                     if dot_product > direction_threshold:
                         # Mark nodes as part of an S-curve
                         for node in segment[1:-1]:  # Exclude first and last nodes
-                            node.path_curve_type = 's_curve'
+                            node.path_curve_type = PathCurveType.S_CURVE
                             node.used_in_curve = True  # Mark node as used
                         break  # No need to check other axes
 
@@ -48,6 +49,10 @@ def detect_s_curves(nodes: List[Node]):
 def detect_arcs(nodes: List[Node]):
     # Curve lengths correspond to the number of nodes to be marked (excluding first and last)
     curve_lengths = [5, 3]  # Marking 5 and 3 nodes, but segments are of length N + 2 (7 and 5)
+    N_to_curve_type = {
+        5: PathCurveType.DEGREE_90_SINGLE_PLANE,
+        3: PathCurveType.DEGREE_90_SINGLE_PLANE,
+    }
 
     for N in curve_lengths:
         segment_length = N + 2  # Actual segment length to consider
@@ -65,7 +70,7 @@ def detect_arcs(nodes: List[Node]):
             if check_90_deg_curve(segment):
                 # Mark only the middle nodes as part of the curve
                 for node in middle_nodes:
-                    node.path_curve_type = f'90_degree_single_plane_{N}_nodes'
+                    node.path_curve_type = N_to_curve_type[N]
                     node.used_in_curve = True  # Mark node as used
 
 

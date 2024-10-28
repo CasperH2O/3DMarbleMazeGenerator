@@ -1,4 +1,6 @@
 # puzzle/node.py
+from typing import Optional
+from config import PathCurveType, PathProfileType
 
 class Node:
     """
@@ -15,8 +17,8 @@ class Node:
         self.puzzle_end = False     # End of the puzzle
         self.mounting = False       # Mounting node, connects to mounting bridge
 
-        self.path_profile_type = None   # Type of path profile shape
-        self.path_curve_type = None     # Type of path curve
+        self.path_profile_type: Optional[PathProfileType] = None   # Type of path profile shape
+        self.path_curve_type: Optional[PathCurveType] = None       # Type of path curve
         self.used_in_curve = False     # Todo, improve
         self.segment_start = False      # Indicates the start node of a segment
         self.segment_end = False        # Indicates the end node of a segment

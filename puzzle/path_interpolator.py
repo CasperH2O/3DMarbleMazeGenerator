@@ -5,10 +5,10 @@ from scipy import interpolate
 from geomdl import BSpline, utilities
 import random
 import config
-
+from config import PathCurveModel
 
 class PathInterpolator:
-    def __init__(self, total_path, seed, interpolation_types=config.Path.PATH_CURVE_MODEL):
+    def __init__(self, total_path, seed, interpolation_types=None):
         """
         Initializes the PathInterpolator.
 
@@ -23,7 +23,10 @@ class PathInterpolator:
         self._spline_cache = None  # Cache for the computed spline
 
         # Initialize interpolation methods from config
-        self.interpolation_methods = interpolation_types.copy()
+        if interpolation_types is None:
+            self.interpolation_methods = config.Path.PATH_CURVE_MODEL.copy()
+        else:
+            self.interpolation_methods = interpolation_types.copy()
 
         # Assign interpolation methods to segments
         self.segments = self.group_nodes_by_interpolation_method()
@@ -45,6 +48,8 @@ class PathInterpolator:
 
         total_path_nodes = self.total_path
         interpolation_methods = self.interpolation_methods.copy()
+
+        random.seed(self.seed)  # Ensure reproducibility
 
         for i, node in enumerate(total_path_nodes):
             current_segment_nodes.append(node)
@@ -72,11 +77,11 @@ class PathInterpolator:
         """
         Interpolates each segment using its assigned interpolation method.
         """
-        # Map method names to interpolation functions
+        # Map method enums to interpolation functions
         interpolation_functions = {
-            'polyline': self._interpolate_straight,
-            'bezier': self._interpolate_bezier,
-            'spline': self._interpolate_spline,
+            PathCurveModel.POLYLINE: self._interpolate_straight,
+            # PathCurveModel.BEZIER: self._interpolate_bezier,  # Uncomment if bezier is supported
+            PathCurveModel.SPLINE: self._interpolate_spline,
             # Add other interpolation methods here if needed
         }
 
@@ -94,7 +99,7 @@ class PathInterpolator:
         """
         points = [(node.x, node.y, node.z) for node in nodes]
         segment = {
-            'type': 'straight',
+            'type': PathCurveModel.POLYLINE,
             'points': np.array(points)
         }
         self.interpolated_segments.append(segment)
@@ -129,7 +134,7 @@ class PathInterpolator:
         # Extract the evaluated points
         curve_points = np.array(curve.evalpts)
         segment = {
-            'type': 'bezier',
+            'type': PathCurveModel.BEZIER,
             'points': curve_points
         }
         self.interpolated_segments.append(segment)
@@ -153,7 +158,7 @@ class PathInterpolator:
             if spline_segment['start_node'] == start_node and spline_segment['end_node'] == end_node:
                 # Found the matching segment
                 segment = {
-                    'type': 'spline',
+                    'type': PathCurveModel.SPLINE,
                     'points': spline_segment['points']
                 }
                 self.interpolated_segments.append(segment)

@@ -6,15 +6,16 @@ from puzzle.node import Node
 from config import *
 from . import curve_detection
 import cadquery as cq
+from typing import Optional
 
 class PathSegment:
     def __init__(self, nodes: List[Node], main_index: int, secondary_index: int = 0):
         self.nodes = nodes
-        self.main_index = main_index # Segment index for identification
+        self.main_index = main_index  # Segment index for identification
         self.secondary_index = secondary_index
-        self.curve_type = None  # 'straight', 's_curve', 'arc'
-        self.path_profile_type = None  # Assigned path profile type
-        self.path_curve_model = None  # Assigned path curve model
+        self.curve_type: Optional[PathCurveType] = None  # Curve type as enum
+        self.path_profile_type: Optional[PathProfileType] = None  # Assigned path profile type
+        self.path_curve_model: Optional[PathCurveModel] = None  # Assigned path curve model
         self.path_profile_location = None  # Location and orientation data
         self.geometry_data = None  # Data for 3D solid modelling
 
@@ -139,11 +140,11 @@ class PathArchitect:
         # Configuration parameters
         self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
         self.node_size = Config.Puzzle.NODE_SIZE
-        self.path_profile_types = Config.Path.PATH_PROFILE_TYPES.copy()
-        self.path_curve_models = Config.Path.PATH_CURVE_MODEL.copy()
+        self.path_profile_types = list(Config.Path.PATH_PROFILE_TYPES)
+        self.path_curve_models = list(Config.Path.PATH_CURVE_MODEL)
         self.nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
         self.seed = Config.Puzzle.SEED
-        random.seed(self.seed) # Set the random seed for reproducibility
+        random.seed(self.seed)  # Set the random seed for reproducibility
 
         # Process the path
         self.split_path_into_segments()
@@ -203,16 +204,43 @@ class PathArchitect:
 
     def assign_path_profiles_and_models(self):
         # Randomly assign path profile types and path curve models to segments
+        previous_profile_type = None
+        previous_curve_model = None
+
         for segment in self.segments:
-            segment.path_profile_type = random.choice(self.path_profile_types)
-            segment.path_curve_model = random.choice(self.path_curve_models)
+            # Check if the segment contains any mounting node
+            has_mounting_node = any(node.mounting for node in segment.nodes)
+            if has_mounting_node:
+                # For mounting segments, only select specific types, ensures linking with bridge
+                available_profile_types = [PathProfileType.O_SHAPE, PathProfileType.U_SHAPE]
+                available_curve_models = [PathCurveModel.POLYLINE]
+            else:
+                # For other segments, use all available types
+                available_profile_types = self.path_profile_types.copy()
+                available_curve_models = self.path_curve_models.copy()
+
+            # Exclude previous types if possible
+            # For path profile type
+            if previous_profile_type in available_profile_types and len(available_profile_types) > 1:
+                available_profile_types.remove(previous_profile_type)
+
+            # For path curve model
+            if previous_curve_model in available_curve_models and len(available_curve_models) > 1:
+                available_curve_models.remove(previous_curve_model)
+
+            # Select random types from the available lists
+            segment.path_profile_type = random.choice(available_profile_types)
+            segment.path_curve_model = random.choice(available_curve_models)
+
+            # Update previous types for next round
+            previous_profile_type = segment.path_profile_type
+            previous_curve_model = segment.path_curve_model
 
     def detect_curves_and_adjust_segments(self):
         new_segments = []
 
         for segment in self.segments:
-            # todo, rethink, because splines also can't be mounting waypoints either...
-            if segment.path_curve_model == 'polyline':
+            if segment.path_curve_model == PathCurveModel.POLYLINE:
                 # Split the segment into sub-segments around mounting nodes, can't make curves of those
                 sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
                 for sub_segment in sub_segments:
@@ -368,8 +396,8 @@ class PathArchitect:
                 break  # Exit the outer loop once the start segment is identified
 
         if start_segment:
-            # Set the path_profile_type to 'u_shape' for the start segment
-            start_segment.path_profile_type = 'u_shape'
+            # Set the path profile type to u shape for the start segment
+            start_segment.path_profile_type = PathProfileType.U_SHAPE
 
     def create_finish_box(self):
         # This method adds a closing shape at the end of the path to close off the route.
@@ -424,8 +452,8 @@ class PathArchitect:
             )
 
             # Set the profile type to 'rectangle_shape' for the closing shape
-            new_segment.path_profile_type = 'rectangle_shape'
-            new_segment.curve_type = 'straight'
+            new_segment.path_profile_type = PathProfileType.RECTANGLE_SHAPE
+            new_segment.curve_type = PathCurveType.STRAIGHT
 
             # Append new_segment to self.segments
             self.segments.append(new_segment)
@@ -433,8 +461,8 @@ class PathArchitect:
             # Increment main_index_counter
             self.main_index_counter += 1
 
-            # Ensure that the path_profile_type of the segment containing the last node is 'u_shape'
-            end_segment.path_profile_type = 'u_shape'
+            # Ensure that the path profile type of the segment containing the last node is u shaped
+            end_segment.path_profile_type = PathProfileType.U_SHAPE
         else:
             # Not enough nodes to compute direction
             pass

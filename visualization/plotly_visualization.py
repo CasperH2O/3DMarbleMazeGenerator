@@ -1,11 +1,11 @@
-# plotly_visualization.py
+# visualization/plotly_visualization.py
 
 import plotly.graph_objects as go
-import plotly.offline as pyo
 from scipy import interpolate
 import numpy as np
 from .plotly_helpers import plot_nodes_plotly, plot_casing_plotly  # Import shared helper functions
 
+from config import PathCurveModel
 
 def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     """
@@ -219,9 +219,9 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     # Prepare path traces from interpolated segments
     path_traces = []
     colors = {
-        'straight': 'gray',
-        'bezier': 'orange',
-        'spline': 'lime'
+        PathCurveModel.POLYLINE: 'gray',
+        PathCurveModel.BEZIER: 'orange',
+        PathCurveModel.SPLINE: 'lime'
     }
     legend_added = set()
     for segment in interpolated_segments:
@@ -237,7 +237,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
             z=points[:, 2],
             mode='lines',
             line=dict(color=colors.get(segment_type, 'gray'), width=2),
-            name=segment_type.capitalize(),
+            name=segment_type.value.capitalize(),
             showlegend=show_legend
         )
         path_traces.append(trace)

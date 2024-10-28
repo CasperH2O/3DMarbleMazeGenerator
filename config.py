@@ -30,7 +30,6 @@ class Sphere:
     MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
     NUMBER_OF_MOUNTING_POINTS = 4
 
-
 # Box case configuration
 class Box:
     WIDTH = 100  # Width of the box in mm
@@ -38,28 +37,42 @@ class Box:
     LENGTH = 150  # Length of the box in mm
     PANEL_THICKNESS = 3  # Thickness of the box panels in mm
 
+class PathCurveModel(Enum):
+    POLYLINE = 'polyline'
+    BEZIER = 'bezier'  # Uncomment if bezier interpolation becomes supported
+    SPLINE = 'spline'  # Uncomment if spline interpolation becomes supported
 
-# Path interpolation and profile configuration
+class PathCurveType(Enum):
+    STRAIGHT = 'straight'
+    S_CURVE = 's_curve'
+    DEGREE_90_SINGLE_PLANE = '90_degree_single_plane'
+
+class PathProfileType(Enum):
+    U_SHAPE = 'u_shape'
+    L_SHAPE = 'l_shape'
+    L_SHAPE_ADJUSTED_HEIGHT = 'l_shape_adjusted_height'
+    O_SHAPE = 'o_shape'
+    U_SHAPE_ADJUSTED_HEIGHT = 'u_shape_adjusted_height'
+    V_SHAPE = 'v_shape'
+    RECTANGLE_SHAPE = 'rectangle_shape'
+
+# Path curves and profile configuration
 class Path:
-    PATH_CURVE_MODEL = [
-        'polyline',
-        #'bezier',
-        'spline'  # Uncomment if spline interpolation becomes supported
-    ]
 
-    PATH_CURVE_TYPE = [
-        's_curve',
-        '90_degree_single_plane_small',
-        '90_degree_single_plane_big'
-    ]
+    PATH_CURVE_MODEL = [PathCurveModel.POLYLINE,
+                        #PathCurveModel.BEZIER,
+                        PathCurveModel.SPLINE]
+
+    PATH_CURVE_TYPE = [PathCurveType.S_CURVE,
+                       PathCurveType.DEGREE_90_SINGLE_PLANE]
 
     PATH_PROFILE_TYPES = [
-        'u_shape',
-        'l_shape',
-        #'l_shape_adjusted_height',
-        'o_shape',
-        'u_shape_adjusted_height',
-        #'v_shape'
+        #PathProfileType.U_SHAPE,
+        PathProfileType.L_SHAPE,
+        PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+        PathProfileType.O_SHAPE,
+        PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
+        PathProfileType.V_SHAPE
     ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
@@ -94,7 +107,6 @@ class Path:
             'height_width': 10.0 - 0.0001,
         }
     }
-
 
 # General Configuration Access
 class Config:
