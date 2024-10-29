@@ -45,18 +45,14 @@ class PathBuilder:
             # Get the sub path points (positions of nodes in the segment)
             sub_path_points = [cq.Vector(node.x, node.y, node.z) for node in segment.nodes]
 
-            # Determine the type of path to create based on PathCurveModel and PathCurveType
-            curve_model = segment.path_curve_model
-            curve_type = segment.curve_type
-
             # Initialize the path work plane
             path_wp = cq.Workplane("XY")
 
             # Initialize variables
             path = None
 
-            if curve_model == PathCurveModel.POLYLINE:
-                if curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
+            if segment.curve_model == PathCurveModel.POLYLINE:
+                if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
                     # 90 degree curve, using the first last and middle node only with Bezier
                     if len(sub_path_points) < 3:
                         print(f"Segment {idx} has insufficient nodes for DEGREE_90_SINGLE_PLANE. Skipping.")
@@ -65,7 +61,7 @@ class PathBuilder:
                     middle = sub_path_points[len(sub_path_points) // 2]
                     last = sub_path_points[-1]
                     path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple() ])
-                elif curve_type == PathCurveType.S_CURVE:
+                elif segment.curve_type == PathCurveType.S_CURVE:
                     # S-curve, using all nodes with Bezier
                     if len(sub_path_points) < 3:
                         print(f"Segment {idx} has insufficient nodes for S_CURVE. Skipping.")
@@ -75,7 +71,7 @@ class PathBuilder:
                     # Standard Polyline
                     path = path_wp.polyline([p.toTuple() for p in sub_path_points])
 
-            elif curve_model == PathCurveModel.SPLINE:
+            elif segment.curve_model == PathCurveModel.SPLINE:
                 # Spline using first two and last two nodes
                 if len(sub_path_points) < 4:
                     print(f"Segment {idx} has insufficient nodes for SPLINE. Skipping.")
@@ -85,7 +81,7 @@ class PathBuilder:
                 spline_points = first_two + last_two
                 path = path_wp.spline([p.toTuple() for p in spline_points])
             else:
-                print(f"Segment {idx} has unknown PathCurveModel '{curve_model}'. Skipping.")
+                print(f"Segment {idx} has unknown PathCurveModel '{segment.curve_model}'. Skipping.")
                 continue
 
             if path is None:
@@ -110,7 +106,7 @@ class PathBuilder:
             wp = cq.Workplane(plane)
 
             # Get parameters for the path profile type
-            path_profile_type = segment.path_profile_type
+            path_profile_type = segment.profile_type
             parameters = self.path_profile_type_parameters.get(path_profile_type.value, {})
 
             # Create the profile on this work plane
@@ -266,33 +262,3 @@ class PathBuilder:
 
         # Return the lofted shape
         return lofted_shape
-
-    def _calculate_arc_midpoint(self, first, middle, last):
-        """
-        Calculates the intermediate point for a three-point arc.
-        This method assumes that the arc lies on a single plane and forms a 90-degree turn.
-
-        Parameters:
-        - first: cq.Vector, the starting point of the arc
-        - middle: cq.Vector, the intended midpoint (used for direction)
-        - last: cq.Vector, the ending point of the arc
-
-        Returns:
-        - arc_mid: cq.Vector, the calculated midpoint for the arc
-        """
-        # Vector from first to middle
-        v1 = middle - first
-        # Vector from middle to last
-        v2 = last - middle
-
-        # Calculate the angle bisector
-        bisector = (v1.normalized() + v2.normalized()).normalized()
-
-        # Determine the distance from the middle point to the arc midpoint
-        # This can be adjusted based on desired arc curvature
-        distance = self.node_size  # Example: using node_size as a scaling factor
-
-        # Calculate the arc midpoint
-        arc_mid = middle + bisector * distance
-
-        return arc_mid

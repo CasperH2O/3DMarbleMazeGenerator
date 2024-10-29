@@ -22,11 +22,11 @@ def main():
     print(f"Number of segments: {len(puzzle.path_architect.segments)}")
 
     # Collect the used path profile types
-    profile_types_used = set(segment.path_profile_type for segment in puzzle.path_architect.segments)
+    profile_types_used = set(segment.profile_type for segment in puzzle.path_architect.segments)
     print(f"Profile types used: {len(profile_types_used)}, {', '.join(pt.value for pt in profile_types_used)}")
 
     # Collect the used path curve models
-    curve_models_used = set(segment.path_curve_model for segment in puzzle.path_architect.segments)
+    curve_models_used = set(segment.curve_model for segment in puzzle.path_architect.segments)
     print(f"Number of different curve models used: {len(curve_models_used)}")
 #    print(f"Curve models used: {', '.join(cm.value for cm in curve_models_used)}")
 

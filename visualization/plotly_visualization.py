@@ -301,9 +301,9 @@ def visualize_path_architect(nodes, segments, casing):
         # Create a hover text with line breaks
         segment_name = (
             f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
-            f"Path Curve Model: {segment.path_curve_model}<br>"
+            f"Path Curve Model: {segment.curve_model}<br>"
             f"Curve Type: {segment.curve_type}<br>"
-            f"Path Profile Type: {segment.path_profile_type}"
+            f"Path Profile Type: {segment.profile_type}"
         )
 
         # Plot the lines for the segment
