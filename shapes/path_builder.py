@@ -38,16 +38,16 @@ class PathBuilder:
         segments = self.path_architect.segments
 
         for idx, segment in enumerate(segments):
-            # Skip segments that contain a node with .puzzle_start == True
+            # Skip segments that contain the start node
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            # Get the sub_path points (positions of nodes in the segment)
+            # Get the sub path points (positions of nodes in the segment)
             sub_path_points = [cq.Vector(node.x, node.y, node.z) for node in segment.nodes]
 
             # Determine the type of path to create based on PathCurveModel and PathCurveType
             curve_model = segment.path_curve_model
-            curve_type = segment.curve_type  # Updated reference
+            curve_type = segment.curve_type
 
             # Initialize the path work plane
             path_wp = cq.Workplane("XY")
@@ -57,18 +57,16 @@ class PathBuilder:
 
             if curve_model == PathCurveModel.POLYLINE:
                 if curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
-                    # Three-point arc using first, middle, and last nodes
+                    # 90 degree curve, using the first last and middle node only with Bezier
                     if len(sub_path_points) < 3:
                         print(f"Segment {idx} has insufficient nodes for DEGREE_90_SINGLE_PLANE. Skipping.")
                         continue
                     first = sub_path_points[0]
                     middle = sub_path_points[len(sub_path_points) // 2]
                     last = sub_path_points[-1]
-                    arc_mid = self._calculate_arc_midpoint(first, middle, last)
-                    continue #todo, fix arc calculcation
-                    path = path_wp.polyline([first.toTuple(), arc_mid.toTuple(), last.toTuple()])
+                    path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple() ])
                 elif curve_type == PathCurveType.S_CURVE:
-                    # Beziercurve
+                    # S-curve, using all nodes with Bezier
                     if len(sub_path_points) < 3:
                         print(f"Segment {idx} has insufficient nodes for S_CURVE. Skipping.")
                         continue
