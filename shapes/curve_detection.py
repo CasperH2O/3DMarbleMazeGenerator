@@ -3,12 +3,20 @@
 from typing import List
 from puzzle.node import Node
 import math
-from config import PathCurveType
+from config import PathCurveType, Path
 
 def detect_curves(nodes: List[Node]):
-    detect_s_curves(nodes)
-    detect_arcs(nodes) # todo, enable when ready
-    pass
+    """
+    Detect curves in the given nodes based on the configuration.
+
+    Args:
+        nodes (List[Node]): A list of nodes to analyze for curves.
+    """
+    if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
+        detect_s_curves(nodes)
+
+    if PathCurveType.DEGREE_90_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
+        detect_arcs(nodes)
 
 def detect_s_curves(nodes: List[Node]):
     s_curve_length = 6  # Number of nodes in an S-curve
