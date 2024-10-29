@@ -27,8 +27,6 @@ class PathBuilder:
             PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
         }
         self.segments_data = []  # Store profiles, paths, and path_types
-        self.path_profiles = []  # For debugging
-        self.paths = []  # For debugging
 
     def prepare_profiles_and_paths(self):
         """
@@ -113,11 +111,13 @@ class PathBuilder:
             profile_function = self.path_profile_type_functions.get(path_profile_type, create_u_shape)
             profile = profile_function(work_plane=wp, **parameters)
 
+            # Todo, add this data with the PathSegment datatype
             # Store the profile, path, and path profile type together
             segment_data = {
                 'profile': profile,
                 'path': path,
-                'path_profile_type': path_profile_type
+                'path_profile_type': path_profile_type,
+                'nodes': segment.nodes
             }
             self.segments_data.append(segment_data)
 
@@ -136,17 +136,35 @@ class PathBuilder:
         else:
             selected_segments = self.segments_data
 
+        # Initialize the transition tracker
+        next_transition = 'right'  # Starting with 'right'.
+
         for idx, segment_data in enumerate(selected_segments):
             profile = segment_data['profile']
             path = segment_data['path']
             path_profile_type = segment_data['path_profile_type']
+            nodes = segment_data.get('nodes', [])
+
+            for node in nodes:
+                print(node.x, node.y, node.z, node.mounting)
+
             try:
-                # Adjust the sweep parameters based on path_profile_type
+                # Determine the transition type based on path_profile_type
                 if path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
-                    path_body = profile.sweep(path, transition='round')
+                    transition_type = 'round'
+                elif any(node.mounting for node in nodes):
+                    transition_type = 'right'
                 else:
-                    path_body = profile.sweep(path, transition='right')
-                # Collect the body
+                    # Alternately choose between 'right' and 'round'
+                    transition_type = next_transition
+
+                    # Flip the next_transition for the subsequent else case
+                    next_transition = 'round' if next_transition == 'right' else 'right'
+
+                # Perform the sweep with the determined transition type
+                path_body = profile.sweep(path, transition=transition_type)
+
+                # Collect the resulting body
                 path_bodies.append(path_body)
             except Exception as e:
                 actual_idx = indices[idx] if indices else idx

@@ -12,7 +12,7 @@ class Puzzle:
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE  # Options: 'Sphere', 'Sphere with flange', 'Box'
     BALL_DIAMETER = 6  # Diameter of the marble ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 34  # Random seed for reproducibility
+    SEED = 24  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 6
     WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
@@ -61,10 +61,12 @@ class Path:
 
     PATH_CURVE_MODEL = [PathCurveModel.POLYLINE,
                         #PathCurveModel.BEZIER,
-                        PathCurveModel.SPLINE]
+                        #PathCurveModel.SPLINE
+                        ]
 
     PATH_CURVE_TYPE = [PathCurveType.S_CURVE,
-                       PathCurveType.DEGREE_90_SINGLE_PLANE]
+                       PathCurveType.DEGREE_90_SINGLE_PLANE
+                       ]
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
@@ -73,7 +75,7 @@ class Path:
         PathProfileType.O_SHAPE,
         PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.V_SHAPE
-    ]
+                         ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
         'l_shape': {
