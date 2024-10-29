@@ -45,9 +45,54 @@ class PathBuilder:
             # Get the sub_path points (positions of nodes in the segment)
             sub_path_points = [cq.Vector(node.x, node.y, node.z) for node in segment.nodes]
 
-            # Create the path using the nodes as provided
-            # Todo, handle arcs and bezier here for curves
-            path = cq.Workplane("XY").polyline([p.toTuple() for p in sub_path_points])
+            # Determine the type of path to create based on PathCurveModel and PathCurveType
+            curve_model = segment.path_curve_model
+            curve_type = segment.curve_type  # Updated reference
+
+            # Initialize the path work plane
+            path_wp = cq.Workplane("XY")
+
+            # Initialize variables
+            path = None
+
+            if curve_model == PathCurveModel.POLYLINE:
+                if curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
+                    # Three-point arc using first, middle, and last nodes
+                    if len(sub_path_points) < 3:
+                        print(f"Segment {idx} has insufficient nodes for DEGREE_90_SINGLE_PLANE. Skipping.")
+                        continue
+                    first = sub_path_points[0]
+                    middle = sub_path_points[len(sub_path_points) // 2]
+                    last = sub_path_points[-1]
+                    arc_mid = self._calculate_arc_midpoint(first, middle, last)
+                    continue #todo, fix arc calculcation
+                    path = path_wp.polyline([first.toTuple(), arc_mid.toTuple(), last.toTuple()])
+                elif curve_type == PathCurveType.S_CURVE:
+                    # Beziercurve
+                    if len(sub_path_points) < 3:
+                        print(f"Segment {idx} has insufficient nodes for S_CURVE. Skipping.")
+                        continue
+                    path = path_wp.bezier([p.toTuple() for p in sub_path_points])
+                else:
+                    # Standard Polyline
+                    path = path_wp.polyline([p.toTuple() for p in sub_path_points])
+
+            elif curve_model == PathCurveModel.SPLINE:
+                # Spline using first two and last two nodes
+                if len(sub_path_points) < 4:
+                    print(f"Segment {idx} has insufficient nodes for SPLINE. Skipping.")
+                    continue
+                first_two = sub_path_points[:2]
+                last_two = sub_path_points[-2:]
+                spline_points = first_two + last_two
+                path = path_wp.spline([p.toTuple() for p in spline_points])
+            else:
+                print(f"Segment {idx} has unknown PathCurveModel '{curve_model}'. Skipping.")
+                continue
+
+            if path is None:
+                print(f"Segment {idx}: Path creation failed.")
+                continue
 
             # Determine entering direction at the start of the segment
             if len(sub_path_points) >= 2:
@@ -69,6 +114,7 @@ class PathBuilder:
             # Get parameters for the path profile type
             path_profile_type = segment.path_profile_type
             parameters = self.path_profile_type_parameters.get(path_profile_type.value, {})
+
             # Create the profile on this work plane
             profile_function = self.path_profile_type_functions.get(path_profile_type, create_u_shape)
             profile = profile_function(work_plane=wp, **parameters)
@@ -222,3 +268,33 @@ class PathBuilder:
 
         # Return the lofted shape
         return lofted_shape
+
+    def _calculate_arc_midpoint(self, first, middle, last):
+        """
+        Calculates the intermediate point for a three-point arc.
+        This method assumes that the arc lies on a single plane and forms a 90-degree turn.
+
+        Parameters:
+        - first: cq.Vector, the starting point of the arc
+        - middle: cq.Vector, the intended midpoint (used for direction)
+        - last: cq.Vector, the ending point of the arc
+
+        Returns:
+        - arc_mid: cq.Vector, the calculated midpoint for the arc
+        """
+        # Vector from first to middle
+        v1 = middle - first
+        # Vector from middle to last
+        v2 = last - middle
+
+        # Calculate the angle bisector
+        bisector = (v1.normalized() + v2.normalized()).normalized()
+
+        # Determine the distance from the middle point to the arc midpoint
+        # This can be adjusted based on desired arc curvature
+        distance = self.node_size  # Example: using node_size as a scaling factor
+
+        # Calculate the arc midpoint
+        arc_mid = middle + bisector * distance
+
+        return arc_mid
