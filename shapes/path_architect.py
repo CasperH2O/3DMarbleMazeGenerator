@@ -144,15 +144,15 @@ class PathArchitect:
 
         # Process the path
         self.split_path_into_segments()
-
         self.assign_path_profiles_and_models()
-
-        self.create_start_ramp()
-        self.create_finish_box()
 
         self.detect_curves_and_adjust_segments()
 
         self.adjust_segments()
+
+        self.create_start_ramp()
+        self.create_finish_box()
+
         self.reindex_segments()
 
     def split_path_into_segments(self):
@@ -501,7 +501,8 @@ class PathArchitect:
                 secondary_index=0
             )
 
-            # Set the profile type to 'rectangle_shape' for the closing shape
+            # Set the profile type to rectangle shape for the closing shape
+            new_segment.curve_model = PathCurveModel.POLYLINE
             new_segment.profile_type = PathProfileType.RECTANGLE_SHAPE
             new_segment.curve_type = PathCurveType.STRAIGHT
 
