@@ -1,4 +1,4 @@
-# puzzle/utils.py
+# puzzle/distances.py
 
 def manhattan_distance(node_a, node_b):
     return (abs(node_a.x - node_b.x) +

@@ -1,21 +1,17 @@
 # config.py
 
-from enum import Enum
-
-class CaseShape(Enum):
-    SPHERE = 'Sphere'
-    SPHERE_WITH_FLANGE = 'Sphere with flange'
-    BOX = 'Box'
+from puzzle.utils.enums import CaseShape, PathCurveModel, PathCurveType, PathProfileType
 
 # Puzzle configuration
 class Puzzle:
-    CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE  # Options: 'Sphere', 'Sphere with flange', 'Box'
+    CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
     BALL_DIAMETER = 6  # Diameter of the marble ball in mm
     NODE_SIZE = 10  # Node size in mm
     SEED = 24  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 6
     WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 
+# Manufacturing configuration
 class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
@@ -37,36 +33,19 @@ class Box:
     LENGTH = 150  # Length of the box in mm
     PANEL_THICKNESS = 3  # Thickness of the box panels in mm
 
-class PathCurveModel(Enum):
-    POLYLINE = 'polyline'
-    BEZIER = 'bezier'  # Uncomment if bezier interpolation becomes supported
-    SPLINE = 'spline'  # Uncomment if spline interpolation becomes supported
-
-class PathCurveType(Enum):
-    STRAIGHT = 'straight'
-    S_CURVE = 's_curve'
-    DEGREE_90_SINGLE_PLANE = '90_degree_single_plane'
-
-class PathProfileType(Enum):
-    U_SHAPE = 'u_shape'
-    L_SHAPE = 'l_shape'
-    L_SHAPE_ADJUSTED_HEIGHT = 'l_shape_adjusted_height'
-    O_SHAPE = 'o_shape'
-    U_SHAPE_ADJUSTED_HEIGHT = 'u_shape_adjusted_height'
-    V_SHAPE = 'v_shape'
-    RECTANGLE_SHAPE = 'rectangle_shape'
-
 # Path curves and profile configuration
 class Path:
 
-    PATH_CURVE_MODEL = [PathCurveModel.POLYLINE,
-                        #PathCurveModel.BEZIER,
-                        #PathCurveModel.SPLINE
-                        ]
+    PATH_CURVE_MODEL = [
+        PathCurveModel.POLYLINE,
+        #PathCurveModel.BEZIER,
+        #PathCurveModel.SPLINE
+        ]
 
-    PATH_CURVE_TYPE = [PathCurveType.S_CURVE,
-                       PathCurveType.DEGREE_90_SINGLE_PLANE
-                       ]
+    PATH_CURVE_TYPE = [
+        PathCurveType.S_CURVE,
+        PathCurveType.DEGREE_90_SINGLE_PLANE
+        ]
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
@@ -75,7 +54,7 @@ class Path:
         PathProfileType.O_SHAPE,
         PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.V_SHAPE
-                         ]
+        ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
         'l_shape': {
