@@ -145,9 +145,6 @@ class PathBuilder:
             path_profile_type = segment_data['path_profile_type']
             nodes = segment_data.get('nodes', [])
 
-            for node in nodes:
-                print(node.x, node.y, node.z, node.mounting)
-
             try:
                 # Determine the transition type based on path_profile_type
                 if path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:

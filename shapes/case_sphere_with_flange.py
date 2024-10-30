@@ -216,8 +216,8 @@ class CaseSphereWithFlange(CaseBase):
     def get_cad_objects(self):
         return {
             "Mounting Ring": (self.mounting_ring, {"alpha": 0.0, "color": (40, 40, 43)}),
-            "Dome Top": (self.dome_top, {"alpha": 0.9, "color": (1, 1, 1)}),
-            "Dome Bottom": (self.dome_bottom, {"alpha": 0.9, "color": (1, 1, 1)}),
+            "Dome Top": (self.dome_top, {"alpha": 0.05, "color":(1, 1, 1)}),
+            "Dome Bottom": (self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": (57, 255, 20)}),
             "Start Text": (self.start_text, {"color": (57, 255, 20)}),
         }

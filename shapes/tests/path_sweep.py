@@ -1,4 +1,5 @@
 import cadquery as cq
+from ocp_vscode import *
 
 # Define the points for the different paths to try
 

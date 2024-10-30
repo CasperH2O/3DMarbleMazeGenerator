@@ -2,6 +2,8 @@
 
 import cadquery as cq
 import os
+from ocp_vscode import *
+
 from config import Config
 from config import CaseShape
 from puzzle.puzzle import Puzzle
@@ -144,9 +146,9 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 ###########
 
 # Show the final path
-show_object(path_body, name="Path", options={"alpha": 0.0, "color": (57, 255, 20)})
+show_object(path_body, name="Path", options={"alpha": 1.0, "color": (57, 255, 20)})
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    show_object(mounting_ring, name="Mounting Ring", options={"alpha": 0.0, "color": (40, 40, 43)})
+    show_object(mounting_ring, name="Mounting Ring", options={"alpha": 1.0, "color": (40, 40, 43)})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})

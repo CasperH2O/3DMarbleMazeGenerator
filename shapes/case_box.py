@@ -34,7 +34,7 @@ class CaseBox(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "Casing": (self.casing, {"alpha": 0.9, "color": (1, 1, 1)}),
+            "Casing": (self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
         }
 
     def get_cut_shape(self):
