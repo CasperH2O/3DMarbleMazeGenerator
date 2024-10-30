@@ -1,8 +1,11 @@
 # shapes/path_builder.py
 
+from typing import List
+
 from config import *
 from shapes.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel  # Import the enums
+from shapes.path_architect import PathSegment
 
 class PathBuilder:
     """
@@ -26,16 +29,15 @@ class PathBuilder:
             PathProfileType.V_SHAPE: create_v_shape,
             PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
         }
-        self.segments_data = []  # Store profiles, paths, and path_types
 
     def prepare_profiles_and_paths(self):
         """
-        Creates profiles and paths for each segment and stores them along with the path_profile_type.
+        Creates profiles and paths for each segment and stores them in the PathSegment objects.
         Skips segments that contain the puzzle start node.
         """
         segments = self.path_architect.segments
 
-        for idx, segment in enumerate(segments):
+        for segment in segments:
             # Skip segments that contain the start node
             if any(node.puzzle_start for node in segment.nodes):
                 continue
@@ -45,81 +47,54 @@ class PathBuilder:
 
             # Initialize the path work plane
             path_wp = cq.Workplane("XY")
-
-            # Initialize variables
             path = None
 
             if segment.curve_model == PathCurveModel.POLYLINE:
                 if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
-                    # 90 degree curve, using the first last and middle node only with Bezier
-                    if len(sub_path_points) < 3:
-                        print(f"Segment {idx} has insufficient nodes for DEGREE_90_SINGLE_PLANE. Skipping.")
-                        continue
-                    first = sub_path_points[0]
-                    middle = sub_path_points[len(sub_path_points) // 2]
-                    last = sub_path_points[-1]
-                    path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple() ])
+                    if len(sub_path_points) >= 3:
+                        first = sub_path_points[0]
+                        middle = sub_path_points[len(sub_path_points) // 2]
+                        last = sub_path_points[-1]
+                        path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
                 elif segment.curve_type == PathCurveType.S_CURVE:
-                    # S-curve, using all nodes with Bezier
-                    if len(sub_path_points) < 3:
-                        print(f"Segment {idx} has insufficient nodes for S_CURVE. Skipping.")
-                        continue
-                    path = path_wp.bezier([p.toTuple() for p in sub_path_points])
+                    if len(sub_path_points) >= 3:
+                        path = path_wp.bezier([p.toTuple() for p in sub_path_points])
                 else:
-                    # Standard Polyline
                     path = path_wp.polyline([p.toTuple() for p in sub_path_points])
 
             elif segment.curve_model == PathCurveModel.SPLINE:
-                # Spline using first two and last two nodes
-                if len(sub_path_points) < 4:
-                    print(f"Segment {idx} has insufficient nodes for SPLINE. Skipping.")
-                    continue
-                first_two = sub_path_points[:2]
-                last_two = sub_path_points[-2:]
-                spline_points = first_two + last_two
-                path = path_wp.spline([p.toTuple() for p in spline_points])
-            else:
-                print(f"Segment {idx} has unknown PathCurveModel '{segment.curve_model}'. Skipping.")
-                continue
+                if len(sub_path_points) >= 4:
+                    first_two = sub_path_points[:2]
+                    last_two = sub_path_points[-2:]
+                    spline_points = first_two + last_two
+                    path = path_wp.spline([p.toTuple() for p in spline_points])
 
             if path is None:
-                print(f"Segment {idx}: Path creation failed.")
                 continue
 
             # Determine entering direction at the start of the segment
             if len(sub_path_points) >= 2:
                 entering_direction = (sub_path_points[1] - sub_path_points[0]).normalized()
             elif len(sub_path_points) == 1 and segment.nodes[0].segment_start and segment.nodes[0].segment_end:
-                # For segments with a single node (start and end), use default direction
                 entering_direction = cq.Vector(1, 0, 0)
             else:
-                # Cannot determine direction, skip this segment
-                print(f"Segment {idx} has insufficient nodes to determine direction.")
                 continue
 
             # Create a plane at the start point with normal along the entering direction
             plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
-
-            # Now create the work plane on this plane
             wp = cq.Workplane(plane)
 
             # Get parameters for the path profile type
-            path_profile_type = segment.profile_type
-            parameters = self.path_profile_type_parameters.get(path_profile_type.value, {})
+            parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
 
             # Create the profile on this work plane
-            profile_function = self.path_profile_type_functions.get(path_profile_type, create_u_shape)
+            profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
             profile = profile_function(work_plane=wp, **parameters)
 
-            # Todo, add this data with the PathSegment datatype
-            # Store the profile, path, and path profile type together
-            segment_data = {
-                'profile': profile,
-                'path': path,
-                'path_profile_type': path_profile_type,
-                'nodes': segment.nodes
-            }
-            self.segments_data.append(segment_data)
+            # Store the profile and path directly in the PathSegment object
+            segment.profile = profile
+            segment.path = path
+
 
     def sweep_profiles_along_paths(self, indices=None):
         """
@@ -127,57 +102,74 @@ class PathBuilder:
 
         Parameters:
         indices (list of int, optional): The indices of the segments to sweep.
-                                         If None, all segments are processed.
+                                        If None, all segments are processed.
         """
-        path_bodies = []
+        segments = self.path_architect.segments
+        
         # If indices are provided, use them to select segments
         if indices is not None:
-            selected_segments = [self.segments_data[i] for i in indices]
+            selected_segments = [segments[i] for i in indices]
         else:
-            selected_segments = self.segments_data
+            selected_segments = segments
 
         # Initialize the transition tracker
-        next_transition = 'right'  # Starting with 'right'.
+        next_transition = 'round'  # Starting with 'right'
 
-        for idx, segment_data in enumerate(selected_segments):
-            profile = segment_data['profile']
-            path = segment_data['path']
-            path_profile_type = segment_data['path_profile_type']
-            nodes = segment_data.get('nodes', [])
+        for idx, segment in enumerate(selected_segments):
+
+            # Skip segments that contain the start node
+            if any(node.puzzle_start for node in segment.nodes):
+                continue
 
             try:
                 # Determine the transition type based on path_profile_type
-                if path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
+                if segment.profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
                     transition_type = 'round'
-                elif any(node.mounting for node in nodes):
+                elif any(node.mounting for node in segment.nodes):
                     transition_type = 'right'
                 else:
                     # Alternately choose between 'right' and 'round'
                     transition_type = next_transition
-
                     # Flip the next_transition for the subsequent else case
                     next_transition = 'round' if next_transition == 'right' else 'right'
 
                 # Perform the sweep with the determined transition type
-                path_body = profile.sweep(path, transition=transition_type)
-
-                # Collect the resulting body
-                path_bodies.append(path_body)
+                path_body = segment.profile.sweep(segment.path, transition=transition_type)
+                
+                # Store the body in the segment
+                segment.body = path_body
+                
             except Exception as e:
                 actual_idx = indices[idx] if indices else idx
                 print(f"Error sweeping segment at index {actual_idx}: {e}")
-        return path_bodies
 
-    def build_final_path_body(self, path_bodies):
-        """
-        Combines all path bodies into the final path body.
-        """
-        if not path_bodies:
-            raise ValueError("No path bodies to combine.")
-        final_path_body = path_bodies[0]
-        for body in path_bodies[1:]:
-            final_path_body = final_path_body.union(body)
-        return final_path_body
+    def build_final_path_body(self):
+        # Create two separate combined bodies
+        standard_body = None
+        o_shape_body = None
+        
+        for segment in self.path_architect.segments:
+
+            # Skip segments that contain the start node
+            if any(node.puzzle_start for node in segment.nodes):
+                continue
+
+            # Check if the segment is an O-shape profile
+            if segment.profile_type == PathProfileType.O_SHAPE:
+                if o_shape_body is None:
+                    o_shape_body = segment.body
+                else:
+                    o_shape_body = o_shape_body.union(segment.body)
+            else:
+                if standard_body is None:
+                    standard_body = segment.body
+                else:
+                    standard_body = standard_body.union(segment.body)
+        
+        return {
+            'standard': standard_body,
+            'o_shape': o_shape_body
+        }
 
     def create_plane_at_point(self, origin, normal_vector):
         """

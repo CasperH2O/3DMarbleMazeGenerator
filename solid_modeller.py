@@ -79,40 +79,52 @@ indices_to_sweep = None  # Set to None to process all segments, or provide a lis
 
 # Optionally, display the selected profiles and paths
 if indices_to_sweep is not None:
-    selected_segments = [path_builder.segments_data[i] for i in indices_to_sweep]
+    selected_segments = [path_builder.path_architect.segments[i] for i in indices_to_sweep]
 else:
-    selected_segments = path_builder.segments_data
+    selected_segments = path_builder.path_architect.segments
 
+'''        
+Broken with segments change
 for idx, segment in enumerate(selected_segments):
     actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
-    profile = segment['profile']
-    path = segment['path']
-    #show_object(profile, name=f"Profile_{actual_idx}")
-    #show_object(path, name=f"Path_{actual_idx}")
+    if segment.profile != None and segment.path != None:
+        profile = segment.profile
+        path = segment.path
+        show_object(profile, name=f"Profile_{actual_idx}")
+        show_object(path, name=f"Path_{actual_idx}")
+'''
 
 # Now sweep the selected profiles along the paths
-path_bodies = path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
+path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
 
-final_path_body = path_builder.build_final_path_body(path_bodies)
-# Use final_path_body in the rest of your CAD model
-path_body = final_path_body
-
-# Optionally, display the swept bodies
-for idx, body in enumerate(path_bodies):
-    actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
+# Optionally, display the swept bodies individually
+'''        
+broken, segment change
+#for idx, body in enumerate(path_bodies):
+    #actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
     #show_object(body, name=f"Swept_Body_{actual_idx}")
-
-# Combine path and start area
-path_body = path_body.union(start_area)
+'''
+    
+final_path_bodies = path_builder.build_final_path_body()
 
 # Get the shape to cut for the current case
 cut_shape = case.get_cut_shape()
 
-# Perform the cut operation to make the path body flush with the case
-path_body = path_body.cut(cut_shape)
-if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    mounting_ring = mounting_ring.cut(path_body)
+# Handle standard path
+if final_path_bodies['standard']:
+    
+    # Combine path and start area
+    standard_path = final_path_bodies['standard'].union(start_area)
+    
+    # Cut the standard path from the case for bridge
+    standard_path = standard_path.cut(cut_shape)
 
+# Handle O-shape path separately
+if final_path_bodies['o_shape']:
+    o_shape_path = final_path_bodies['o_shape'].cut(cut_shape)
+
+if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+    mounting_ring = mounting_ring.cut(standard_path)
 
 ######################
 # Ball and ball path #
@@ -146,12 +158,27 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 ###########
 
 # Show the final path
-show_object(path_body, name="Path", options={"alpha": 1.0, "color": (57, 255, 20)})
+
+show_object(standard_path, name="Standard Path", options={"alpha": 1.0, "color": (57, 255, 20)})
+show_object(o_shape_path, name="O-Shape Path", options={"alpha": 1.0, "color": (57, 205, 20)})
+
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     show_object(mounting_ring, name="Mounting Ring", options={"alpha": 1.0, "color": (40, 40, 43)})
 
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
+
+# Todo, add more items, make case specific or just filter out the paths only
+set_viewer_config(states={"/Group/Dome Top": [1,0], 
+                          "/Group/Dome Bottom":[1,0], 
+                          "/Group/Mounting Ring":[1,0], 
+                          "/Group/Start Text":[1,0],
+                          "/Group/ball":[1,0],
+                          "/Group/ball_path":[1,0],
+                          })
+
+# Show the status of the viewer, todo, use for filtering
+status()["states"]
 
 ###############
 # Export Step #
@@ -172,7 +199,7 @@ objects_to_export = {
     #"Mounting Ring": mounting_ring,
     #"Dome Top": dome_top,
     #"Dome Bottom": dome_bottom,
-    "Path": path_body,
+    #"Path": path_body,
     "Ball": ball,
 }
 

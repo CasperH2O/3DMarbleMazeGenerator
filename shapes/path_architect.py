@@ -15,9 +15,12 @@ class PathSegment:
         self.nodes = nodes
         self.main_index = main_index  # Segment index for identification
         self.secondary_index = secondary_index
-        self.curve_type: Optional[PathCurveType] = None  # Curve type as enum
-        self.profile_type: Optional[PathProfileType] = None  # Assigned path profile type
-        self.curve_model: Optional[PathCurveModel] = None  # Assigned path curve model
+        self.curve_type: Optional[PathCurveType] = None     # Curve type as enum
+        self.profile_type: Optional[PathProfileType] = None # Assigned path profile type
+        self.curve_model: Optional[PathCurveModel] = None   # Assigned path curve model
+        self.profile: None  # CAD path profile
+        self.path: None     # CAD path
+        self.body: None     # CAD swept body
 
     def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
                                    previous_curve_type=None, next_curve_type=None):
