@@ -21,6 +21,16 @@ class PathSegment:
 
     def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
                                    previous_curve_type=None, next_curve_type=None):
+    
+        # Special handling for single-node end segments
+        if len(self.nodes) == 1 and self.nodes[0].puzzle_end and previous_end_point is not None:
+            # Create a new start node at the previous_end_point location
+            start_node = Node(previous_end_point.x, previous_end_point.y, previous_end_point.z)
+            start_node.segment_start = True
+            self.nodes.insert(0, start_node)
+            self.nodes[-1].segment_end = True
+            return
+            
         # Do not adjust end points in case of curves
         if self.curve_type is not None:
             return
