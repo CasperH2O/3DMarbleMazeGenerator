@@ -36,8 +36,9 @@ def text_on_wire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float)
         distance=0,  # Create text as faces (2D)
         halign="center",
         valign="center",
-        font='Pacifico-Regular',
-        fontPath="resources\\Pacifico-Regular.ttf",
+        kind="bold",
+        #font='Pacifico-Regular',
+        #fontPath="resources\\Pacifico-Regular.ttf",
     )
     linear_faces = text_wp.faces().vals()
 
@@ -110,7 +111,7 @@ class CaseSphereWithFlange(CaseBase):
         # Create the text along the path
         text_on_path = text_on_wire(
             txt="START",
-            fontsize=6,  # Adjust fontsize as needed
+            fontsize=8,  # Adjust fontsize as needed
             path=path,
             extrude_depth=-1  # Negative value to extrude into the ring
         )
