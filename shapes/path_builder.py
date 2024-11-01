@@ -4,7 +4,7 @@ from typing import List
 
 from config import *
 from shapes.path_profile_type_shapes import *
-from config import PathProfileType, PathCurveModel  # Import the enums
+from config import PathProfileType, PathCurveModel, PathTransitionType
 from shapes.path_architect import PathSegment
 
 class PathBuilder:
@@ -24,7 +24,9 @@ class PathBuilder:
             PathProfileType.L_SHAPE: create_l_shape,
             PathProfileType.L_SHAPE_ADJUSTED_HEIGHT: create_l_shape_adjusted_height,
             PathProfileType.O_SHAPE: create_o_shape,
+            PathProfileType.O_SHAPE_SUPPORT: create_o_shape_support,
             PathProfileType.U_SHAPE: create_u_shape,
+            PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
             PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
             PathProfileType.V_SHAPE: create_v_shape,
             PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
@@ -112,30 +114,15 @@ class PathBuilder:
         else:
             selected_segments = segments
 
-        # Initialize the transition tracker
-        next_transition = 'round'  # Starting with 'right'
-
         for idx, segment in enumerate(selected_segments):
 
             # Skip segments that contain the start node
             if any(node.puzzle_start for node in segment.nodes):
                 continue
-
             try:
-                # Determine the transition type based on path_profile_type
-                if segment.profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
-                    transition_type = 'round'
-                elif any(node.mounting for node in segment.nodes):
-                    transition_type = 'right'
-                else:
-                    # Alternately choose between 'right' and 'round'
-                    transition_type = next_transition
-                    # Flip the next_transition for the subsequent else case
-                    next_transition = 'round' if next_transition == 'right' else 'right'
+                # Perform the sweep with the segment's transition type
+                path_body = segment.profile.sweep(segment.path, transition=segment.transition_type.value)
 
-                # Perform the sweep with the determined transition type
-                path_body = segment.profile.sweep(segment.path, transition=transition_type)
-                
                 # Store the body in the segment
                 segment.body = path_body
                 
@@ -146,7 +133,8 @@ class PathBuilder:
     def build_final_path_body(self):
         # Create two separate combined bodies
         standard_body = None
-        o_shape_body = None
+        support_body = None
+        coloring_body = None
         
         for segment in self.path_architect.segments:
 
@@ -154,12 +142,18 @@ class PathBuilder:
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            # Check if the segment is an O-shape profile
-            if segment.profile_type == PathProfileType.O_SHAPE:
-                if o_shape_body is None:
-                    o_shape_body = segment.body
+            # Check if the segment is an O-shape support profile
+            if segment.profile_type == PathProfileType.O_SHAPE_SUPPORT:
+                if support_body is None:
+                    support_body = segment.body
                 else:
-                    o_shape_body = o_shape_body.union(segment.body)
+                    support_body = support_body.union(segment.body)
+            # Check if the segment is a color profile
+            elif segment.profile_type == PathProfileType.U_SHAPE_PATH_COLOR:
+                if coloring_body is None:
+                    coloring_body = segment.body
+                else:
+                    coloring_body = coloring_body.union(segment.body)                    
             else:
                 if standard_body is None:
                     standard_body = segment.body
@@ -168,7 +162,8 @@ class PathBuilder:
         
         return {
             'standard': standard_body,
-            'o_shape': o_shape_body
+            'support': support_body,
+            'coloring': coloring_body
         }
 
     def create_plane_at_point(self, origin, normal_vector):
@@ -195,16 +190,11 @@ class PathBuilder:
         plane = cq.Plane(origin=origin, xDir=x_dir, normal=normal)
         return plane
 
-    def create_loft_between_nodes(self, total_path):
+    def create_start_area_funnel(self, total_path):
         """
-        Creates a lofted shape between the first two nodes in total path using U-shaped profiles.
-        The profile at the start node has a factor of 3 applied to the width, while the profile at the second node has a factor of 1.
-        Only the second node's position is adjusted forward by half the node size along the exiting direction.
-        Uses Config parameters for the U shape.
+        Creates two lofted shapes between the first two nodes in total_path.
+        One using wide and regular U-shaped profiles, and another using U-shaped path coloring.
         """
-
-        # Todo, rename, this is not just lof between nodes, this creates the start area body
-        # Todo, probably no longer requires third node creation, otherwise, do that in PathArchitect
 
         if len(total_path) < 2:
             raise ValueError("Total path must contain at least two nodes.")
@@ -264,8 +254,16 @@ class PathBuilder:
         # Create the second U-shaped profile with factor 1 (no scaling)
         profile = create_u_shape(work_plane=profile, factor=1, **u_shape_params)
 
-        # Loft between the two profiles
-        lofted_shape = profile.loft(combine=True)
+        # Loft between the two profiles for the first body
+        lofted_shape_1 = profile.loft(combine=True)
 
-        # Return the lofted shape
-        return lofted_shape
+        # Create the U-shaped path color profiles
+        color_profile = create_u_shape_path_color(work_plane=wp, factor=3, **u_shape_params)
+        color_profile = color_profile.workplane(offset=adjusted_distance)
+        color_profile = create_u_shape_path_color(work_plane=color_profile, factor=1, **u_shape_params)
+
+        # Loft between the two path color profiles for the second body
+        lofted_shape_2 = color_profile.loft(combine=True)
+
+        # Return both lofted shapes
+        return lofted_shape_1, lofted_shape_2

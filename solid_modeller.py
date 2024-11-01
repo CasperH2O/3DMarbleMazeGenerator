@@ -65,7 +65,7 @@ path_builder = PathBuilder(puzzle.path_architect)
 
 # Create the loft between the first two nodes
 # todo, improve/fix/investigate start area creation
-start_area = path_builder.create_loft_between_nodes(CAD_nodes)
+start_area = path_builder.create_start_area_funnel(CAD_nodes)
 
 # Prepare profiles and paths
 path_builder.prepare_profiles_and_paths()
@@ -114,14 +114,21 @@ cut_shape = case.get_cut_shape()
 if final_path_bodies['standard']:
     
     # Combine path and start area
-    standard_path = final_path_bodies['standard'].union(start_area)
+    # Todo, dirty hack with using first tuple
+    standard_path = final_path_bodies['standard'].union(start_area[0])
     
     # Cut the standard path from the case for bridge
     standard_path = standard_path.cut(cut_shape)
 
-# Handle O-shape path separately
-if final_path_bodies['o_shape']:
-    o_shape_path = final_path_bodies['o_shape'].cut(cut_shape)
+# Handle support bodies separately
+if final_path_bodies['support']:
+    support_path = final_path_bodies['support'].cut(cut_shape)
+
+# Handle coloring bodies separately
+if final_path_bodies['coloring']:
+
+    # Todo, dirty hack with using second tuple entry
+    coloring_path = final_path_bodies['coloring'].union(start_area[1]).cut(cut_shape)
 
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     mounting_ring = mounting_ring.cut(standard_path)
@@ -160,7 +167,8 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 # Show the final path
 
 show_object(standard_path, name="Standard Path", options={"alpha": 1.0, "color": (57, 255, 20)})
-show_object(o_shape_path, name="O-Shape Path", options={"alpha": 1.0, "color": (57, 205, 20)})
+show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
+show_object(coloring_path, name="Coloring Path", options={"alpha": 1.0, "color": (40, 40, 43)})
 
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     show_object(mounting_ring, name="Mounting Ring", options={"alpha": 1.0, "color": (40, 40, 43)})

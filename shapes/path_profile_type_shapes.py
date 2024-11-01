@@ -1,7 +1,7 @@
 # shapes/path_profile_type_shapes.py
 
 import cadquery as cq
-
+import config
 
 def create_l_shape(work_plane=None, height_width=9.9999, wall_thickness=2.0):
     """
@@ -82,6 +82,27 @@ def create_o_shape(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0):
     return tube_shape
 
 
+def create_o_shape_support(work_plane=None, outer_diameter=9.9999, wall_thickness=2.0):
+    """
+    Creates a circle-shaped cross-section centered at the origin or on the given work plane.
+    Required as additional 3D print support material for the O-shaped cross-section.
+    """
+    if work_plane is None:
+        wp = cq.Workplane("XY")
+    else:
+        wp = work_plane
+
+    # Calculate inner diameter
+    inner_diameter = outer_diameter - 2 * wall_thickness - config.Manufacturing.LAYER_THICKNESS * 4
+
+    # Define the tube shape
+    tube_shape = (
+        wp
+        .circle(inner_diameter / 2)
+    )
+    return tube_shape
+
+
 def create_u_shape(work_plane=None, height=9.9999, width=9.9999, wall_thickness=2, factor=1.0):
     """
     Creates a U-shaped cross-section centered at the origin or on the given work plane.
@@ -94,7 +115,6 @@ def create_u_shape(work_plane=None, height=9.9999, width=9.9999, wall_thickness=
     - width: The total width of the U-shape (along the X-axis).
     - wall_thickness: The thickness of the walls of the U-shape.
     - factor: Scaling factor applied only to the width.
-    - scale_wall_thickness: If True, wall thickness scales with the factor.
     """
     if work_plane is None:
         wp = cq.Workplane("XY")
@@ -121,6 +141,41 @@ def create_u_shape(work_plane=None, height=9.9999, width=9.9999, wall_thickness=
         .lineTo(half_width, -half_height)  # Down outer right wall
         .lineTo(-half_width, -half_height)  # Across bottom outer
         .close()
+    )
+    return u_shape
+
+
+def create_u_shape_path_color(work_plane=None, height=9.9999, width=9.9999, wall_thickness=2, factor=1.0):
+    """
+    Creates a single layer path for within a U-shaped cross-section
+
+    Parameters:
+    - work_plane: The CadQuery workplane to create the shape on.
+    - width: The total width of the U-shape (along the X-axis).
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - factor: Scaling factor applied only to the width.
+    """
+    if work_plane is None:
+        wp = cq.Workplane("XY")
+    else:
+        wp = work_plane
+
+    # Apply the factor only to the width
+    adjusted_width = width * factor
+    adjusted_height = height  # Height remains unchanged
+    
+    half_width = adjusted_width / 2
+    half_height = adjusted_height / 2
+    inner_half_width = half_width - wall_thickness
+    inner_half_height = half_height - wall_thickness
+
+    u_shape = (
+        wp
+        .moveTo(-inner_half_width, -inner_half_height + config.Manufacturing.NOZZLE_DIAMETER)  # 1
+        .lineTo(-inner_half_width, -inner_half_height)  # 2
+        .lineTo(inner_half_width, -inner_half_height)  # 3
+        .lineTo(inner_half_width,  -inner_half_height + config.Manufacturing.NOZZLE_DIAMETER)  # 4
+        .close()        
     )
     return u_shape
 

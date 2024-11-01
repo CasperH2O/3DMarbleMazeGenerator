@@ -15,9 +15,10 @@ class PathSegment:
         self.nodes = nodes
         self.main_index = main_index  # Segment index for identification
         self.secondary_index = secondary_index
-        self.curve_type: Optional[PathCurveType] = None     # Curve type as enum
-        self.profile_type: Optional[PathProfileType] = None # Assigned path profile type
-        self.curve_model: Optional[PathCurveModel] = None   # Assigned path curve model
+        self.curve_type: Optional[PathCurveType] = None             # Curve type as enum
+        self.profile_type: Optional[PathProfileType] = None         # Assigned path profile type
+        self.curve_model: Optional[PathCurveModel] = None           # Assigned path curve model
+        self.transition_type: Optional[PathTransitionType] = None   # Assigned path transition type
         self.profile: None  # CAD path profile
         self.path: None     # CAD path
         self.body: None     # CAD swept body
@@ -157,7 +158,7 @@ class PathArchitect:
 
         # Process the path
         self.split_path_into_segments()
-        self.assign_path_profiles_and_models()
+        self.assign_path_properties()
 
         self.detect_curves_and_adjust_segments()
 
@@ -165,6 +166,11 @@ class PathArchitect:
 
         self.create_start_ramp()
         self.create_finish_box()
+
+        self.assign_path_transition_types()
+
+        self.create_support_materials()
+        self.color_segments()
 
         self.reindex_segments()
 
@@ -211,7 +217,8 @@ class PathArchitect:
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
 
-    def assign_path_profiles_and_models(self):
+    def assign_path_properties(self):
+        
         # Randomly assign path profile types and path curve models to segments
         previous_profile_type = None
         previous_curve_model = None
@@ -241,9 +248,34 @@ class PathArchitect:
             segment.profile_type = random.choice(available_profile_types)
             segment.curve_model = random.choice(available_curve_models)
 
+
             # Update previous types for next round
             previous_profile_type = segment.profile_type
             previous_curve_model = segment.curve_model
+
+    def assign_path_transition_types(self):
+
+        # Initialize the transition tracker
+        next_transition = PathTransitionType.ROUND  # Starting with 'round'
+
+        for segment in self.segments:        
+
+            # Check if segment already has a transition type, skip if so
+            # Todo, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
+            if segment.transition_type is not None:
+                continue
+
+            # Determine the transition type for the segment
+            if segment.profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
+                segment.transition_type = PathTransitionType.ROUND
+            elif any(node.mounting for node in segment.nodes):
+                print("Mounting segment detected.")
+                segment.transition_type = PathTransitionType.RIGHT
+            else:
+                # Alternately choose between 'right' and 'round'
+                segment.transition_type = next_transition
+                # Flip the next_transition for the subsequent else case
+                next_transition = PathTransitionType.ROUND if next_transition == PathTransitionType.RIGHT else PathTransitionType.RIGHT
 
     def detect_curves_and_adjust_segments(self):
         new_segments = []
@@ -270,6 +302,7 @@ class PathArchitect:
                     )
                     first_node_segment.profile_type = segment.profile_type
                     first_node_segment.curve_model = PathCurveModel.POLYLINE
+                    first_node_segment.transition_type = segment.transition_type
                     new_segments.append(first_node_segment)
 
                     # Increment the secondary index counter
@@ -283,6 +316,7 @@ class PathArchitect:
                     )
                     middle_nodes_segment.profile_type = segment.profile_type
                     middle_nodes_segment.curve_model = PathCurveModel.SPLINE
+                    middle_nodes_segment.transition_type = segment.transition_type
                     new_segments.append(middle_nodes_segment)
 
                     # Increment the secondary index counter
@@ -295,6 +329,7 @@ class PathArchitect:
                     )
                     last_node_segment.profile_type = segment.profile_type
                     last_node_segment.curve_model = PathCurveModel.POLYLINE
+                    last_node_segment.transition_type = segment.transition_type
                     new_segments.append(last_node_segment)
 
                     # Increment the secondary index counter
@@ -309,6 +344,7 @@ class PathArchitect:
                         )
                         single_node_segment.profile_type = segment.profile_type
                         single_node_segment.curve_model = PathCurveModel.POLYLINE
+                        single_node_segment.transition_type = segment.transition_type
                         new_segments.append(single_node_segment)
 
                         # Increment the secondary index counter
@@ -340,6 +376,7 @@ class PathArchitect:
                     # Copy attributes
                     segment.profile_type = original_segment.profile_type
                     segment.curve_model = original_segment.curve_model
+                    segment.transition_type = original_segment.transition_type
                     sub_segments.append(segment)
                     current_segment_nodes = []
                 # Segment for the mounting node
@@ -351,6 +388,7 @@ class PathArchitect:
                 secondary_index_counter += 1
                 mounting_segment.profile_type = original_segment.profile_type
                 mounting_segment.curve_model = original_segment.curve_model
+                mounting_segment.transition_type = PathTransitionType.RIGHT
                 sub_segments.append(mounting_segment)
             else:
                 current_segment_nodes.append(node)
@@ -365,6 +403,7 @@ class PathArchitect:
             # Copy attributes
             segment.profile_type = original_segment.profile_type
             segment.curve_model = original_segment.curve_model
+            segment.transition_type = original_segment.transition_type
             sub_segments.append(segment)
 
         # Update the counter in the dictionary
@@ -394,6 +433,7 @@ class PathArchitect:
                     segment.profile_type = original_segment.profile_type
                     segment.curve_model = original_segment.curve_model
                     segment.curve_type = current_curve_type  # Set the curve_type
+                    segment.transition_type = original_segment.transition_type
                     split_segments.append(segment)
                     current_segment_nodes = []
                 current_curve_type = node.path_curve_type
@@ -410,6 +450,7 @@ class PathArchitect:
             segment.profile_type = original_segment.profile_type
             segment.curve_model = original_segment.curve_model
             segment.curve_type = current_curve_type  # Set the curve_type
+            segment.transition_type = original_segment.transition_type
             split_segments.append(segment)
 
         # Update the counter in the dictionary
@@ -466,7 +507,7 @@ class PathArchitect:
         # This method adds a closing shape at the end of the path to close off the route.
         # It does this by extending the path in the opposite direction of the last segment.
 
-        # Find the segment that contains the node with node.end == True
+        # Find the segment that contains the node with puzzle end node
         end_segment = None
         end_node_index = None
         for segment in self.segments:
@@ -518,6 +559,7 @@ class PathArchitect:
             new_segment.curve_model = PathCurveModel.POLYLINE
             new_segment.profile_type = PathProfileType.RECTANGLE_SHAPE
             new_segment.curve_type = PathCurveType.STRAIGHT
+            new_segment.transition_type = end_segment.transition_type
 
             # Append new_segment to self.segments
             self.segments.append(new_segment)
@@ -527,6 +569,9 @@ class PathArchitect:
 
             # Ensure that the path profile type of the segment containing the last node is u shaped
             end_segment.profile_type = PathProfileType.U_SHAPE
+
+            # Update the end segment last node to the location
+            end_segment.nodes[-1] = new_node
         else:
             # Not enough nodes to compute direction
             pass
@@ -558,4 +603,58 @@ class PathArchitect:
             segment.main_index = new_main_index
             segment.secondary_index = new_secondary_index
 
+    def color_segments(self):
+        # Parse all exisiting segments, find certain path profile types, generate new segments with
+        # respectively matching path profile coloring profile. Use exisiting route/nodes, make a copy and change profile type
+
+        # Iterate through all existing segments
+        for segment in self.segments[:-1]:
+
+            # If the segment contains the puzzle start node, skip it
+            if any(node.puzzle_start for node in segment.nodes):
+                continue
+
+            # If the segment's profile type is U_SHAPE
+            if segment.profile_type == PathProfileType.U_SHAPE:
+                # Create a copy of the segment
+                copied_nodes = [Node(node.x, node.y, node.z) for node in segment.nodes]
+                colored_segment = PathSegment(
+                    nodes=copied_nodes,
+                    main_index=segment.main_index,
+                    secondary_index=segment.secondary_index + 1
+                )
+                
+                # Assign the new profile type as U_SHAPE_PATH_COLOR
+                colored_segment.profile_type = PathProfileType.U_SHAPE_PATH_COLOR
+                colored_segment.curve_model = segment.curve_model
+                colored_segment.curve_type = segment.curve_type
+                colored_segment.transition_type = segment.transition_type
+
+                # Append the colored segment to the segments list
+                self.segments.append(colored_segment)
+
+    def create_support_materials(self):
+        # Parse all exisiting segments, find certain path profile types, generate support bodies
+
+        # Iterate through all existing segments
+        for segment in self.segments:
+
+            # If the segment's profile type is O_SHAPE
+            if segment.profile_type == PathProfileType.O_SHAPE:
+                # Create a copy of the segment
+                copied_nodes = [Node(node.x, node.y, node.z) for node in segment.nodes]
+                support_segment = PathSegment(
+                    nodes=copied_nodes,
+                    main_index=segment.main_index,
+                    secondary_index=segment.secondary_index + 1
+                )
+                
+                # Assign the new profile type as O_SHAPE_SUPPORT
+                support_segment.profile_type = PathProfileType.O_SHAPE_SUPPORT
+                support_segment.curve_model = segment.curve_model
+                support_segment.curve_type = segment.curve_type
+                support_segment.transition_type = segment.transition_type
+
+                # Append the colored segment to the segments list
+                self.segments.append(support_segment)
 

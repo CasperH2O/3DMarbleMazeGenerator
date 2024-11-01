@@ -1,6 +1,6 @@
 # config.py
 
-from puzzle.utils.enums import CaseShape, PathCurveModel, PathCurveType, PathProfileType
+from puzzle.utils.enums import CaseShape, PathCurveModel, PathCurveType, PathProfileType, PathTransitionType
 
 # Puzzle configuration
 class Puzzle:
@@ -70,11 +70,20 @@ class Path:
             'outer_diameter': 10.0 - 0.0001,
             'wall_thickness': 1.2
         },
+        'o_shape_support': {
+            'outer_diameter': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        },
         'u_shape': {
             'height': 10.0 - 0.0001,
             'width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
         },
+        'u_shape_path_color': {
+            'height': 10.0 - 0.0001,
+            'width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        },        
         'u_shape_adjusted_height': {
             'height_width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
