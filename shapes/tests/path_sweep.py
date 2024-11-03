@@ -46,6 +46,6 @@ path = cq.Workplane("XY").bezier(pts)
 swept_shape = circle_profile.sweep(path, transition='round')
 
 # Display the results
-show_object(circle_profile)
+#show_object(circle_profile)
 show_object(path)
 show_object(swept_shape)
