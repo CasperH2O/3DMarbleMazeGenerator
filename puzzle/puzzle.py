@@ -122,3 +122,62 @@ class Puzzle:
             best_candidate.waypoint = True
             waypoints.append(best_candidate)
             unoccupied_nodes.remove(best_candidate)
+
+    def print_puzzle_info(self):
+        
+        """Print detailed information about the puzzle."""
+
+        print("=== Puzzle Information ===")
+        print(f"Total path length: {len(self.total_path)}")
+        print(f"Number of segments: {len(self.path_architect.segments)}")
+        
+        # Segment statistics
+        straight_segments = sum(1 for segment in self.path_architect.segments if segment.curve_type is None)
+        curved_segments = len(self.path_architect.segments) - straight_segments
+        print(f"\n=== Segment Statistics ===")
+        print(f"Straight segments: {straight_segments}")
+        print(f"Curved segments: {curved_segments}")
+        print(f"Ratio (curved/total): {curved_segments/len(self.path_architect.segments):.2%}")
+
+        # Path profile counts
+        profile_counts = {}
+        for segment in self.path_architect.segments:
+            profile_counts[segment.profile_type] = profile_counts.get(segment.profile_type, 0) + 1
+        
+        print("\n=== Profile Type Usage ===")
+        for profile_type, count in profile_counts.items():
+            print(f"{profile_type.value}: {count} times ({count/len(self.path_architect.segments):.1%})")
+        
+        # Curve type counts
+        curve_counts = {}
+        for segment in self.path_architect.segments:
+            if segment.curve_type:
+                curve_counts[segment.curve_type] = curve_counts.get(segment.curve_type, 0) + 1
+        
+        print("\n=== Curve Type Usage ===")
+        for curve_type, count in curve_counts.items():
+            print(f"{curve_type.value}: {count} times ({count/len(self.path_architect.segments):.1%})")
+        
+        # Straight segments count
+        straight_segments = len(self.path_architect.segments) - sum(curve_counts.values())
+        print(f"Straight segments: {straight_segments} ({straight_segments/len(self.path_architect.segments):.1%})")
+
+        # Path profile information
+        profile_types_used = set(segment.profile_type for segment in self.path_architect.segments)
+        print(f"Profile types used: {len(profile_types_used)}, {', '.join(pt.value for pt in profile_types_used)}")
+        
+        # Curve models information
+        curve_models_used = set(segment.curve_model for segment in self.path_architect.segments)
+        print(f"Number of different curve models used: {len(curve_models_used)}")
+        
+        # Curve types information
+        curve_types_used = set(segment.curve_type for segment in self.path_architect.segments if segment.curve_type is not None)
+        print(f"Different curves used: {len(curve_types_used)}, {', '.join(ct.value for ct in curve_types_used)}")
+        
+        # Additional useful information
+        print("\n=== Additional Details ===")
+        print(f"Number of nodes: {len(self.nodes)}")
+        print(f"Start point (xyz): ({self.nodes[0].x:.2f}, {self.nodes[0].y:.2f}, {self.nodes[0].z:.2f})")
+        print(f"End point (xyz): ({self.nodes[-1].x:.2f}, {self.nodes[-1].y:.2f}, {self.nodes[-1].z:.2f})")
+        print("\n")
+    
