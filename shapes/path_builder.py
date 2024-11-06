@@ -5,7 +5,7 @@ from typing import List
 from config import *
 from shapes.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel, PathTransitionType
-from shapes.path_architect import PathSegment
+from shapes.path_segment import PathSegment
 
 class PathBuilder:
     """
