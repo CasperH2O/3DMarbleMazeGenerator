@@ -5,11 +5,11 @@ from puzzle.utils.enums import CaseShape, PathCurveModel, PathCurveType, PathPro
 # Puzzle configuration
 class Puzzle:
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
-    BALL_DIAMETER = 6  # Diameter of the marble ball in mm
-    NODE_SIZE = 10  # Node size in mm
-    SEED = 24  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 6
-    WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
+    BALL_DIAMETER = 6               # Diameter of the marble ball in mm
+    NODE_SIZE = 10                  # Node size in mm
+    SEED = 24                       # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
+    WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
 # Manufacturing configuration
 class Manufacturing:
@@ -18,20 +18,20 @@ class Manufacturing:
 
 # Sphere case configuration
 class Sphere:
-    SPHERE_DIAMETER = 100  # Diameter of the sphere in mm
+    SPHERE_DIAMETER = 100           # Diameter of the sphere in mm
     SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
-    SHELL_THICKNESS = 2.5  # Thickness of the sphere shell in mm
-    MOUNTING_RING_THICKNESS = 3  # Thickness of the mounting ring in mm
-    MOUNTING_HOLE_DIAMETER = 4.2  # Diameter of the mounting holes in mm
-    MOUNTING_HOLE_AMOUNT = 4  # Number of mounting holes
-    NUMBER_OF_MOUNTING_POINTS = 4
+    SHELL_THICKNESS = 2.5           # Thickness of the sphere shell in mm
+    MOUNTING_RING_THICKNESS = 3     # Thickness of the mounting ring in mm
+    MOUNTING_HOLE_DIAMETER = 4.2    # Diameter of the mounting holes in mm
+    MOUNTING_HOLE_AMOUNT = 4        # Number of mounting holes
+    NUMBER_OF_MOUNTING_POINTS = 4   # Number of mounting points
 
 # Box case configuration
 class Box:
-    WIDTH = 100  # Width of the box in mm
-    HEIGHT = 100  # Height of the box in mm
-    LENGTH = 150  # Length of the box in mm
-    PANEL_THICKNESS = 3  # Thickness of the box panels in mm
+    WIDTH = 100         # Width of the box in mm
+    HEIGHT = 100        # Height of the box in mm
+    LENGTH = 150        # Length of the box in mm
+    PANEL_THICKNESS = 3 # Thickness of the box panels in mm
 
 # Path curves and profile configuration
 class Path:
