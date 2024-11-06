@@ -1,7 +1,7 @@
 # puzzle/path_interpolator.py
 
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple, Optional, Set
 
 import numpy as np
 from geomdl import BSpline, utilities
