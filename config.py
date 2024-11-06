@@ -8,7 +8,7 @@ class Puzzle:
     BALL_DIAMETER = 6               # Diameter of the marble ball in mm
     NODE_SIZE = 10                  # Node size in mm
     SEED = 24                       # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 16         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
 # Manufacturing configuration
@@ -49,7 +49,7 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
-        #PathProfileType.L_SHAPE,
+        PathProfileType.L_SHAPE,
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.O_SHAPE,
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
