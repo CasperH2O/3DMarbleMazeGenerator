@@ -6,26 +6,49 @@ from typing import List, Dict, Tuple, Optional
 from config import Config
 from puzzle.node import Node
 
-
 class Casing(ABC):
+    """
+    Abstract base class representing a generic casing.
+    """
     @abstractmethod
     def contains_point(self, x: float, y: float, z: float) -> bool:
-        """Check if a point is inside the casing."""
+        """
+        Check if a point is inside the casing.
+
+        Args:
+            x (float): X-coordinate of the point.
+            y (float): Y-coordinate of the point.
+            z (float): Z-coordinate of the point.
+
+        Returns:
+            bool: True if the point is inside the casing, False otherwise.
+        """
         pass
 
     @abstractmethod
     def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
-        """Get mounting waypoints for the casing."""
+        """
+        Get mounting waypoints for the casing.
+
+        Args:
+            nodes (List[Node]): List of nodes to consider.
+
+        Returns:
+            List[Node]: List of mounting nodes.
+        """
         pass
 
-
 class SphereCasing(Casing):
+    """
+    Class representing a spherical casing.
+    """
     def __init__(self, diameter: float, shell_thickness: float):
         """
         Initialize a spherical casing.
 
-        :param diameter: Diameter of the sphere.
-        :param shell_thickness: Thickness of the shell.
+        Args:
+            diameter (float): Diameter of the sphere.
+            shell_thickness (float): Thickness of the shell.
         """
         self.diameter = diameter
         self.shell_thickness = shell_thickness
@@ -35,10 +58,13 @@ class SphereCasing(Casing):
         """
         Check if the point is inside the inner sphere.
 
-        :param x: X-coordinate of the point.
-        :param y: Y-coordinate of the point.
-        :param z: Z-coordinate of the point.
-        :return: True if the point is inside the sphere, False otherwise.
+        Args:
+            x (float): X-coordinate of the point.
+            y (float): Y-coordinate of the point.
+            z (float): Z-coordinate of the point.
+
+        Returns:
+            bool: True if the point is inside the sphere, False otherwise.
         """
         distance_squared = x ** 2 + y ** 2 + z ** 2
         return distance_squared <= self.inner_radius ** 2
@@ -47,8 +73,11 @@ class SphereCasing(Casing):
         """
         Get mounting waypoints for the spherical casing.
 
-        :param nodes: List of nodes to consider.
-        :return: List of mounting nodes.
+        Args:
+            nodes (List[Node]): List of nodes to consider.
+
+        Returns:
+            List[Node]: List of mounting nodes.
         """
         num_mounting_waypoints = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
         radius = self.inner_radius
@@ -81,16 +110,19 @@ class SphereCasing(Casing):
 
         return mounting_nodes
 
-
 class BoxCasing(Casing):
+    """
+    Class representing a box-shaped casing.
+    """
     def __init__(self, width: float, height: float, length: float, panel_thickness: float):
         """
         Initialize a box casing.
 
-        :param width: Width of the box.
-        :param height: Height of the box.
-        :param length: Length of the box.
-        :param panel_thickness: Thickness of the panels.
+        Args:
+            width (float): Width of the box.
+            height (float): Height of the box.
+            length (float): Length of the box.
+            panel_thickness (float): Thickness of the panels.
         """
         self.width = width
         self.height = height
@@ -104,10 +136,13 @@ class BoxCasing(Casing):
         """
         Check if the point is inside the box.
 
-        :param x: X-coordinate of the point.
-        :param y: Y-coordinate of the point.
-        :param z: Z-coordinate of the point.
-        :return: True if the point is inside the box, False otherwise.
+        Args:
+            x (float): X-coordinate of the point.
+            y (float): Y-coordinate of the point.
+            z (float): Z-coordinate of the point.
+
+        Returns:
+            bool: True if the point is inside the box, False otherwise.
         """
         return (-self.half_width <= x <= self.half_width and
                 -self.half_height <= y <= self.half_height and
@@ -117,8 +152,11 @@ class BoxCasing(Casing):
         """
         Get the start node at one corner of the box.
 
-        :param node_dict: Dictionary mapping coordinates to nodes.
-        :return: The start node, if found.
+        Args:
+            node_dict (Dict[Tuple[float, float, float], Node]): Dictionary mapping coordinates to nodes.
+
+        Returns:
+            Optional[Node]: The start node, if found.
         """
         if not node_dict:
             print("Node dictionary is empty. Cannot determine start node.")
@@ -136,10 +174,12 @@ class BoxCasing(Casing):
         """
         Get mounting waypoints for the box casing.
 
-        :param nodes: List of nodes to consider.
-        :return: List of mounting nodes.
-        """
+        Args:
+            nodes (List[Node]): List of nodes to consider.
 
+        Returns:
+            List[Node]: List of mounting nodes.
+        """
         # Place mounting points in the center of every panel face
         face_centers = [
             (0, 0, -self.half_length),    # Front face

@@ -1,4 +1,4 @@
-# puzzle/distances.py
+# puzzle/utils/distances.py
 
 from typing import Union
 from puzzle.node import Node
