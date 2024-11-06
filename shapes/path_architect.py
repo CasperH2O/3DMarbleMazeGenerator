@@ -269,7 +269,6 @@ class PathArchitect:
             if segment.profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
                 segment.transition_type = PathTransitionType.ROUND
             elif any(node.mounting for node in segment.nodes):
-                print("Mounting segment detected.")
                 segment.transition_type = PathTransitionType.RIGHT
             else:
                 # Alternately choose between 'right' and 'round'
