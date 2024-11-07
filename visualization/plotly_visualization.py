@@ -268,7 +268,6 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     # Display the plot in a browser
     fig.show()
 
-
 def visualize_path_architect(nodes, segments, casing):
     # Visualize the path and segments using Plotly
     fig = go.Figure()
@@ -340,10 +339,33 @@ def visualize_path_architect(nodes, segments, casing):
                 y_vals = [node.y for node in segment.nodes]
                 z_vals = [node.z for node in segment.nodes]
         elif segment.curve_model == PathCurveModel.SPLINE:
-            # Generate Spline curve points
-            xs = [node.x for node in segment.nodes]
-            ys = [node.y for node in segment.nodes]
-            zs = [node.z for node in segment.nodes]
+            # Collect nodes for spline interpolation
+            total_nodes = segment.nodes
+            num_nodes = len(total_nodes)
+            spline_nodes = []
+
+            if num_nodes >= 2:
+                # Add first two nodes
+                spline_nodes.extend(total_nodes[:2])
+                # Add any waypoint nodes in between, avoiding duplicates
+                for node in total_nodes[2:-2]:
+                    if node.waypoint and node not in spline_nodes:
+                        spline_nodes.append(node)
+                # Add last two nodes, avoiding duplicates
+                for node in total_nodes[-2:]:
+                    if node not in spline_nodes:
+                        spline_nodes.append(node)
+            else:
+                # Not enough nodes for spline, use all nodes
+                spline_nodes = total_nodes
+
+            # Ensure nodes are in the correct order
+            spline_nodes = sorted(spline_nodes, key=lambda n: total_nodes.index(n))
+
+            # Prepare coordinates
+            xs = [node.x for node in spline_nodes]
+            ys = [node.y for node in spline_nodes]
+            zs = [node.z for node in spline_nodes]
 
             # Chord-length parameterization
             xyz = np.vstack([xs, ys, zs]).T
