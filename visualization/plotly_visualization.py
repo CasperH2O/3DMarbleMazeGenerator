@@ -3,9 +3,10 @@
 import plotly.graph_objects as go
 from scipy import interpolate
 import numpy as np
-from .plotly_helpers import plot_nodes_plotly, plot_casing_plotly  # Import shared helper functions
+from geomdl import BSpline, utilities
 
-from config import PathCurveModel
+from .plotly_helpers import plot_nodes_plotly, plot_casing_plotly  # Import shared helper functions
+from config import PathCurveModel, PathCurveType
 
 def visualize_nodes_and_paths_plotly(nodes, total_path, casing):
     """
@@ -287,10 +288,6 @@ def visualize_path_architect(nodes, segments, casing):
     color_index = 0
 
     for segment in segments:
-        x_vals = [node.x for node in segment.nodes]
-        y_vals = [node.y for node in segment.nodes]
-        z_vals = [node.z for node in segment.nodes]
-
         # Assign a unique color for each (main_index, secondary_index)
         segment_key = (segment.main_index, segment.secondary_index)
         if segment_key not in segment_colors:
@@ -305,6 +302,79 @@ def visualize_path_architect(nodes, segments, casing):
             f"Curve Type: {segment.curve_type}<br>"
             f"Path Profile Type: {segment.profile_type}"
         )
+
+        # Depending on the curve_model and curve_type, generate the points
+        if segment.curve_model == PathCurveModel.POLYLINE:
+            # Only apply Bezier if curve_type is S_CURVE or DEGREE_90_SINGLE_PLANE
+            if segment.curve_type in [PathCurveType.S_CURVE, PathCurveType.DEGREE_90_SINGLE_PLANE]:
+                # Generate Bezier curve points
+                control_points = [[node.x, node.y, node.z] for node in segment.nodes]
+                num_control_points = len(control_points)
+                if num_control_points < 2:
+                    # Not enough points for Bezier curve, fall back to straight lines
+                    x_vals = [node.x for node in segment.nodes]
+                    y_vals = [node.y for node in segment.nodes]
+                    z_vals = [node.z for node in segment.nodes]
+                else:
+                    # Set the degree of the curve to number of control points minus 1
+                    curve_degree = num_control_points - 1
+                    # Create a B-Spline curve instance
+                    curve = BSpline.Curve()
+                    # Set up the curve degree and control points
+                    curve.degree = curve_degree
+                    curve.ctrlpts = control_points
+                    # Auto-generate the knot vector
+                    curve.knotvector = utilities.generate_knot_vector(curve.degree, num_control_points)
+                    # Increase the evaluation resolution for smoother curves
+                    curve.delta = 0.001  # Lower delta for smoother evaluation
+                    # Evaluate the curve points
+                    curve.evaluate()
+                    # Extract the evaluated points
+                    curve_points = np.array(curve.evalpts)
+                    x_vals = curve_points[:, 0]
+                    y_vals = curve_points[:, 1]
+                    z_vals = curve_points[:, 2]
+            else:
+                # If curve_type is not S_CURVE or DEGREE_90_SINGLE_PLANE, plot straight lines
+                x_vals = [node.x for node in segment.nodes]
+                y_vals = [node.y for node in segment.nodes]
+                z_vals = [node.z for node in segment.nodes]
+        elif segment.curve_model == PathCurveModel.SPLINE:
+            # Generate Spline curve points
+            xs = [node.x for node in segment.nodes]
+            ys = [node.y for node in segment.nodes]
+            zs = [node.z for node in segment.nodes]
+
+            # Chord-length parameterization
+            xyz = np.vstack([xs, ys, zs]).T
+            u_nodes = np.cumsum(np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)])
+
+            if len(u_nodes) < 2:
+                # Not enough points for spline, fall back to straight lines
+                x_vals = xs
+                y_vals = ys
+                z_vals = zs
+            else:
+                try:
+                    sx = interpolate.InterpolatedUnivariateSpline(u_nodes, xs)
+                    sy = interpolate.InterpolatedUnivariateSpline(u_nodes, ys)
+                    sz = interpolate.InterpolatedUnivariateSpline(u_nodes, zs)
+                except Exception as e:
+                    # In case of errors, fall back to straight lines
+                    x_vals = xs
+                    y_vals = ys
+                    z_vals = zs
+                else:
+                    # Sample the spline
+                    uu = np.linspace(u_nodes[0], u_nodes[-1], 1000)
+                    x_vals = sx(uu)
+                    y_vals = sy(uu)
+                    z_vals = sz(uu)
+        else:
+            # For other types, plot straight lines between nodes
+            x_vals = [node.x for node in segment.nodes]
+            y_vals = [node.y for node in segment.nodes]
+            z_vals = [node.z for node in segment.nodes]
 
         # Plot the lines for the segment
         fig.add_trace(go.Scatter3d(
