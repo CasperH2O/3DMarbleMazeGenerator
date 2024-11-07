@@ -123,13 +123,18 @@ def create_o_shape_support(work_plane: Optional[cq.Workplane] = None, outer_diam
     else:
         wp = work_plane
 
+    # Distance from edges
+    distance = wall_thickness + config.Manufacturing.LAYER_THICKNESS * 2
+
     # Calculate inner diameter
-    inner_diameter = outer_diameter - 2 * wall_thickness - config.Manufacturing.LAYER_THICKNESS * 4
+    inner_diameter = outer_diameter - 2 * wall_thickness - distance
 
     # Define the tube shape
     tube_shape = (
         wp
+        .polygon(nSides=4, diameter=inner_diameter - distance, circumscribed=False)
         .circle(inner_diameter / 2)
+        .consolidateWires()
     )
     return tube_shape
 
