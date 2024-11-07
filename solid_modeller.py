@@ -176,16 +176,24 @@ if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
 show_object(ball, name="Ball", options={"color": (192, 192, 192)})
 show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
 
-# Todo, add more items, make case specific or just filter out the paths only
-set_viewer_config(states={"/Group/Dome Top": [1,0], 
-                          "/Group/Dome Bottom":[1,0], 
-                          "/Group/Mounting Ring":[1,0], 
-                          "/Group/Start Text":[1,0],
-                          "/Group/ball":[1,0],
-                          "/Group/ball_path":[1,0],
-                          })
+# Fetch current states from the viewer
+current_states = status()["states"]
 
-# Show the status of the viewer, todo, use for filtering
+# Initialize a dictionary to hold the new configuration
+new_config = {}
+
+# Iterate through each group in the current states
+for group, config in current_states.items():
+    # If the group is "Standard Path", retain its current configuration
+    if group == "/Group/Standard Path":
+        new_config[group] = config
+    else:
+        # Set other groups to [1, 0]
+        new_config[group] = [1, 0]
+
+# Apply the new configuration
+set_viewer_config(states=new_config)
+
 status()["states"]
 
 ###############
