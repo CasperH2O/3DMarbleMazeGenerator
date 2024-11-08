@@ -97,6 +97,9 @@ for idx, segment in enumerate(selected_segments):
 # Now sweep the selected profiles along the paths
 path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
 
+# Make holes in o shape path profile segments (and it's respective support)
+path_builder.cut_holes_in_o_shape_path_profile_segments()
+
 # Optionally, display the swept bodies individually
 '''        
 broken, segment change
