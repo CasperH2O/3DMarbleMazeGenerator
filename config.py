@@ -37,9 +37,9 @@ class Box:
 class Path:
 
     PATH_CURVE_MODEL = [
-        PathCurveModel.POLYLINE,
+        #PathCurveModel.POLYLINE,
         #PathCurveModel.BEZIER,
-        #PathCurveModel.SPLINE
+        PathCurveModel.SPLINE
         ]
 
     PATH_CURVE_TYPE = [

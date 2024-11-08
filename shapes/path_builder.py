@@ -70,11 +70,40 @@ class PathBuilder:
                     path = path_wp.polyline([p.toTuple() for p in sub_path_points])
 
             elif segment.curve_model == PathCurveModel.SPLINE:
-                if len(sub_path_points) >= 4:
-                    first_two = sub_path_points[:2]
-                    last_two = sub_path_points[-2:]
-                    spline_points = first_two + last_two
-                    path = path_wp.spline([p.toTuple() for p in spline_points])
+                num_points = len(sub_path_points)
+                if num_points >= 2:
+                    # Build the list of spline points
+                    spline_points = [sub_path_points[0]]
+                    # Add any waypoint nodes in between, excluding first and last nodes
+                    for idx in range(1, num_points - 1):
+                        node = segment.nodes[idx]
+                        #if node.waypoint:
+                        #    spline_points.append(sub_path_points[idx])
+                    spline_points.append(sub_path_points[-1])
+
+                    if len(spline_points) >= 2:
+                        # Compute tangents at the start and end points using original nodes
+                        # Start tangent: from first node to second node in original nodes
+                        if num_points >= 2:
+                            start_tangent = (sub_path_points[1] - sub_path_points[0]).normalized()
+                        else:
+                            start_tangent = cq.Vector(1, 0, 0)
+
+                        # End tangent: from second-to-last node to last node in original nodes
+                        if num_points >= 2:
+                            end_tangent = (sub_path_points[-1] - sub_path_points[-2]).normalized()
+                        else:
+                            end_tangent = cq.Vector(1, 0, 0)
+
+                        # Create the spline with tangents
+                        path = path_wp.spline(
+                            [p.toTuple() for p in spline_points],
+                            tangents=[start_tangent.toTuple(), end_tangent.toTuple()]
+                        )
+                else:
+                    # Not enough points for a spline, skip this segment
+                    print(f"Skipping segment {segment.id} due to insufficient points for spline.")
+                    continue
 
             if path is None:
                 continue
@@ -297,7 +326,7 @@ class PathBuilder:
             main_index = segment.main_index
 
             # Only process segments of PathProfileType O_SHAPE and O_SHAPE_SUPPORT
-            if segment.profile_type not in [PathProfileType.O_SHAPE, PathProfileType.O_SHAPE_SUPPORT]:
+            if segment.profile_type not in [PathProfileType.O_SHAPE, PathProfileType.O_SHAPE_SUPPORT] or segment.curve_model != PathCurveModel.POLYLINE:
                 continue  # Skip this segment
 
             # Determine the workplane direction for this main_index
