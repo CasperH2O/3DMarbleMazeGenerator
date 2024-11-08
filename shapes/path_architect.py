@@ -2,6 +2,7 @@
 
 import random
 from typing import List
+import copy
 
 import config
 from puzzle.node import Node
@@ -425,7 +426,7 @@ class PathArchitect:
                 continue
             if segment.profile_type == PathProfileType.U_SHAPE:
                 # Create colored segment
-                copied_nodes = [Node(node.x, node.y, node.z) for node in segment.nodes]
+                copied_nodes = [copy.copy(node) for node in segment.nodes]
                 colored_segment = PathSegment(
                     nodes=copied_nodes,
                     main_index=segment.main_index,
@@ -445,7 +446,7 @@ class PathArchitect:
             segment = self.segments[i]
             if segment.profile_type == PathProfileType.O_SHAPE:
                 # Create support segment
-                copied_nodes = [Node(node.x, node.y, node.z) for node in segment.nodes]
+                copied_nodes = [copy.copy(node) for node in segment.nodes]
                 support_segment = PathSegment(
                     nodes=copied_nodes,
                     main_index=segment.main_index,
