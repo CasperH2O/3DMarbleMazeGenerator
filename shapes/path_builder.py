@@ -277,18 +277,33 @@ class PathBuilder:
     def cut_holes_in_o_shape_path_profile_segments(self):
         display_objs = []
         n = 2  # Cut holes every n-th node
-        main_index_to_workplane_direction = {}
         possible_workplanes = ["XY", "XZ", "YZ"]
+        main_index_to_workplane_direction = {}
+        main_index_to_has_mounting_node = {}
+
+        # First pass: Build main_index_to_has_mounting_node mapping
+        for segment in self.path_architect.segments:
+            main_index = segment.main_index
+            if main_index not in main_index_to_has_mounting_node:
+                # Check if any segment with this main_index has a mounting node
+                has_mounting_node = any(
+                    node.mounting
+                    for s in self.path_architect.segments if s.main_index == main_index
+                    for node in s.nodes
+                )
+                main_index_to_has_mounting_node[main_index] = has_mounting_node
 
         for segment in self.path_architect.segments:
             main_index = segment.main_index
 
+            # Only process segments of PathProfileType O_SHAPE and O_SHAPE_SUPPORT
+            if segment.profile_type not in [PathProfileType.O_SHAPE, PathProfileType.O_SHAPE_SUPPORT]:
+                continue  # Skip this segment
+
             # Determine the workplane direction for this main_index
             if main_index not in main_index_to_workplane_direction:
-                # Check if any node in the segment is a mounting point
-                has_mounting_node = any(node.mounting for node in segment.nodes)
+                has_mounting_node = main_index_to_has_mounting_node[main_index]
                 if has_mounting_node:
-                    print("Mounting node found in segment", main_index)
                     # Must use 'XY' workplane
                     workplane_direction = "XY"
                 else:
@@ -298,67 +313,70 @@ class PathBuilder:
             else:
                 workplane_direction = main_index_to_workplane_direction[main_index]
 
-            # Decide whether to process this segment based on workplane direction and profile type
-            if workplane_direction == "XY":
-                # Process both O_SHAPE and O_SHAPE_SUPPORT segments
-                process_segment = segment.profile_type in [PathProfileType.O_SHAPE, PathProfileType.O_SHAPE_SUPPORT]
-            else:
-                # Only process O_SHAPE segments
-                process_segment = segment.profile_type == PathProfileType.O_SHAPE
+            # Skip O_SHAPE_SUPPORT segments if workplane is not 'XY',
+            # no need to print support underneath holes along the Z axis
+            if workplane_direction != "XY" and segment.profile_type == PathProfileType.O_SHAPE_SUPPORT:
+                continue  # Skip this segment
 
-            if process_segment:
-                if segment.curve_type in [PathCurveType.STRAIGHT, None]:
-                    hole_size = config.Puzzle.BALL_DIAMETER + 1
-                    total_nodes = len(segment.nodes)
-                    if total_nodes > 2:
-                        start_idx = 1  # Exclude the first node
-                        end_idx = total_nodes - 1  # Exclude the last node
-                        for idx in range(start_idx, end_idx):
-                            node = segment.nodes[idx]
-                            # Adjust the index to align with the interval 'n'
-                            adjusted_idx = idx - start_idx
-                            if adjusted_idx % n == 0:
-                                # Set the height to node_size
-                                height = self.node_size
-                                # Create the cutting cylinder based on workplane direction
-                                if workplane_direction == "XY":
-                                    # Extrude along +Z
-                                    origin = (node.x, node.y, node.z - (height / 2))
-                                    hole_cylinder = (
-                                        cq.Workplane("XY", origin=origin)
-                                        .circle(hole_size / 2)
-                                        .extrude(height)
-                                    )
-                                elif workplane_direction == "XZ":
-                                    # Extrude along +Y
-                                    origin = (node.x, node.y - (height / 2), node.z)
-                                    hole_cylinder = (
-                                        cq.Workplane("XZ", origin=origin)
-                                        .circle(hole_size / 2)
-                                        .extrude(-height)
-                                    )
-                                elif workplane_direction == "YZ":
-                                    # Extrude along +X
-                                    origin = (node.x - (height / 2), node.y, node.z)
-                                    hole_cylinder = (
-                                        cq.Workplane("YZ", origin=origin)
-                                        .circle(hole_size / 2)
-                                        .extrude(height)
-                                    )
-                                else:
-                                    raise ValueError(f"Invalid workplane direction: {workplane_direction}")
+            # Skip segments that are not straight
+            if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
+                continue  # Skip this segment
 
-                                # Visualization
-                                display_objs.append(hole_cylinder)
-                                # Check for intersection
-                                if hole_cylinder.val().intersect(segment.body.val()).Volume() > 0:
-                                    segment.body = segment.body.cut(hole_cylinder)
-                                else:
-                                    print(f"Warning: No intersection at node ({node.x}, {node.y}, {node.z})")
-                    else:
-                        print("No intermediate nodes to cut holes in for this segment.")
+            hole_size = config.Puzzle.BALL_DIAMETER + 1
+            total_nodes = len(segment.nodes)
+
+            if total_nodes <= 2:
+                continue  # Skip this segment
+
+            start_idx = 1  # Exclude the first node
+            end_idx = total_nodes - 1  # Exclude the last node
+
+            for idx in range(start_idx, end_idx):
+                node = segment.nodes[idx]
+                # Adjust the index to align with the interval 'n'
+                adjusted_idx = idx - start_idx
+                if adjusted_idx % n != 0:
+                    continue  # Skip this node
+
+                # Set the height to node_size
+                height = self.node_size
+
+                # Create the cutting cylinder based on workplane direction
+                if workplane_direction == "XY":
+                    # Extrude along +Z
+                    origin = (node.x, node.y, node.z - (height / 2))
+                    hole_cylinder = (
+                        cq.Workplane("XY", origin=origin)
+                        .circle(hole_size / 2)
+                        .extrude(height)
+                    )
+                elif workplane_direction == "XZ":
+                    # Extrude along +Y
+                    origin = (node.x, node.y - (height / 2), node.z)
+                    hole_cylinder = (
+                        cq.Workplane("XZ", origin=origin)
+                        .circle(hole_size / 2)
+                        .extrude(-height)
+                    )
+                elif workplane_direction == "YZ":
+                    # Extrude along +X
+                    origin = (node.x - (height / 2), node.y, node.z)
+                    hole_cylinder = (
+                        cq.Workplane("YZ", origin=origin)
+                        .circle(hole_size / 2)
+                        .extrude(height)
+                    )
+                else:
+                    raise ValueError(f"Invalid workplane direction: {workplane_direction}")
+
+                # Visualization
+                display_objs.append(hole_cylinder)
+
+                # Check for intersection
+                if hole_cylinder.val().intersect(segment.body.val()).Volume() > 0:
+                    segment.body = segment.body.cut(hole_cylinder)
 
         # Visualization of hole cylinders
         if display_objs:
             combined_display = cq.Compound.makeCompound([obj.val() for obj in display_objs])
-            show_object(combined_display, name="Hole Cylinders")
+            #show_object(combined_display, name="Hole Cylinders")

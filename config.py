@@ -49,7 +49,7 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
-        PathProfileType.L_SHAPE,
+        #PathProfileType.L_SHAPE,
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.O_SHAPE,
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
