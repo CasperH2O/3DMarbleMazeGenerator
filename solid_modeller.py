@@ -169,15 +169,15 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 
 # Show the final path
 
-show_object(standard_path, name="Standard Path", options={"alpha": 1.0, "color": (57, 255, 20)})
+show_object(standard_path, name="Standard Path", options={"alpha": 1.0, "color": Config.Puzzle.PRIMARY_COLOR})
 show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
-show_object(coloring_path, name="Coloring Path", options={"alpha": 1.0, "color": (40, 40, 43)})
+show_object(coloring_path, name="Coloring Path", options={"alpha": 1.0, "color": Config.Puzzle.SECONDARY_COLOR})
 
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    show_object(mounting_ring, name="Mounting Ring", options={"alpha": 1.0, "color": (40, 40, 43)})
+    show_object(mounting_ring, name="Mounting Ring", options={"alpha": 1.0, "color": Config.Puzzle.SECONDARY_COLOR})
 
-show_object(ball, name="Ball", options={"color": (192, 192, 192)})
-show_object(ball_path, name="Ball Path", options={"color": (192, 192, 192)})
+show_object(ball, name="Ball", options={"color": Config.Puzzle.MARBLE_COLOR})
+show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.MARBLE_COLOR})
 
 # Fetch current states from the viewer
 current_states = status()["states"]

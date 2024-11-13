@@ -11,6 +11,11 @@ class Puzzle:
     NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
+    MARBLE_COLOR = (192, 192, 192)
+    PRIMARY_COLOR = (57, 255, 20)
+    SECONDARY_COLOR = (40, 40, 43)
+    TERTIARY_COLOR = (100, 100, 100)
+
 # Manufacturing configuration
 class Manufacturing:
     LAYER_THICKNESS = 0.2
