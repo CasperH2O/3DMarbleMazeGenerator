@@ -224,9 +224,13 @@ objects_to_export = {
 
 # Todo, step path is incorrect, use stl
 
+print("Exporting STEP files...")
+
 # Export each object
+'''
 for name, obj in objects_to_export.items():
     file_path = os.path.join(path, f"{name}.stl")
     obj.val().exportStl(file_path)
     file_path = os.path.join(path, f"{name}.stl")
     obj.val().exportStep(file_path)
+'''

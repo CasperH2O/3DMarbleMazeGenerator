@@ -73,12 +73,14 @@ class Puzzle:
         self.total_path: List[Node] = self.pathfinder.connect_waypoints(self)
 
         # Interpolate the path
+        '''
         self.path_interpolator: PathInterpolator = PathInterpolator(
             total_path=self.total_path,
             seed=self.seed,
         )
         self.interpolated_segments: List[Any] = self.path_interpolator.interpolated_segments
-
+        '''
+        
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
 

@@ -14,7 +14,7 @@ class Puzzle:
     MARBLE_COLOR = (192, 192, 192)
     PRIMARY_COLOR = (57, 255, 20)
     SECONDARY_COLOR = (40, 40, 43)
-    TERTIARY_COLOR = (100, 100, 100)
+    TERTIARY_COLOR = (57, 255, 20)
 
 # Manufacturing configuration
 class Manufacturing:
