@@ -224,8 +224,6 @@ objects_to_export = {
 
 # Todo, step path is incorrect, use stl
 
-print("Exporting STEP files...")
-
 # Export each object
 '''
 for name, obj in objects_to_export.items():

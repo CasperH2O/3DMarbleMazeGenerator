@@ -156,78 +156,76 @@ class PathBuilder:
 
             try:
                 if segment.curve_model == PathCurveModel.SPLINE:
-                    # For SPLINE, use sweep_multi
-                    # Get next segment's profile
-                    if idx + 1 < len(selected_segments):
-                        next_segment = selected_segments[idx + 1]
+                    # For SPLINE, create a second profile at the end of the current segment's path
+                    # Get the path shape (Edge or Wire)
+                    path_shape = segment.path.val()
 
-                        # Ensure that the next segment has a profile
-                        if next_segment.profile is None:
-                            print(f"Next segment at index {idx + 1} does not have a profile.")
-                            continue
+                    # Get the end point and tangent at the end of the path
+                    end_point = path_shape.positionAt(1.0)
+                    tangent_vector = path_shape.tangentAt(1.0)
 
-                        # Extract the shapes from the Workplanes
-                        profile1 = segment.profile.val()
-                        profile2 = next_segment.profile.val()
+                    # Create a plane at the end point with normal along the tangent vector
+                    plane = self.create_plane_at_point(end_point, tangent_vector)
 
-                        # Ensure that the profiles are Wires or Faces
-                        if not isinstance(profile1, (cq.Wire, cq.Face)):
-                            print(f"Profile in segment at index {idx} is not a Wire or Face.")
-                            continue
-                        if not isinstance(profile2, (cq.Wire, cq.Face)):
-                            print(f"Profile in segment at index {idx + 1} is not a Wire or Face.")
-                            continue
+                    # Create a workplane at this plane
+                    wp = cq.Workplane(plane)
 
-                        # Prepare the list of profiles
-                        profiles = [profile1, profile2]
+                    # Get parameters for the path profile type
+                    parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
 
-                        # Visualize the profiles and the path
-                        show_object(profile1, name=f"Profile Start Segment {idx}")
-                        show_object(profile2, name=f"Profile End Segment {idx + 1}")
-                        show_object(segment.path, name=f"Path Segment {idx}")
+                    # Create the profile on this work plane
+                    profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
+                    profile2 = profile_function(work_plane=wp, **parameters)
 
-                        # Perform the sweep_multi
-                        path_body = cq.Solid.sweep_multi(
-                            profiles=profiles,
-                            path=segment.path.val(),
-                        )
+                    # Extract the shapes from the Workplanes
+                    profile1 = segment.profile.val()
+                    profile2 = profile2.val()
 
-                        show_object(path_body, name=f"Path Body Segment {idx}")
+                    # Ensure that the profiles are Wires or Faces
+                    if not isinstance(profile1, (cq.Wire, cq.Face)):
+                        print(f"Profile in segment at index {idx} is not a Wire or Face.")
+                        continue
+                    if not isinstance(profile2, (cq.Wire, cq.Face)):
+                        print(f"Profile2 in segment at index {idx} is not a Wire or Face.")
+                        continue
 
-                        # Store the body in the segment
-                        segment.body = path_body
+                    # Prepare the list of profiles
+                    profiles = [profile1, profile2]
 
-                    else:
-                        # No next segment to use; use only the current segment's profile
-                        # Perform a regular sweep without transition
+                    # Perform the sweep_multi
+                    path_body = cq.Solid.sweep_multi(
+                        profiles=profiles,
+                        path=segment.path.val(),
+                    )
 
-                        print(f"No next segment to use; using only the current segment's profile.")
-
-                        path_body = segment.profile.sweep(
-                            segment.path,
-                            transition=segment.transition_type.value)
-
-                        # Store the body in the segment
-                        segment.body = path_body
+                    # Store the body in the segment
+                    segment.body = path_body
+                    
+                    # Visualize the profiles and the path
+                    show_object(profile1, name=f"Profile Start Segment {idx}")
+                    show_object(profile2, name=f"Profile End Segment {idx}")
+                    show_object(segment.path, name=f"Path Segment {idx}")
+                    show_object(path_body, name=f"Path Body Segment {idx}")
 
                 else:
-                    show_object(segment.profile, name=f"Profile Segment {idx}")
-                    show_object(segment.path, name=f"Path Segment {idx}")
-
                     # For other curve models, use standard sweep
                     path_body = segment.profile.sweep(
                         segment.path,
                         transition=segment.transition_type.value
                     )
 
-                    show_object(path_body, name=f"Path Body Segment {idx}")
-
                     # Store the body in the segment
                     segment.body = path_body
+
+                    # Visualize the profiles and the path
+                    #show_object(segment.profile, name=f"Profile Segment {idx}")
+                    #show_object(segment.path, name=f"Path Segment {idx}")
+                    #show_object(path_body, name=f"Path Body Segment {idx}")
 
             except Exception as e:
                 actual_idx = indices[idx] if indices else idx
                 print(f"Error sweeping segment at index {actual_idx}: {e}")
+
 
     def build_final_path_body(self):
         # Create two separate combined bodies
@@ -242,7 +240,7 @@ class PathBuilder:
                 continue
 
             # Skip segments without a body
-            if segment.body is None:
+            if not hasattr(segment, 'body') or segment.body is None:
                 print(f"Segment at index {segment.main_index}-{segment.secondary_index} has no body.")
                 continue            
 
