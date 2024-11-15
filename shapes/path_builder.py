@@ -155,7 +155,8 @@ class PathBuilder:
                 continue
 
             try:
-                if segment.curve_model == PathCurveModel.SPLINE:
+                # Hack to rule out o shape and o shape support, as multi sweep does not respect their holes
+                if segment.curve_model == PathCurveModel.SPLINE and (segment.profile_type != PathProfileType.O_SHAPE and segment.profile_type != PathProfileType.O_SHAPE_SUPPORT):
                     # For SPLINE, create a second profile at the end of the current segment's path
                     # Get the path shape (Edge or Wire)
                     path_shape = segment.path.val()
@@ -202,10 +203,10 @@ class PathBuilder:
                     segment.body = path_body
                     
                     # Visualize the profiles and the path
-                    show_object(profile1, name=f"Profile Start Segment {idx}")
-                    show_object(profile2, name=f"Profile End Segment {idx}")
-                    show_object(segment.path, name=f"Path Segment {idx}")
-                    show_object(path_body, name=f"Path Body Segment {idx}")
+                    #show_object(profile1, name=f"Profile Start Segment {idx}")
+                    #show_object(profile2, name=f"Profile End Segment {idx}")
+                    #show_object(segment.path, name=f"Path Segment {idx}")
+                    #show_object(path_body, name=f"Path Body Segment {idx}")
 
                 else:
                     # For other curve models, use standard sweep
