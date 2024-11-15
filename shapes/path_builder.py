@@ -69,40 +69,50 @@ class PathBuilder:
                 else:
                     path = path_wp.polyline([p.toTuple() for p in sub_path_points])
 
-            elif segment.curve_model == PathCurveModel.SPLINE:
-                num_points = len(sub_path_points)
-                if num_points >= 2:
-                    # Build the list of spline points
-                    spline_points = [sub_path_points[0]]
-                    # Add any waypoint nodes in between, excluding first and last nodes
-                    for idx in range(1, num_points - 1):
-                        node = segment.nodes[idx]
-                        #if node.waypoint:
-                        #    spline_points.append(sub_path_points[idx])
-                    spline_points.append(sub_path_points[-1])
-
-                    if len(spline_points) >= 2:
-                        # Compute tangents at the start and end points using original nodes
-                        # Start tangent: from first node to second node in original nodes
-                        if num_points >= 2:
-                            start_tangent = (sub_path_points[1] - sub_path_points[0]).normalized()
-                        else:
-                            start_tangent = cq.Vector(1, 0, 0)
-
-                        # End tangent: from second-to-last node to last node in original nodes
-                        if num_points >= 2:
-                            end_tangent = (sub_path_points[-1] - sub_path_points[-2]).normalized()
-                        else:
-                            end_tangent = cq.Vector(1, 0, 0)
-
-                        # Create the spline with tangents
-                        path = path_wp.spline(
-                            [p.toTuple() for p in spline_points],
-                            tangents=[start_tangent.toTuple(), end_tangent.toTuple()]
-                        )
+            elif segment.curve_model == PathCurveModel.POLYLINE:
+                if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
+                    if len(sub_path_points) >= 3:
+                        first = sub_path_points[0]
+                        middle = sub_path_points[len(sub_path_points) // 2]
+                        last = sub_path_points[-1]
+                        path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
+                elif segment.curve_type == PathCurveType.S_CURVE:
+                    if len(sub_path_points) >= 3:
+                        path = path_wp.bezier([p.toTuple() for p in sub_path_points])
                 else:
-                    # Not enough points for a spline, skip this segment
-                    print(f"Skipping segment {segment.id} due to insufficient points for spline.")
+                    path = path_wp.polyline([p.toTuple() for p in sub_path_points])
+
+                # Determine entering direction at the start of the segment
+                if len(sub_path_points) >= 2:
+                    entering_direction = (sub_path_points[1] - sub_path_points[0]).normalized()
+                elif len(sub_path_points) == 1 and segment.nodes[0].segment_start and segment.nodes[0].segment_end:
+                    entering_direction = cq.Vector(1, 0, 0)
+                else:
+                    continue
+
+                # Create a plane at the start point with normal along the entering_direction
+                plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
+                wp = cq.Workplane(plane)
+
+                # Get parameters for the path profile type
+                parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
+
+                # Create the profile on this work plane
+                profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
+                profile = profile_function(work_plane=wp, **parameters)
+
+                # Store the profile and path directly in the PathSegment object
+                segment.profile = profile
+                segment.path = path
+
+            elif segment.curve_model == PathCurveModel.SPLINE:
+                # Call the method to attempt creating a valid spline path and profile
+                path = self.attempt_spline_path_creation(segment, sub_path_points, path_wp)
+
+                # Todo, ensure that for combination sweeps, like O and O support and U shape U coloring, both paths are the same way
+
+                if not path:
+                    print(f"Skipping segment {segment.id}: Unable to create a valid spline path with any option.")
                     continue
 
             if path is None:
@@ -155,8 +165,7 @@ class PathBuilder:
                 continue
 
             try:
-                # Hack to rule out o shape and o shape support, as multi sweep does not respect their holes
-                if segment.curve_model == PathCurveModel.SPLINE and (segment.profile_type != PathProfileType.O_SHAPE and segment.profile_type != PathProfileType.O_SHAPE_SUPPORT):
+                if segment.curve_model == PathCurveModel.SPLINE:  
                     # For SPLINE, create a second profile at the end of the current segment's path
                     # Get the path shape (Edge or Wire)
                     path_shape = segment.path.val()
@@ -478,3 +487,171 @@ class PathBuilder:
         if display_objs:
             combined_display = cq.Compound.makeCompound([obj.val() for obj in display_objs])
             #show_object(combined_display, name="Hole Cylinders")
+
+    def attempt_spline_path_creation(self, segment, sub_path_points, path_wp):
+        """
+        Tries different spline point combinations to create a valid path and profile
+        for a SPLINE curve model segment.
+
+        Parameters:
+        segment (PathSegment): The segment to process.
+        sub_path_points (list of cq.Vector): The points defining the path.
+        path_wp (cq.Workplane): The workplane to create paths on.
+
+        Returns:
+        bool: True if a valid path and profile were created and stored in the segment,
+            False otherwise.
+        """
+
+        # Define the options for spline point combinations
+        def option1():
+            """
+            Option 1: Use the first node, any waypoint nodes in between, and the last node.
+            This prioritizes waypoints specified in the segment.
+            """
+            num_points = len(sub_path_points)
+            if num_points >= 2:
+                spline_points = [sub_path_points[0]]
+                for idx in range(1, num_points - 1):
+                    node = segment.nodes[idx]
+                    if node.waypoint:
+                        spline_points.append(sub_path_points[idx])
+                spline_points.append(sub_path_points[-1])
+                return spline_points
+            else:
+                return None
+
+        def option2():
+            """
+            Option 2: Use only the first and last nodes.
+            This creates the simplest possible spline between start and end points.
+            """
+            if len(sub_path_points) >= 2:
+                return [sub_path_points[0], sub_path_points[-1]]
+            else:
+                return None
+
+        def option3():
+            """
+            Option 3: Use the first node, every second node in between, and the last node.
+            This reduces the number of intermediate points to simplify the spline.
+            """
+            if len(sub_path_points) >= 2:
+                spline_points = [sub_path_points[0]] + sub_path_points[1:-1:2] + [sub_path_points[-1]]
+                return spline_points
+            else:
+                return None
+
+        def option4():
+            """
+            Option 4: Use all nodes.
+            This attempts to create a spline that passes through every node.
+            """
+            if len(sub_path_points) >= 2:
+                return sub_path_points
+            else:
+                return None
+
+        # Define the options for spline point combinations
+        # option1
+        options = [option2, option3, option4]
+
+        # Try each option
+        for opt_idx, option in enumerate(options, 1):
+            # Debug statement indicating which option is being tried
+            print(f"Attempting Option {opt_idx} for segment {segment.main_index}")
+
+            spline_points = option()
+            if spline_points is None or len(spline_points) < 2:
+                print(f"Option {opt_idx}: Not enough points to create a spline.")
+                continue
+
+
+            # Compute tangents at the start and end points using original nodes
+            # Start tangent: from first node to second node in original nodes
+
+            num_points = len(spline_points)
+            if num_points >= 2:
+                start_tangent = (sub_path_points[1] - sub_path_points[0]).normalized()
+            else:
+                start_tangent = cq.Vector(1, 0, 0)
+
+            # End tangent: from second-to-last node to last node in original nodes
+            if num_points >= 2:
+                end_tangent = (sub_path_points[-1] - sub_path_points[-2]).normalized()
+            else:
+                end_tangent = cq.Vector(1, 0, 0)
+
+            try:
+                # Create the spline with tangents
+                path = path_wp.spline(
+                    [p.toTuple() for p in spline_points],
+                    tangents=[start_tangent.toTuple(), end_tangent.toTuple()]
+                )
+
+                # Determine entering direction at the start of the segment
+                entering_direction = start_tangent
+
+                # Create a plane at the start point with normal along the entering direction
+                plane = self.create_plane_at_point(spline_points[0], entering_direction)
+                wp = cq.Workplane(plane)
+
+                # Get parameters for the path profile type
+                parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
+
+                # Create the profile on this work plane
+                profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
+                profile = profile_function(work_plane=wp, **parameters)
+
+                # For testing purposes, attempt to perform a sweep to see if it will succeed
+                try:
+                    # Debug statement indicating sweep attempt
+                    print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}")
+
+                    # Create a second profile at the end of the path
+                    path_shape = path.val()
+                    end_point = path_shape.positionAt(1.0)
+                    tangent_vector = path_shape.tangentAt(1.0)
+
+                    plane_end = self.create_plane_at_point(end_point, tangent_vector)
+                    wp_end = cq.Workplane(plane_end)
+                    profile2 = profile_function(work_plane=wp_end, **parameters)
+
+                    # Extract the shapes from the Workplanes
+                    profile1 = profile.val()
+                    profile2 = profile2.val()
+
+                    # Prepare the list of profiles
+                    profiles = [profile1, profile2]
+
+                    # Attempt to perform the sweep_multi (but we won't store the result)
+                    test_sweep = cq.Solid.sweep_multi(
+                        profiles=profiles,
+                        path=path.val(),
+                    )
+
+                    # If we reach this point, the sweep succeeded
+                    print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}")
+
+                    return path
+
+                except Exception as e:
+                    # The sweep failed, try the next option
+                    print(f"Option {opt_idx}: Sweep failed for segment {segment.main_index} with error: {e}")
+                    continue
+
+            except Exception as e:
+                # The spline creation failed, try the next option
+                print(f"Option {opt_idx}: Spline creation failed for segment {segment.main_index} with error: {e}")
+                continue
+
+        # Option 5: Change the curve model to POLYLINE and include all nodes
+        print(f"Falling back to Option 5 (POLYLINE) for segment {segment.main_index}")
+    
+        # Create the path as polyline with all nodes
+        
+        # TODO This segment also needs to be set as Polyline type, otherwise it still fails
+
+        path = path_wp.polyline([p.toTuple() for p in sub_path_points])
+        
+        return path
