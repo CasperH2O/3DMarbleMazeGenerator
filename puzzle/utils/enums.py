@@ -45,4 +45,5 @@ class PathProfileType(Enum):
     U_SHAPE_PATH_COLOR = 'u_shape_path_color'
     U_SHAPE_ADJUSTED_HEIGHT = 'u_shape_adjusted_height'
     V_SHAPE = 'v_shape'
+    V_SHAPE_PATH_COLOR = 'v_shape_path_color'
     RECTANGLE_SHAPE = 'rectangle_shape'

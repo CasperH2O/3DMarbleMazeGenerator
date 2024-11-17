@@ -424,7 +424,9 @@ class PathArchitect:
             if any(node.puzzle_start for node in segment.nodes):
                 i += 1
                 continue
-            if segment.profile_type == PathProfileType.U_SHAPE:
+            
+            # Handle U_SHAPE and V_SHAPE profiles
+            if segment.profile_type in [PathProfileType.U_SHAPE, PathProfileType.V_SHAPE]:
                 # Create colored segment
                 copied_nodes = [copy.copy(node) for node in segment.nodes]
                 colored_segment = PathSegment(
@@ -433,7 +435,13 @@ class PathArchitect:
                     secondary_index=segment.secondary_index + 0.5  # Use a fractional index to maintain order
                 )
                 colored_segment.copy_attributes_from(segment)
-                colored_segment.profile_type = PathProfileType.U_SHAPE_PATH_COLOR
+                
+                # Set the appropriate profile type for the colored segment
+                if segment.profile_type == PathProfileType.U_SHAPE:
+                    colored_segment.profile_type = PathProfileType.U_SHAPE_PATH_COLOR
+                elif segment.profile_type == PathProfileType.V_SHAPE:
+                    colored_segment.profile_type = PathProfileType.V_SHAPE_PATH_COLOR
+                
                 # Insert colored_segment after the current segment
                 self.segments.insert(i + 1, colored_segment)
                 i += 2  # Move past the inserted segment

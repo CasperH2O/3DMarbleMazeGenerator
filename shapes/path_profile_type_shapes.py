@@ -212,7 +212,7 @@ def create_u_shape_path_color(work_plane: Optional[cq.Workplane] = None, height:
 
     nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
 
-    u_shape = (
+    u_shape_path_color = (
         wp
         .moveTo(-inner_half_width, -inner_half_height + nozzle_diameter)    # 1
         .lineTo(-inner_half_width, -inner_half_height)                      # 2
@@ -220,7 +220,7 @@ def create_u_shape_path_color(work_plane: Optional[cq.Workplane] = None, height:
         .lineTo(inner_half_width,  -inner_half_height + nozzle_diameter)    # 4
         .close()        
     )
-    return u_shape
+    return u_shape_path_color
 
 def create_u_shape_adjusted_height(work_plane: Optional[cq.Workplane] = None, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0) -> cq.Workplane:
     """
@@ -296,6 +296,37 @@ def create_v_shape(work_plane: Optional[cq.Workplane] = None, height_width: floa
     )
 
     return v_shape
+
+def create_v_shape_path_color(work_plane: Optional[cq.Workplane] = None, height_width: float = 9.9999, wall_thickness: float = 2.0) -> cq.Workplane:
+    """
+    Creates a colored path area for the V-shaped cross-section centered at the origin or on the given work plane.
+    Height/width define the dimensions.
+
+    Parameters:
+    - work_plane: The CadQuery workplane to create the shape on. Defaults to the XY plane if None.
+    - height_width: The total height and width of the V-shape.
+    - wall_thickness: The thickness of the walls of the V-shape.
+
+    Returns:
+    - A CadQuery workplane with the created V-shape.
+    """
+    if work_plane is None:
+        wp = cq.Workplane("XY")
+    else:
+        wp = work_plane
+
+    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+
+    v_shape_path_color = (
+        wp
+        .moveTo(-wall_thickness, -height_width / 2 + wall_thickness)                    # 1
+        .lineTo(-wall_thickness - nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter)  # 2
+        .lineTo(wall_thickness + nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter)   # 3
+        .lineTo(wall_thickness, -height_width / 2 + wall_thickness)                     # 4
+        .close()                                                                        # Close the shape
+    )
+
+    return v_shape_path_color
 
 def create_rectangle_shape(work_plane: Optional[cq.Workplane] = None, height_width: float = 9.9999) -> cq.Workplane:
     """

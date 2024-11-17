@@ -98,6 +98,10 @@ class Path:
             'height_width': 10.0 - 0.0001,
             'wall_thickness': 1.2,
         },
+        'v_shape_path_color': {
+            'height_width': 10.0 - 0.0001,
+            'wall_thickness': 1.2,
+        },
         'rectangle_shape': {
             'height_width': 10.0 - 0.0001,
         }

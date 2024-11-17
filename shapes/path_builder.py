@@ -31,6 +31,7 @@ class PathBuilder:
             PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
             PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
             PathProfileType.V_SHAPE: create_v_shape,
+            PathProfileType.V_SHAPE_PATH_COLOR: create_v_shape_path_color,
             PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
         }
 
@@ -261,7 +262,7 @@ class PathBuilder:
                 else:
                     support_body = support_body.union(segment.body)
             # Check if the segment is a color profile
-            elif segment.profile_type == PathProfileType.U_SHAPE_PATH_COLOR:
+            elif segment.profile_type in [PathProfileType.U_SHAPE_PATH_COLOR, PathProfileType.V_SHAPE_PATH_COLOR]:
                 if coloring_body is None:
                     coloring_body = segment.body
                 else:
