@@ -108,7 +108,7 @@ class PathBuilder:
 
             elif segment.curve_model == PathCurveModel.SPLINE:
                 # Call the method to attempt creating a valid spline path and profile
-                path = self.attempt_spline_path_creation(segment, sub_path_points, path_wp)
+                path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points, path_wp)
 
                 # Todo, ensure that for combination sweeps, like O and O support and U shape U coloring, both paths are the same way
 
@@ -500,31 +500,14 @@ class PathBuilder:
         path_wp (cq.Workplane): The workplane to create paths on.
 
         Returns:
-        bool: True if a valid path and profile were created and stored in the segment,
-            False otherwise.
+        path: The created path for spline or a fallback polyline path.
         """
 
-        # Define the options for spline point combinations
+        segment_curve_model = segment.curve_model
+
         def option1():
             """
-            Option 1: Use the first node, any waypoint nodes in between, and the last node.
-            This prioritizes waypoints specified in the segment.
-            """
-            num_points = len(sub_path_points)
-            if num_points >= 2:
-                spline_points = [sub_path_points[0]]
-                for idx in range(1, num_points - 1):
-                    node = segment.nodes[idx]
-                    if node.waypoint:
-                        spline_points.append(sub_path_points[idx])
-                spline_points.append(sub_path_points[-1])
-                return spline_points
-            else:
-                return None
-
-        def option2():
-            """
-            Option 2: Use only the first and last nodes.
+            Option 1: Use only the first and last nodes.
             This creates the simplest possible spline between start and end points.
             """
             if len(sub_path_points) >= 2:
@@ -532,9 +515,9 @@ class PathBuilder:
             else:
                 return None
 
-        def option3():
+        def option2():
             """
-            Option 3: Use the first node, every second node in between, and the last node.
+            Option 2: Use the first node, every second node in between, and the last node.
             This reduces the number of intermediate points to simplify the spline.
             """
             if len(sub_path_points) >= 2:
@@ -543,9 +526,9 @@ class PathBuilder:
             else:
                 return None
 
-        def option4():
+        def option3():
             """
-            Option 4: Use all nodes.
+            Option 3: Use all nodes.
             This attempts to create a spline that passes through every node.
             """
             if len(sub_path_points) >= 2:
@@ -555,12 +538,12 @@ class PathBuilder:
 
         # Define the options for spline point combinations
         # option1
-        options = [option2, option3, option4]
+        options = [option1, option2, option3]
 
         # Try each option
         for opt_idx, option in enumerate(options, 1):
             # Debug statement indicating which option is being tried
-            print(f"Attempting Option {opt_idx} for segment {segment.main_index}")
+            print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
             spline_points = option()
             if spline_points is None or len(spline_points) < 2:
@@ -607,7 +590,7 @@ class PathBuilder:
                 # For testing purposes, attempt to perform a sweep to see if it will succeed
                 try:
                     # Debug statement indicating sweep attempt
-                    print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}")
+                    print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
                     # Create a second profile at the end of the path
                     path_shape = path.val()
@@ -632,27 +615,25 @@ class PathBuilder:
                     )
 
                     # If we reach this point, the sweep succeeded
-                    print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}")
+                    print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
 
-                    return path
+                    return path, segment_curve_model
 
                 except Exception as e:
                     # The sweep failed, try the next option
-                    print(f"Option {opt_idx}: Sweep failed for segment {segment.main_index} with error: {e}")
+                    print(f"Option {opt_idx}: Sweep failed for segment {segment.main_index}.{segment.secondary_index} with error: {e}")
                     continue
 
             except Exception as e:
                 # The spline creation failed, try the next option
-                print(f"Option {opt_idx}: Spline creation failed for segment {segment.main_index} with error: {e}")
+                print(f"Option {opt_idx}: Spline creation failed for segment {segment.main_index}.{segment.secondary_index} with error: {e}")
                 continue
 
-        # Option 5: Change the curve model to POLYLINE and include all nodes
-        print(f"Falling back to Option 5 (POLYLINE) for segment {segment.main_index}")
+        # Fallback option, change the curve model to POLYLINE and include all nodes
+        print(f"Falling back to POLYLINE for segment {segment.main_index}.{segment.secondary_index}")
     
         # Create the path as polyline with all nodes
-        
-        # TODO This segment also needs to be set as Polyline type, otherwise it still fails
-
         path = path_wp.polyline([p.toTuple() for p in sub_path_points])
-        
-        return path
+        segment_curve_model =  PathCurveModel.POLYLINE
+
+        return path, segment_curve_model
