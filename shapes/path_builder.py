@@ -213,10 +213,10 @@ class PathBuilder:
                     segment.body = path_body
                     
                     # Visualize the profiles and the path
-                    #show_object(profile1, name=f"Profile Start Segment {idx}")
-                    #show_object(profile2, name=f"Profile End Segment {idx}")
-                    #show_object(segment.path, name=f"Path Segment {idx}")
-                    #show_object(path_body, name=f"Path Body Segment {idx}")
+                    #show_object(profile1, name=f"Profile Start Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(profile2, name=f"Profile End Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
+                    show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
 
                 else:
                     # For other curve models, use standard sweep
@@ -229,13 +229,13 @@ class PathBuilder:
                     segment.body = path_body
 
                     # Visualize the profiles and the path
-                    #show_object(segment.profile, name=f"Profile Segment {idx}")
-                    #show_object(segment.path, name=f"Path Segment {idx}")
-                    #show_object(path_body, name=f"Path Body Segment {idx}")
+                    #show_object(segment.profile, name=f"Profile Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
 
             except Exception as e:
                 actual_idx = indices[idx] if indices else idx
-                print(f"Error sweeping segment at index {actual_idx}: {e}")
+                print(f"Error sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
 
 
     def build_final_path_body(self):
