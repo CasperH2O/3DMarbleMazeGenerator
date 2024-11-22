@@ -1,0 +1,1 @@
+# manufacturers/__init__.py

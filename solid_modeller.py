@@ -183,8 +183,8 @@ if coloring_path:
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.SECONDARY_COLOR})
 
-show_object(ball, name="Ball", options={"color": Config.Puzzle.MARBLE_COLOR})
-show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.MARBLE_COLOR})
+show_object(ball, name="Ball", options={"color": Config.Puzzle.BALL_COLOR})
+show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.BALL_COLOR})
 
 # Fetch current states from the viewer
 current_states = status()["states"]

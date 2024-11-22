@@ -1,17 +1,20 @@
 # config.py
 
-from puzzle.utils.enums import CaseShape, PathCurveModel, PathCurveType, PathProfileType, PathTransitionType
+from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveModel, PathCurveType, PathProfileType, PathTransitionType
 
 # Puzzle configuration
 class Puzzle:
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
+    THEME = Theme.MARBLE
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
-    BALL_DIAMETER = 6               # Diameter of the marble ball in mm
+    
+    BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
     SEED = 24                       # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
-    MARBLE_COLOR = (192, 192, 192)
+    BALL_COLOR = (192, 192, 192)
     PRIMARY_COLOR = (57, 255, 20)
     SECONDARY_COLOR = (40, 40, 43)
     TERTIARY_COLOR = (57, 255, 20)
@@ -106,6 +109,30 @@ class Path:
             'height_width': 10.0 - 0.0001,
         }
     }
+
+# Apply overrides
+def apply_case_manufacturer_overrides():
+    manufacturer = Puzzle.CASE_MANUFACTURER.value
+    module_name = f"manufacturers.{manufacturer}"
+    try:
+        manufacturer_module = __import__(module_name, fromlist=[''])
+        manufacturer_module.apply_overrides(Puzzle, Sphere, Box, Path)
+    except ImportError:
+        raise ValueError(f"Unknown CASE_MANUFACTURER: {Puzzle.CASE_MANUFACTURER}")
+    except AttributeError:
+        raise ValueError(f"'apply_overrides' function not found in module: {module_name}")    
+
+def apply_theme_overrides():
+    theme = Puzzle.THEME.value
+    module_name = f"themes.{theme}"
+    try:
+        theme_module = __import__(module_name, fromlist=[''])
+        theme_module.apply_overrides(Puzzle, Sphere, Box, Path)
+    except ImportError:
+        pass  # Generic theme or unknown theme, no overrides
+
+apply_case_manufacturer_overrides()
+apply_theme_overrides()    
 
 # General Configuration Access
 class Config:

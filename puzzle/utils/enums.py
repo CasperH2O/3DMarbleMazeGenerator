@@ -47,3 +47,14 @@ class PathProfileType(Enum):
     V_SHAPE = 'v_shape'
     V_SHAPE_PATH_COLOR = 'v_shape_path_color'
     RECTANGLE_SHAPE = 'rectangle_shape'
+
+class CaseManufacturer(Enum):
+    GENERIC = 'generic'
+    SPHERE_PLAYTASTIC_130_MM = 'sphere_playtastic_130_mm'
+    SPHERE_PLAYTASTIC_170_MM = 'sphere_playtastic_170_mm'
+    SPHERE_SAIDKOCC_100_MM = 'sphere_saidkocc_100_mm'
+
+class Theme(Enum):
+    GENERIC = 'generic'
+    MARBLE = 'marble'
+    GLOW_IN_THE_DARK = 'glow_in_the_dark'
