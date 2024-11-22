@@ -4,8 +4,8 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_130_MM
-    THEME = Theme.MARBLE
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
+    THEME = Theme.GLOW_IN_THE_DARK
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
@@ -15,9 +15,10 @@ class Puzzle:
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
     BALL_COLOR = (192, 192, 192)
-    PRIMARY_COLOR = (57, 255, 20)
-    SECONDARY_COLOR = (40, 40, 43)
-    TERTIARY_COLOR = (57, 255, 20)
+    PATH_COLOR = (57, 255, 20)
+    PATH_ACCENT_COLOR = (40, 40, 43)
+    TEXT_COLOR = (57, 255, 20)
+    MOUNTING_RING_COLOR = (57, 255, 20)
 
 # Manufacturing configuration
 class Manufacturing:

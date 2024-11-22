@@ -175,16 +175,16 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 
 # Show the final path
 
-show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PRIMARY_COLOR})
+show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PATH_COLOR})
 
 if support_path:
     show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
 
 if coloring_path:
-    show_object(coloring_path, name="Coloring Path", options={"color": Config.Puzzle.SECONDARY_COLOR})
+    show_object(coloring_path, name="Coloring Path", options={"color": Config.Puzzle.PATH_ACCENT_COLOR})
 
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.SECONDARY_COLOR})
+    show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.MOUNTING_RING_COLOR})
 
 show_object(ball, name="Ball", options={"color": Config.Puzzle.BALL_COLOR})
 show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.BALL_COLOR})
