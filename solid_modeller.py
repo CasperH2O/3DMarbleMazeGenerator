@@ -12,6 +12,7 @@ from shapes.path_builder import PathBuilder
 from shapes.case_sphere import CaseSphere
 from shapes.case_box import CaseBox
 from shapes.case_sphere_with_flange import CaseSphereWithFlange
+from shapes.case_sphere_with_flange_enclosed_two_sides import CaseSphereWithFlangeEnclosedTwoSides
 
 if 'show_object' not in globals():
     def show_object(*args, **kwargs):
@@ -28,6 +29,8 @@ elif Config.Puzzle.CASE_SHAPE == CaseShape.BOX:
     case = CaseBox()
 elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     case = CaseSphereWithFlange()
+elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES:
+    case = CaseSphereWithFlangeEnclosedTwoSides()    
 else:
     raise ValueError(f"Unknown CASE_SHAPE '{Config.Puzzle.CASE_SHAPE}' specified in config.py.")
 

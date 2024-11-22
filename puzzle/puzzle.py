@@ -34,7 +34,7 @@ class Puzzle:
         self.case_shape: CaseShape = case_shape
 
         # Initialize the casing and node_creator based on case_shape
-        if case_shape in (CaseShape.SPHERE, CaseShape.SPHERE_WITH_FLANGE):
+        if case_shape in (CaseShape.SPHERE, CaseShape.SPHERE_WITH_FLANGE, CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES):
             self.casing: SphereCasing = SphereCasing(
                 diameter=Config.Sphere.SPHERE_DIAMETER,
                 shell_thickness=Config.Sphere.SHELL_THICKNESS,

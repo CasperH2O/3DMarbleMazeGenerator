@@ -8,6 +8,7 @@ class CaseShape(Enum):
     """
     SPHERE = 'Sphere'
     SPHERE_WITH_FLANGE = 'Sphere with flange'
+    SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES = 'Sphere with flange enclosed two sides'
     BOX = 'Box'
 
 class PathCurveModel(Enum):
@@ -50,7 +51,7 @@ class PathProfileType(Enum):
 
 class CaseManufacturer(Enum):
     GENERIC = 'generic'
-    SPHERE_PLAYTASTIC_130_MM = 'sphere_playtastic_130_mm'
+    SPHERE_PLAYTASTIC_120_MM = 'sphere_playtastic_120_mm'
     SPHERE_PLAYTASTIC_170_MM = 'sphere_playtastic_170_mm'
     SPHERE_SAIDKOCC_100_MM = 'sphere_saidkocc_100_mm'
 

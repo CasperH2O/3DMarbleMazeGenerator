@@ -4,7 +4,7 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_130_MM
     THEME = Theme.MARBLE
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
     
