@@ -54,6 +54,10 @@ class PathSegment:
         # Do not adjust end points in case of curves
         if self.curve_type is not None:
             return
+        
+        # Do not adjust segments that have been created to bridge curves
+        if previous_curve_type is not None and next_curve_type is not None:
+            return
 
         if len(self.nodes) >= 2:
             # Adjust start point
