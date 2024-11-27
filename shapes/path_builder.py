@@ -216,7 +216,7 @@ class PathBuilder:
                     #show_object(profile1, name=f"Profile Start Segment {segment.main_index}.{segment.secondary_index}")
                     #show_object(profile2, name=f"Profile End Segment {segment.main_index}.{segment.secondary_index}")
                     #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
-                    show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
 
                 else:
                     # For other curve models, use standard sweep

@@ -149,6 +149,7 @@ class PathArchitect:
 
     def detect_curves_and_adjust_segments(self):
         i = 0
+        curve_id_counter = 1  # Initialize the curve ID counter
         while i < len(self.segments):
             segment = self.segments[i]
             if segment.curve_model == PathCurveModel.POLYLINE:
@@ -157,7 +158,8 @@ class PathArchitect:
                 new_split_segments = []
                 for sub_segment in sub_segments:
                     if len(sub_segment.nodes) > 1:
-                        curve_detection.detect_curves(sub_segment.nodes)
+                        # Pass the curve_id_counter to detect_curves
+                        curve_id_counter = curve_detection.detect_curves(sub_segment.nodes, curve_id_counter)
                         split_segments = self._split_segment_by_detected_curves(sub_segment.nodes, sub_segment)
                         new_split_segments.extend(split_segments)
                     else:
@@ -172,6 +174,7 @@ class PathArchitect:
                 i += len(new_segments)
             else:
                 i += 1
+
 
     def _split_around_mounting_nodes(self, nodes: List[Node], original_segment) -> List[PathSegment]:
         sub_segments = []
@@ -229,52 +232,102 @@ class PathArchitect:
 
         return sub_segments
 
+
     def _split_segment_by_detected_curves(self, nodes: List[Node], original_segment) -> List[PathSegment]:
+        """
+        Splits a given path segment into multiple segments based on detected curves and ensures continuity
+        between adjacent curves by creating connecting segments when necessary.
+
+        This method processes the list of nodes from the original segment, detects changes in curve types
+        and curve IDs, and creates new segments accordingly. When multiple curves are adjacent, it creates
+        a connecting segment between them to maintain path continuity.
+
+        Args:
+            nodes (List[Node]): The list of nodes with curve detection information.
+            original_segment: The original path segment to be split.
+
+        Returns:
+            List[PathSegment]: A list of new path segments resulting from splitting the original segment.
+        """
         split_segments = []
         current_segment_nodes = []
         current_curve_type = None
+        current_curve_id = None  # Initialize the current curve ID
 
         main_index = original_segment.main_index
-        # Retrieve or initialize the secondary_index_counter for this main_index
+        # Retrieve or initialize the secondary index counter for this main index
         secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
 
-        for node in nodes:
-            if node.path_curve_type != current_curve_type:
+        for idx, node in enumerate(nodes):
+            node_curve_id = getattr(node, 'curve_id', None)  # Get curve ID, default to None if not present
+
+            # Check if we need to start a new segment due to a change in curve type or curve ID
+            if (node.path_curve_type != current_curve_type) or (node_curve_id != current_curve_id):
                 if current_segment_nodes:
+                    # Finish the current segment and add it to the list of split segments
                     segment = PathSegment(
                         current_segment_nodes,
                         main_index=main_index,
                         secondary_index=secondary_index_counter
                     )
                     secondary_index_counter += 1
-                    # Copy attributes
+                    # Copy attributes from the original segment to maintain consistency
                     segment.profile_type = original_segment.profile_type
                     segment.curve_model = original_segment.curve_model
-                    segment.curve_type = current_curve_type  # Set the curve_type
+                    segment.curve_type = current_curve_type
                     segment.transition_type = original_segment.transition_type
                     split_segments.append(segment)
+
+                    # Create a connecting segment only when transitioning between different curves
+                    if current_curve_id is not None and node_curve_id is not None and current_curve_id != node_curve_id:
+                        # Use the last node of the previous segment and the current node to create the connecting segment
+                        start_node = current_segment_nodes[-1]
+                        end_node = node
+                        connecting_nodes = [start_node, end_node]
+                        connecting_segment = PathSegment(
+                            connecting_nodes,
+                            main_index=main_index,
+                            secondary_index=secondary_index_counter
+                        )
+                        secondary_index_counter += 1
+                        # Set attributes for the connecting segment
+                        connecting_segment.profile_type = original_segment.profile_type
+                        connecting_segment.curve_model = PathCurveModel.POLYLINE  # Assuming a straight line
+                        connecting_segment.curve_type = None  # No specific curve type
+                        connecting_segment.transition_type = original_segment.transition_type
+                        split_segments.append(connecting_segment)
+
+                    # Reset current_segment_nodes for the next segment
                     current_segment_nodes = []
+
+                # Update the current curve type and curve ID to reflect the new segment
                 current_curve_type = node.path_curve_type
+                current_curve_id = node_curve_id
+
+            # Add the current node to the current segment nodes
             current_segment_nodes.append(node)
 
+        # After processing all nodes, check if there is a segment to be added
         if current_segment_nodes:
+            # Finish the last segment and add it to the list of split segments
             segment = PathSegment(
                 current_segment_nodes,
                 main_index=main_index,
                 secondary_index=secondary_index_counter
             )
             secondary_index_counter += 1
-            # Copy attributes
+            # Copy attributes from the original segment
             segment.profile_type = original_segment.profile_type
             segment.curve_model = original_segment.curve_model
-            segment.curve_type = current_curve_type  # Set the curve_type
+            segment.curve_type = current_curve_type
             segment.transition_type = original_segment.transition_type
             split_segments.append(segment)
 
-        # Update the counter in the dictionary
+        # Update the secondary index counter for the main index
         self.secondary_index_counters[main_index] = secondary_index_counter
 
         return split_segments
+
 
     def adjust_segments(self):
         # Adjust start and end points of segments as needed

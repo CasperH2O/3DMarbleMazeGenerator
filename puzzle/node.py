@@ -30,6 +30,7 @@ class Node:
         self.path_profile_type: Optional[PathProfileType] = None   # Type of path profile shape
         self.path_curve_type: Optional[PathCurveType] = None       # Type of path curve
         self.used_in_curve: bool = False  # Indicates if node is used in a curve
+        self.curve_id = None              # Uniquely match node with detected curve
         self.segment_start: bool = False  # Indicates the start node of a segment
         self.segment_end: bool = False    # Indicates the end node of a segment
 

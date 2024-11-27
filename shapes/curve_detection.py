@@ -5,23 +5,30 @@ from puzzle.node import Node
 import math
 from config import PathCurveType, Path
 
-def detect_curves(nodes: List[Node]):
+def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
     """
     Detect curves in the given nodes based on the configuration.
 
     Args:
         nodes (List[Node]): A list of nodes to analyze for curves.
+        curve_id_counter (int): The starting curve ID.
+
+    Returns:
+        int: The next curve ID after processing.
     """
     if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
-        detect_s_curves(nodes)
+        curve_id_counter = detect_s_curves(nodes, curve_id_counter)
 
     if PathCurveType.DEGREE_90_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
-        detect_arcs(nodes)
+        curve_id_counter = detect_arcs(nodes, curve_id_counter)
 
-def detect_s_curves(nodes: List[Node]):
+    return curve_id_counter
+
+
+def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
     s_curve_length = 6  # Number of nodes in an S-curve
     if len(nodes) < s_curve_length:
-        return  # Not enough nodes to form an S-curve
+        return curve_id_counter  # Not enough nodes to form an S-curve
 
     for i in range(len(nodes) - s_curve_length + 1):
         segment = nodes[i:i + s_curve_length]
@@ -53,11 +60,14 @@ def detect_s_curves(nodes: List[Node]):
                         for node in segment[1:-1]:  # Exclude first and last nodes
                             node.path_curve_type = PathCurveType.S_CURVE
                             node.used_in_curve = True  # Mark node as used
+                            node.curve_id = curve_id_counter  # Assign curve ID
+                        curve_id_counter += 1  # Increment curve ID counter
                         break  # No need to check other axes
 
+    return curve_id_counter
 
-def detect_arcs(nodes: List[Node]):
-    # Curve lengths correspond to the number of nodes to be marked (excluding first and last)
+
+def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
     curve_lengths = [5, 3]  # Marking 5 and 3 nodes, but segments are of length N + 2 (7 and 5)
     N_to_curve_type = {
         5: PathCurveType.DEGREE_90_SINGLE_PLANE,
@@ -82,7 +92,10 @@ def detect_arcs(nodes: List[Node]):
                 for node in middle_nodes:
                     node.path_curve_type = N_to_curve_type[N]
                     node.used_in_curve = True  # Mark node as used
+                    node.curve_id = curve_id_counter  # Assign curve ID
+                curve_id_counter += 1  # Increment curve ID counter
 
+    return curve_id_counter
 
 def is_in_plane(pts: List[Node]) -> bool:
     x_vals = [pt.x for pt in pts]
