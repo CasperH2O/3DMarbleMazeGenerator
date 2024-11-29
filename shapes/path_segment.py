@@ -15,8 +15,8 @@ class PathSegment:
         self.curve_type: Optional[PathCurveType] = None             # Curve type as enum
         self.curve_model: Optional[PathCurveModel] = None           # Assigned path curve model
         self.transition_type: Optional[PathTransitionType] = None   # Assigned path transition type
-                                                  # CAD path
-        self.path: None   
+                                                  
+        self.path: None                                             # CAD path
         self.path_profile_type: Optional[PathProfileType] = None    # Assigned path profile type
         self.path_profile: Optional[cq.Workplane] = None            # CAD path profile
         self.path_body: Optional[cq.Workplane] = None               # CAD swept path body

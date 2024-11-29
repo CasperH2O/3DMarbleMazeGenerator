@@ -16,7 +16,7 @@ class Puzzle:
 
     BALL_COLOR = (192, 192, 192)
     PATH_COLOR = None
-    PATH_ACCENT_COLOR = None
+    PATH_ACCENT_COLOR = (255, 255, 0)
     TEXT_COLOR = None
     MOUNTING_RING_COLOR = None
 
