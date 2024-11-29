@@ -134,10 +134,10 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
 
     def get_cad_objects(self):
         return {
-            "Mounting Ring": (self.mounting_ring, {"alpha": 0.0, "color": Config.Puzzle.SECONDARY_COLOR}),
+            "Mounting Ring": (self.mounting_ring, {"alpha": 0.0, "color": Config.Puzzle.MOUNTING_RING_COLOR}),
             "Dome Top": (self.dome_top, {"alpha": 0.05, "color":(1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
-            "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PRIMARY_COLOR}),
+            "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
         }
 
     def get_cut_shape(self):
