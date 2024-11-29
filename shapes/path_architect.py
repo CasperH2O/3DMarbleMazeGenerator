@@ -42,7 +42,7 @@ class PathArchitect:
         self.assign_path_transition_types()
 
         self.create_support_materials()
-        self.color_segments()
+        self.accent_color_paths()
 
         self.reindex_segments()
 
@@ -117,11 +117,11 @@ class PathArchitect:
                 available_curve_models.remove(previous_curve_model)
 
             # Select random types from the available lists
-            segment.profile_type = random.choice(available_profile_types)
+            segment.path_profile_type = random.choice(available_profile_types)
             segment.curve_model = random.choice(available_curve_models)
 
             # Update previous types for next round
-            previous_profile_type = segment.profile_type
+            previous_profile_type = segment.path_profile_type
             previous_curve_model = segment.curve_model
 
     def assign_path_transition_types(self):
@@ -137,7 +137,7 @@ class PathArchitect:
                 continue
 
             # Determine the transition type for the segment
-            if segment.profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
+            if segment.path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
                 segment.transition_type = PathTransitionType.ROUND
             elif any(node.mounting for node in segment.nodes):
                 segment.transition_type = PathTransitionType.RIGHT
@@ -195,7 +195,7 @@ class PathArchitect:
                     )
                     secondary_index_counter += 1
                     # Copy attributes
-                    segment.profile_type = original_segment.profile_type
+                    segment.path_profile_type = original_segment.path_profile_type
                     segment.curve_model = original_segment.curve_model
                     segment.transition_type = original_segment.transition_type
                     sub_segments.append(segment)
@@ -207,7 +207,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter
                 )
                 secondary_index_counter += 1
-                mounting_segment.profile_type = original_segment.profile_type
+                mounting_segment.path_profile_type = original_segment.path_profile_type
                 mounting_segment.curve_model = original_segment.curve_model
                 mounting_segment.transition_type = PathTransitionType.RIGHT
                 sub_segments.append(mounting_segment)
@@ -222,7 +222,7 @@ class PathArchitect:
             )
             secondary_index_counter += 1  # Increment the counter after creating the segment
             # Copy attributes
-            segment.profile_type = original_segment.profile_type
+            segment.path_profile_type = original_segment.path_profile_type
             segment.curve_model = original_segment.curve_model
             segment.transition_type = original_segment.transition_type
             sub_segments.append(segment)
@@ -272,7 +272,7 @@ class PathArchitect:
                     )
                     secondary_index_counter += 1
                     # Copy attributes from the original segment to maintain consistency
-                    segment.profile_type = original_segment.profile_type
+                    segment.path_profile_type = original_segment.path_profile_type
                     segment.curve_model = original_segment.curve_model
                     segment.curve_type = current_curve_type
                     segment.transition_type = original_segment.transition_type
@@ -291,7 +291,7 @@ class PathArchitect:
                         )
                         secondary_index_counter += 1
                         # Set attributes for the connecting segment
-                        connecting_segment.profile_type = original_segment.profile_type
+                        connecting_segment.path_profile_type = original_segment.path_profile_type
                         connecting_segment.curve_model = PathCurveModel.POLYLINE  # Assuming a straight line
                         connecting_segment.curve_type = None  # No specific curve type
                         connecting_segment.transition_type = original_segment.transition_type
@@ -317,7 +317,7 @@ class PathArchitect:
             )
             secondary_index_counter += 1
             # Copy attributes from the original segment
-            segment.profile_type = original_segment.profile_type
+            segment.path_profile_type = original_segment.path_profile_type
             segment.curve_model = original_segment.curve_model
             segment.curve_type = current_curve_type
             segment.transition_type = original_segment.transition_type
@@ -372,7 +372,7 @@ class PathArchitect:
 
         if start_segment:
             # Set the path profile type to u shape for the start segment
-            start_segment.profile_type = PathProfileType.U_SHAPE
+            start_segment.path_profile_type = PathProfileType.U_SHAPE
 
     def create_finish_box(self):
         # This method adds a closing shape at the end of the path to close off the route.
@@ -428,7 +428,7 @@ class PathArchitect:
 
             # Set the profile type to rectangle shape for the closing shape
             new_segment.curve_model = PathCurveModel.POLYLINE
-            new_segment.profile_type = PathProfileType.RECTANGLE_SHAPE
+            new_segment.path_profile_type = PathProfileType.RECTANGLE_SHAPE
             new_segment.curve_type = PathCurveType.STRAIGHT
             new_segment.transition_type = end_segment.transition_type
 
@@ -439,7 +439,7 @@ class PathArchitect:
             self.main_index_counter += 1
 
             # Ensure that the path profile type of the segment containing the last node is u shaped
-            end_segment.profile_type = PathProfileType.U_SHAPE
+            end_segment.path_profile_type = PathProfileType.U_SHAPE
 
             # Update the end segment last node to the location
             end_segment.nodes[-1] = new_node
@@ -469,57 +469,19 @@ class PathArchitect:
             segment.secondary_index = secondary_index_counter
             secondary_index_counter += 1
 
-
-    def color_segments(self):
-        i = 0
-        while i < len(self.segments):
-            segment = self.segments[i]
-            if any(node.puzzle_start for node in segment.nodes):
-                i += 1
-                continue
-            
-            # Handle U_SHAPE and V_SHAPE profiles
-            if segment.profile_type in [PathProfileType.U_SHAPE, PathProfileType.V_SHAPE]:
-                # Create colored segment
-                copied_nodes = [copy.copy(node) for node in segment.nodes]
-                colored_segment = PathSegment(
-                    nodes=copied_nodes,
-                    main_index=segment.main_index,
-                    secondary_index=segment.secondary_index + 0.5  # Use a fractional index to maintain order
-                )
-                colored_segment.copy_attributes_from(segment)
-                
-                # Set the appropriate profile type for the colored segment
-                if segment.profile_type == PathProfileType.U_SHAPE:
-                    colored_segment.profile_type = PathProfileType.U_SHAPE_PATH_COLOR
-                elif segment.profile_type == PathProfileType.V_SHAPE:
-                    colored_segment.profile_type = PathProfileType.V_SHAPE_PATH_COLOR
-                
-                # Insert colored_segment after the current segment
-                self.segments.insert(i + 1, colored_segment)
-                i += 2  # Move past the inserted segment
-            else:
-                i += 1
+    def accent_color_paths(self):
+        # Set the appropriate profile type for the accent color path body
+        for segment in self.segments:          
+            if segment.path_profile_type == PathProfileType.U_SHAPE:
+                segment.accent_profile_type = PathProfileType.U_SHAPE_PATH_COLOR
+            elif segment.path_profile_type == PathProfileType.V_SHAPE:
+                segment.accent_profile_type = PathProfileType.V_SHAPE_PATH_COLOR
 
     def create_support_materials(self):
-        i = 0
-        while i < len(self.segments):
-            segment = self.segments[i]
-            if segment.profile_type == PathProfileType.O_SHAPE:
-                # Create support segment
-                copied_nodes = [copy.copy(node) for node in segment.nodes]
-                support_segment = PathSegment(
-                    nodes=copied_nodes,
-                    main_index=segment.main_index,
-                    secondary_index=segment.secondary_index + 0.5  # Use a fractional index
-                )
-                support_segment.copy_attributes_from(segment)
-                support_segment.profile_type = PathProfileType.O_SHAPE_SUPPORT
-                # Insert support_segment after the current segment
-                self.segments.insert(i + 1, support_segment)
-                i += 2  # Move past the inserted segment
-            else:
-                i += 1
+        # Set path profile appropriate support profile types
+        for segment in self.segments:
+            if segment.path_profile_type == PathProfileType.O_SHAPE:
+                segment.support_profile_type = PathProfileType.O_SHAPE_SUPPORT
 
     def _split_spline_segment(self, segment):
         new_segments = []

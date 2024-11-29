@@ -2,6 +2,7 @@
 
 from typing import List
 from ocp_vscode import *
+import copy
 import random
 
 from config import *
@@ -57,6 +58,7 @@ class PathBuilder:
             path_wp = cq.Workplane("XY")
             path = None
 
+            # Create the path based on the curve model
             if segment.curve_model == PathCurveModel.POLYLINE:
                 if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
                     if len(sub_path_points) >= 3:
@@ -70,51 +72,9 @@ class PathBuilder:
                 else:
                     path = path_wp.polyline([p.toTuple() for p in sub_path_points])
 
-            elif segment.curve_model == PathCurveModel.POLYLINE:
-                if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
-                    if len(sub_path_points) >= 3:
-                        first = sub_path_points[0]
-                        middle = sub_path_points[len(sub_path_points) // 2]
-                        last = sub_path_points[-1]
-                        path = path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
-                elif segment.curve_type == PathCurveType.S_CURVE:
-                    if len(sub_path_points) >= 3:
-                        path = path_wp.bezier([p.toTuple() for p in sub_path_points])
-                else:
-                    path = path_wp.polyline([p.toTuple() for p in sub_path_points])
-
-                # Determine entering direction at the start of the segment
-                if len(sub_path_points) >= 2:
-                    entering_direction = (sub_path_points[1] - sub_path_points[0]).normalized()
-                elif len(sub_path_points) == 1 and segment.nodes[0].segment_start and segment.nodes[0].segment_end:
-                    entering_direction = cq.Vector(1, 0, 0)
-                else:
-                    continue
-
-                # Create a plane at the start point with normal along the entering_direction
-                plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
-                wp = cq.Workplane(plane)
-
-                # Get parameters for the path profile type
-                parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
-
-                # Create the profile on this work plane
-                profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
-                profile = profile_function(work_plane=wp, **parameters)
-
-                # Store the profile and path directly in the PathSegment object
-                segment.profile = profile
-                segment.path = path
-
             elif segment.curve_model == PathCurveModel.SPLINE:
                 # Call the method to attempt creating a valid spline path and profile
                 path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points, path_wp)
-
-                # Todo, ensure that for combination sweeps, like O and O support and U shape U coloring, both paths are the same way
-
-                if not path:
-                    print(f"Skipping segment {segment.id}: Unable to create a valid spline path with any option.")
-                    continue
 
             if path is None:
                 continue
@@ -129,21 +89,60 @@ class PathBuilder:
 
             # Create a plane at the start point with normal along the entering direction
             plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
-            wp = cq.Workplane(plane)
+            wp_main = cq.Workplane(plane)
 
-            # Get parameters for the path profile type
-            parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
+            # Get parameters for the profile type
+            path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
             # Create the profile on this work plane
-            profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
-            profile = profile_function(work_plane=wp, **parameters)
+            path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
+            path_profile = path_profile_function(work_plane=wp_main, **path_parameters)
 
-            # Store the profile and path directly in the PathSegment object
-            segment.profile = profile
+            # Store the path profile and path
+            segment.path_profile = path_profile
             segment.path = path
 
+            # Create the accent profile if the segment has an accent profile type
+            if segment.accent_profile_type != None:
+                # Create the work plane at the start point with normal along the entering direction
+                wp_accent = cq.Workplane(plane)
 
-    def sweep_profiles_along_paths(self, indices=None):
+                # Get parameters for the profile type
+                accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
+
+                # Create the profile on this work plane
+                accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
+                accent_profile = accent_profile_function(work_plane=wp_accent, **accent_path_parameters)
+
+                # Create a copy of the path for the accent profile
+                accent_path_copy = path.val().copy()
+                accent_path_wp = cq.Workplane("XY").add(accent_path_copy)
+
+                segment.accent_profile = accent_profile
+                segment.accent_path = accent_path_wp
+
+            # Create the support profile if the segment has a support profile type
+            if segment.support_profile_type != None:
+                # Create the work plane at the start point with normal along the entering direction
+                wp_support = cq.Workplane(plane)
+
+                # Get parameters for the profile type
+                support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
+
+                # Create the profile on this work plane
+                support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
+                support_profile = support_profile_function(work_plane=wp_support, **support_path_parameters)
+
+                # Create a copy of the path for the support profile
+                support_path_copy = path.val().copy()
+                support_path_wp = cq.Workplane("XY").add(support_path_copy)
+
+                # Store the path profile and path
+                segment.support_profile = support_profile
+                segment.support_path = support_path_wp
+            
+
+    def sweep_profiles_along_paths(self):
         """
         Sweeps the stored profiles along their corresponding paths.
 
@@ -153,89 +152,123 @@ class PathBuilder:
         """
         segments = self.path_architect.segments
 
-        # If indices are provided, use them to select segments
-        if indices is not None:
-            selected_segments = [segments[i] for i in indices]
-        else:
-            selected_segments = segments
-
-        for idx, segment in enumerate(selected_segments):
+        for segment in segments:
 
             # Skip segments that contain the start node
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            try:
-                if segment.curve_model == PathCurveModel.SPLINE:  
-                    # For SPLINE, create a second profile at the end of the current segment's path
-                    # Get the path shape (Edge or Wire)
-                    path_shape = segment.path.val()
+            if segment.curve_model == PathCurveModel.SPLINE:  
+                # For SPLINE, create a second profile at the end of the current segment's path
+                # Get the path shape (Edge or Wire)
+                path_shape = segment.path.val()
 
-                    # Get the end point and tangent at the end of the path
-                    end_point = path_shape.positionAt(1.0)
-                    tangent_vector = path_shape.tangentAt(1.0)
+                # Get the end point and tangent at the end of the path
+                end_point = path_shape.positionAt(1.0)
+                tangent_vector = path_shape.tangentAt(1.0)
 
-                    # Create a plane at the end point with normal along the tangent vector
-                    plane = self.create_plane_at_point(end_point, tangent_vector)
+                # Create a plane at the end point with normal along the tangent vector
+                plane = self.create_plane_at_point(end_point, tangent_vector)
 
-                    # Create a workplane at this plane
-                    wp = cq.Workplane(plane)
+                # Create a workplane at this plane
+                wp = cq.Workplane(plane)
 
-                    # Get parameters for the path profile type
-                    parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
+                # Get parameters for the path profile type
+                parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
-                    # Create the profile on this work plane
-                    profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
-                    profile2 = profile_function(work_plane=wp, **parameters)
+                # Create the profile on this work plane
+                profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
+                profile2 = profile_function(work_plane=wp, **parameters)
 
-                    # Extract the shapes from the Workplanes
-                    profile1 = segment.profile.val()
-                    profile2 = profile2.val()
+                # Extract the shapes from the Workplanes
+                profile1 = segment.path_profile.val()
+                profile2 = profile2.val()
 
-                    # Ensure that the profiles are Wires or Faces
-                    if not isinstance(profile1, (cq.Wire, cq.Face)):
-                        print(f"Profile in segment at index {idx} is not a Wire or Face.")
-                        continue
-                    if not isinstance(profile2, (cq.Wire, cq.Face)):
-                        print(f"Profile2 in segment at index {idx} is not a Wire or Face.")
-                        continue
+                # Ensure that the profiles are Wires or Faces
+                if not isinstance(profile1, (cq.Wire, cq.Face)):
+                    print(f"Profile in segment at index {idx} is not a Wire or Face.")
+                    continue
+                if not isinstance(profile2, (cq.Wire, cq.Face)):
+                    print(f"Profile2 in segment at index {idx} is not a Wire or Face.")
+                    continue
 
-                    # Prepare the list of profiles
-                    profiles = [profile1, profile2]
+                # Prepare the list of profiles
+                profiles = [profile1, profile2]
 
+                #show_object(profile1, name=f"Profile Start Segment {segment.main_index}.{segment.secondary_index}")
+                #show_object(profile2, name=f"Profile End Segment {segment.main_index}.{segment.secondary_index}")
+                #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
+                
+                try:
                     # Perform the sweep_multi
-                    path_body = cq.Solid.sweep_multi(
+                    segment.path_body = cq.Solid.sweep_multi(
                         profiles=profiles,
                         path=segment.path.val(),
                     )
 
-                    # Store the body in the segment
-                    segment.body = path_body
-                    
-                    # Visualize the profiles and the path
-                    #show_object(profile1, name=f"Profile Start Segment {segment.main_index}.{segment.secondary_index}")
-                    #show_object(profile2, name=f"Profile End Segment {segment.main_index}.{segment.secondary_index}")
-                    #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
-                    #show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
+                # Visualize the profiles and the path
+                #show_object(segment.path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
 
-                else:
-                    # For other curve models, use standard sweep
-                    path_body = segment.profile.sweep(
+                except Exception as e:
+                    print(f"Error multi sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
+
+            else:
+                # For other curve models, use standard sweep
+
+                try:
+                    # Visualize the profiles and the path
+                    show_object(segment.path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Profile Segment")
+                    show_object(segment.path, name=f"{segment.main_index}.{segment.secondary_index} - Path Segment")
+
+                    # Perform sweep for path body
+                    segment.path_body = segment.path_profile.sweep(
                         segment.path,
                         transition=segment.transition_type.value
                     )
 
-                    # Store the body in the segment
-                    segment.body = path_body
+                    # Visualize the path body
+                    show_object(segment.path_body, name=f"{segment.main_index}.{segment.secondary_index} - Path Body Segment")
 
-                    # Visualize the profiles and the path
-                    #show_object(segment.profile, name=f"Profile Segment {segment.main_index}.{segment.secondary_index}")
-                    #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
-                    #show_object(path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
+                except Exception as e:
+                    print(f"Error sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
 
-            except Exception as e:
-                actual_idx = indices[idx] if indices else idx
-                print(f"Error sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
+                try:
+                    # Perform the sweep for the accent color body
+                    if segment.accent_profile_type is not None:
+
+                        # Visualize the profiles and the path
+                        #show_object(segment.accent_profile, name=f"{segment.main_index}.{segment.secondary_index} - Accent Profile Segment")
+                        #show_object(segment.accent_path, name=f"{segment.main_index}.{segment.secondary_index} - Accent Path Segment")
+
+                        segment.accent_body = segment.accent_profile.sweep(
+                            segment.accent_path,
+                            transition=segment.transition_type.value
+                        )
+
+                        # Visualize the path body
+                        show_object(segment.accent_body, name=f"{segment.main_index}.{segment.secondary_index} - Accent Body Segment")
+
+                except Exception as e:
+                    print(f"Error sweeping accent for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
+
+                try:
+                    # Perform the sweep for the support body
+                    if segment.support_profile_type is not None:
+
+                        # Visualize the profiles and the path
+                        show_object(segment.support_profile, name=f"{segment.main_index}.{segment.secondary_index} - Support Profile Segment")
+                        show_object(segment.support_path, name=f"{segment.main_index}.{segment.secondary_index} - Support Path Segment")
+
+                        segment.support_body = segment.support_profile.sweep(
+                            segment.support_path,
+                            transition=segment.transition_type.value
+                        )
+
+                        # Visualize the path body
+                        show_object(segment.support_body, name=f"{segment.main_index}.{segment.secondary_index} - Support Body Segment")
+
+                except Exception as e:
+                    print(f"Error sweeping support for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
 
 
     def build_final_path_body(self):
@@ -251,27 +284,30 @@ class PathBuilder:
                 continue
 
             # Skip segments without a body
-            if not hasattr(segment, 'body') or segment.body is None:
+            if not hasattr(segment, 'path_body') or segment.path_body is None:
+
                 print(f"Segment at index {segment.main_index}-{segment.secondary_index} has no body.")
                 continue            
-
-            # Check if the segment is an O-shape support profile
-            if segment.profile_type == PathProfileType.O_SHAPE_SUPPORT:
-                if support_body is None:
-                    support_body = segment.body
-                else:
-                    support_body = support_body.union(segment.body)
-            # Check if the segment is a color profile
-            elif segment.profile_type in [PathProfileType.U_SHAPE_PATH_COLOR, PathProfileType.V_SHAPE_PATH_COLOR]:
-                if coloring_body is None:
-                    coloring_body = segment.body
-                else:
-                    coloring_body = coloring_body.union(segment.body)                    
-            else:
+            else:                
+                # Build the path body
                 if standard_body is None:
-                    standard_body = segment.body
+                    standard_body = segment.path_body
                 else:
-                    standard_body = standard_body.union(segment.body)
+                    standard_body = standard_body.union(segment.path_body)
+
+            # Check if the segment has a (optional) support body
+            if segment.support_body != None:
+                if support_body is None:
+                    support_body = segment.support_body
+                else:
+                    support_body = support_body.union(segment.support_body)
+            
+            # Check if the segment has a (optional) color accent body
+            if segment.accent_body != None:
+                if coloring_body is None:
+                    coloring_body = segment.accent_body
+                else:
+                    coloring_body = coloring_body.union(segment.accent_body)                    
         
         return {
             'standard': standard_body,
@@ -404,8 +440,8 @@ class PathBuilder:
         for segment in self.path_architect.segments:
             main_index = segment.main_index
 
-            # Only process segments of PathProfileType O_SHAPE and O_SHAPE_SUPPORT
-            if segment.profile_type not in [PathProfileType.O_SHAPE, PathProfileType.O_SHAPE_SUPPORT] or segment.curve_model != PathCurveModel.POLYLINE:
+            # Only process segments of PathProfileType O_SHAPE and POLYLINE
+            if segment.path_profile_type not in [PathProfileType.O_SHAPE] or segment.curve_model != PathCurveModel.POLYLINE:
                 continue  # Skip this segment
 
             # Determine the workplane direction for this main_index
@@ -423,7 +459,7 @@ class PathBuilder:
 
             # Skip O_SHAPE_SUPPORT segments if workplane is not 'XY',
             # no need to print support underneath holes along the Z axis
-            if workplane_direction != "XY" and segment.profile_type == PathProfileType.O_SHAPE_SUPPORT:
+            if workplane_direction != "XY" and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT:
                 continue  # Skip this segment
 
             # Skip segments that are not straight
@@ -481,8 +517,9 @@ class PathBuilder:
                 display_objs.append(hole_cylinder)
 
                 # Check for intersection
-                if hole_cylinder.val().intersect(segment.body.val()).Volume() > 0:
-                    segment.body = segment.body.cut(hole_cylinder)
+                if hole_cylinder.val().intersect(segment.path_body.val()).Volume() > 0:
+                    segment.path_body = segment.path_body.cut(hole_cylinder)
+                    segment.support_body = segment.support_body.cut(hole_cylinder)
 
         # Visualization of hole cylinders
         if display_objs:
@@ -581,10 +618,10 @@ class PathBuilder:
                 wp = cq.Workplane(plane)
 
                 # Get parameters for the path profile type
-                parameters = self.path_profile_type_parameters.get(segment.profile_type.value, {})
+                parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
                 # Create the profile on this work plane
-                profile_function = self.path_profile_type_functions.get(segment.profile_type, create_u_shape)
+                profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
                 profile = profile_function(work_plane=wp, **parameters)
 
                 # For testing purposes, attempt to perform a sweep to see if it will succeed

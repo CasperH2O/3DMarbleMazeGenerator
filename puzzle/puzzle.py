@@ -206,8 +206,8 @@ class Puzzle:
         # Path profile counts
         profile_counts: Dict[Any, int] = {}
         for segment in self.path_architect.segments:
-            profile_counts[segment.profile_type] = (
-                profile_counts.get(segment.profile_type, 0) + 1
+            profile_counts[segment.path_profile_type] = (
+                profile_counts.get(segment.path_profile_type, 0) + 1
             )
 
         print("\n=== Profile Type Usage ===")
@@ -240,7 +240,7 @@ class Puzzle:
 
         # Path profile information
         profile_types_used = set(
-            segment.profile_type for segment in self.path_architect.segments
+            segment.path_profile_type for segment in self.path_architect.segments
         )
         print(
             f"Profile types used: {len(profile_types_used)}, "

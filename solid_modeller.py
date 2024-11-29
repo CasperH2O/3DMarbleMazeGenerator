@@ -76,32 +76,8 @@ start_area = path_builder.create_start_area_funnel(CAD_nodes)
 # Prepare profiles and paths
 path_builder.prepare_profiles_and_paths()
 
-# For debugging: show all profiles before the sweep
-#for idx, profile in enumerate(path_builder.profiles):
-    #show_object(profile, name=f"Profile_{idx}")
-
-# For debugging: specify the indices of segments to process
-indices_to_sweep = None  # Set to None to process all segments, or provide a list like [0, 1, 2]
-
-# Optionally, display the selected profiles and paths
-if indices_to_sweep is not None:
-    selected_segments = [path_builder.path_architect.segments[i] for i in indices_to_sweep]
-else:
-    selected_segments = path_builder.path_architect.segments
-
-'''        
-Broken with segments change
-for idx, segment in enumerate(selected_segments):
-    actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
-    if segment.profile != None and segment.path != None:
-        profile = segment.profile
-        path = segment.path
-        show_object(profile, name=f"Profile_{actual_idx}")
-        show_object(path, name=f"Path_{actual_idx}")
-'''
-
 # Now sweep the selected profiles along the paths
-path_builder.sweep_profiles_along_paths(indices=indices_to_sweep)
+path_builder.sweep_profiles_along_paths()
 
 # Make holes in o shape path profile segments (and it's respective support)
 path_builder.cut_holes_in_o_shape_path_profile_segments()
@@ -174,12 +150,13 @@ ball_path = ball_path_profile.sweep(path, transition='right')
 ###########
 
 # Show the final path
-
 show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PATH_COLOR})
 
+# Show the support path, if it exists
 if support_path:
     show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
 
+# Show the coloring path, if it exists
 if coloring_path:
     show_object(coloring_path, name="Coloring Path", options={"color": Config.Puzzle.PATH_ACCENT_COLOR})
 

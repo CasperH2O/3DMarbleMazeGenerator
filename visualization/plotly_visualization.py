@@ -299,7 +299,7 @@ def visualize_path_architect(nodes, segments, casing):
             f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
             f"Path Curve Model: {segment.curve_model}<br>"
             f"Curve Type: {segment.curve_type}<br>"
-            f"Path Profile Type: {segment.profile_type}"
+            f"Path Profile Type: {segment.path_profile_type}"
         )
 
         # Depending on the curve_model and curve_type, generate the points

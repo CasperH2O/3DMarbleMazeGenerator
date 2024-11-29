@@ -11,13 +11,25 @@ class PathSegment:
         self.nodes = nodes
         self.main_index = main_index  # Segment index for identification
         self.secondary_index = secondary_index
+        
         self.curve_type: Optional[PathCurveType] = None             # Curve type as enum
-        self.profile_type: Optional[PathProfileType] = None         # Assigned path profile type
         self.curve_model: Optional[PathCurveModel] = None           # Assigned path curve model
         self.transition_type: Optional[PathTransitionType] = None   # Assigned path transition type
-        self.profile: None  # CAD path profile
-        self.path: None     # CAD path
-        self.body: None     # CAD swept body
+                                                  # CAD path
+        self.path: None   
+        self.path_profile_type: Optional[PathProfileType] = None    # Assigned path profile type
+        self.path_profile: Optional[cq.Workplane] = None            # CAD path profile
+        self.path_body: Optional[cq.Workplane] = None               # CAD swept path body
+
+        self.accent_path: None   
+        self.accent_profile_type: Optional[PathProfileType] = None  # Path corresponding accent profile type
+        self.accent_profile: Optional[cq.Workplane] = None          # CAD path profile
+        self.accent_body: Optional[cq.Workplane] = None             # CAD accent body
+
+        self.support_path: None   
+        self.support_profile_type: Optional[PathProfileType] = None # Path corresponding support profile type
+        self.support_profile: Optional[cq.Workplane] = None         # CAD path profile
+        self.support_body: Optional[cq.Workplane] = None            # CAD support body
 
     def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
                                 previous_curve_type=None, next_curve_type=None):
@@ -182,7 +194,7 @@ class PathSegment:
 
 
     def copy_attributes_from(self, other_segment):
-        self.profile_type = other_segment.profile_type
+        self.path_profile_type = other_segment.path_profile_type
         self.curve_model = other_segment.curve_model
         self.curve_type = other_segment.curve_type
         self.transition_type = other_segment.transition_type                
