@@ -42,3 +42,22 @@ swept_shape = u_shape.sweep(path, transition='right')
 show_object(u_shape)
 show_object(path)
 show_object(swept_shape)
+
+# Get path value
+path_val = path.val()
+# Get the end point and tangent at the end of the wire
+origin = path_val.positionAt(1.0)
+normal_vector = path_val.tangentAt(1.0)
+
+# Create the plane at the desired point with the normal vector directly
+plane = cq.Plane(origin=origin, normal=normal_vector)
+
+# This shows the end of the first edge of the polyline
+show_object(origin)
+
+edges = path_val.Edges()
+last_edge = edges[-1]
+origin_last_edge = last_edge.positionAt(1.0)
+
+# This also shows the end of the first edge of the polyline?!
+show_object(origin_last_edge)
