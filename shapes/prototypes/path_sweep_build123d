@@ -1,0 +1,48 @@
+from build123d import *
+from ocp_vscode import *
+
+# Points for the path
+path_pts = [
+    (0, 0, 0),
+    (40, 0, 0),
+    (40, 0, 40),
+    (0, 0, 40),
+]
+
+# U-shape profile parameters
+adjusted_width = adjusted_height = 10 - 0.0001
+wall_thickness = 1.2
+
+half_width = adjusted_width / 2
+half_height = adjusted_height / 2
+inner_half_width = half_width - wall_thickness
+inner_half_height = half_height - wall_thickness
+
+# Define the points of the U-shape
+profile_pts = (
+    (-half_width, half_height),
+    (-inner_half_width, half_height),
+    (-inner_half_width, -inner_half_height),
+    (inner_half_width, -inner_half_height),
+    (inner_half_width, half_height),
+    (half_width, half_height),
+    (half_width, -half_height),
+    (-half_width, -half_height),
+    (-half_width, half_height),  # Close back to the first point
+)
+
+# Perform the sweep
+with BuildPart() as swept_shape:
+    with BuildLine() as path_line:
+        Polyline(path_pts)      
+    # Create the U-shape sketch in the YZ plane
+    with BuildSketch(Plane.YZ) as u_shape_line:
+        with BuildLine():
+            Polyline(profile_pts)
+        make_face()
+    sweep()
+
+# Display the results
+show_object(u_shape_line)
+show_object(path_line)
+show_object(swept_shape) 
