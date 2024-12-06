@@ -32,17 +32,19 @@ profile_pts = (
 )
 
 # Perform the sweep
-with BuildPart() as swept_shape:
+with BuildPart() as swept_shape_part:
     with BuildLine() as path_line:
         Polyline(path_pts)      
     # Create the U-shape sketch in the YZ plane
-    with BuildSketch(Plane.YZ) as u_shape_line:
-        with BuildLine():
+    with BuildSketch(Plane.YZ) as u_shape_sketch:
+        with BuildLine() as u_shape_line:
             Polyline(profile_pts)
         make_face()
-    sweep()
+    sweep(transition=Transition.RIGHT)    
 
 # Display the results
-show_object(u_shape_line)
+set_defaults(reset_camera=Camera.KEEP)
+
 show_object(path_line)
-show_object(swept_shape) 
+show_object(u_shape_sketch.sketch)
+show_object(swept_shape_part)
