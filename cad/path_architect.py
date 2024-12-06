@@ -7,9 +7,9 @@ import copy
 import config
 from puzzle.node import Node
 from config import *
-from shapes.path_segment import PathSegment
+from cad.path_segment import PathSegment
 from . import curve_detection
-import cadquery as cq
+import build123d as b3d
 
 class PathArchitect:
     def __init__(self, nodes: List[Node]):
@@ -339,7 +339,7 @@ class PathArchitect:
             if i + 1 < len(self.segments):
                 next_segment = self.segments[i + 1]
                 next_node = next_segment.nodes[0]
-                next_start_point = cq.Vector(next_node.x, next_node.y, next_node.z)
+                next_start_point = b3d.Vector(next_node.x, next_node.y, next_node.z)
                 next_curve_type = next_segment.curve_type
             segment.adjust_start_and_endpoints(
                 self.node_size,
@@ -351,7 +351,7 @@ class PathArchitect:
             # Update previous_end_point and previous_curve_type
             if segment.nodes:
                 last_node = segment.nodes[-1]
-                previous_end_point = cq.Vector(last_node.x, last_node.y, last_node.z)
+                previous_end_point = b3d.Vector(last_node.x, last_node.y, last_node.z)
                 previous_curve_type = segment.curve_type
             else:
                 previous_end_point = None
@@ -401,8 +401,8 @@ class PathArchitect:
             second_last_node = end_segment.nodes[end_node_index - 1]
 
             # Compute the vector from second last node to last node
-            vec_last = cq.Vector(last_node.x, last_node.y, last_node.z)
-            vec_second_last = cq.Vector(second_last_node.x, second_last_node.y, second_last_node.z)
+            vec_last = b3d.Vector(last_node.x, last_node.y, last_node.z)
+            vec_second_last = b3d.Vector(second_last_node.x, second_last_node.y, second_last_node.z)
             direction_vector = (vec_last - vec_second_last).normalized()
 
             # Compute opposite direction
@@ -414,7 +414,7 @@ class PathArchitect:
             # Create new node extending from last node in opposite direction
             extension_vector = opposite_direction * extension_length
             new_point = vec_last + extension_vector
-            new_node = Node(new_point.x, new_point.y, new_point.z)
+            new_node = Node(new_point.X, new_point.Y, new_point.Z)
 
             # Create new segment consisting of last_node and new_node
             new_segment_nodes = [last_node, new_node]

@@ -1,5 +1,6 @@
 # shapes/path_segment
 import cadquery as cq
+import build123d as b3d
 from typing import List, Optional
 
 from config import PathCurveModel, PathCurveType, PathProfileType, PathTransitionType
@@ -41,11 +42,11 @@ class PathSegment:
             start_node.segment_start = True
 
             # **Move the puzzle end node by half the node size in the path direction**
-            end_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
+            end_node_point = b3d.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
             entering_vector = end_node_point - previous_end_point
 
-            if entering_vector.Length == 0:
-                entering_vector = cq.Vector(1, 0, 0)  # Default direction
+            if entering_vector.length == 0:
+                entering_vector = b3d.Vector(1, 0, 0)  # Default direction
 
             entering_direction = entering_vector.normalized()
 
@@ -74,42 +75,42 @@ class PathSegment:
         if len(self.nodes) >= 2:
             # Adjust start point
             if not self.nodes[0].puzzle_start:
-                start_node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
-                next_node_point = cq.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
+                start_node_point = b3d.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
+                next_node_point = b3d.Vector(self.nodes[1].x, self.nodes[1].y, self.nodes[1].z)
                 if previous_end_point is not None:
                     entering_vector = start_node_point - previous_end_point
-                    if entering_vector.Length == 0:
+                    if entering_vector.length == 0:
                         entering_vector = next_node_point - start_node_point
                 else:
                     entering_vector = next_node_point - start_node_point
 
-                if entering_vector.Length == 0:
-                    entering_vector = cq.Vector(1, 0, 0)  # Default direction
+                if entering_vector.length == 0:
+                    entering_vector = b3d.Vector(1, 0, 0)  # Default direction
 
                 entering_direction = entering_vector.normalized()
 
                 # Adjust distance based on previous segment's curve_type
                 adjust_distance = node_size if previous_curve_type is not None else node_size / 2
                 adjusted_start = start_node_point - entering_direction * adjust_distance
-                start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
+                start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
                 start_node.segment_start = True
                 self.nodes.insert(0, start_node)
             else:
                 self.nodes[0].segment_start = True  # Mark the first node as segment start
 
             # Adjust end point
-            end_node_point = cq.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
-            prev_node_point = cq.Vector(self.nodes[-2].x, self.nodes[-2].y, self.nodes[-2].z)
+            end_node_point = b3d.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
+            prev_node_point = b3d.Vector(self.nodes[-2].x, self.nodes[-2].y, self.nodes[-2].z)
 
             if next_start_point is not None:
                 exiting_vector = next_start_point - end_node_point
-                if exiting_vector.Length == 0:
+                if exiting_vector.length == 0:
                     exiting_vector = end_node_point - prev_node_point
             else:
                 exiting_vector = end_node_point - prev_node_point
 
-            if exiting_vector.Length == 0:
-                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+            if exiting_vector.length == 0:
+                exiting_vector = b3d.Vector(1, 0, 0)  # Default direction
 
             exiting_direction = exiting_vector.normalized()
 
@@ -120,20 +121,20 @@ class PathSegment:
                 adjusted_end = end_node_point + move_vector
 
                 # Update the puzzle end node's coordinates
-                self.nodes[-1].x = adjusted_end.x
-                self.nodes[-1].y = adjusted_end.y
-                self.nodes[-1].z = adjusted_end.z
+                self.nodes[-1].X = adjusted_end.X
+                self.nodes[-1].Y = adjusted_end.Y
+                self.nodes[-1].Z = adjusted_end.Z
                 self.nodes[-1].segment_end = True  # Mark the last node as segment end
             else:
                 # Adjust distance based on next segment's curve_type
                 adjust_distance = node_size if next_curve_type is not None else node_size / 2
                 adjusted_end = end_node_point + exiting_direction * adjust_distance
-                end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
+                end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
                 end_node.segment_end = True
                 self.nodes.append(end_node)
         else:
             # Handle segments with only one node (e.g., mounting nodes)
-            node_point = cq.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
+            node_point = b3d.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
 
             # Compute entering direction
             if previous_end_point is not None:
@@ -141,10 +142,10 @@ class PathSegment:
             elif next_start_point is not None:
                 entering_vector = next_start_point - node_point
             else:
-                entering_vector = cq.Vector(1, 0, 0)  # Default direction
+                entering_vector = b3d.Vector(1, 0, 0)  # Default direction
 
-            if entering_vector.Length == 0:
-                entering_vector = cq.Vector(1, 0, 0)  # Default direction
+            if entering_vector.length == 0:
+                entering_vector = b3d.Vector(1, 0, 0)  # Default direction
 
             entering_direction = entering_vector.normalized()
 
@@ -154,10 +155,10 @@ class PathSegment:
             elif previous_end_point is not None:
                 exiting_vector = node_point - previous_end_point
             else:
-                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+                exiting_vector = b3d.Vector(1, 0, 0)  # Default direction
 
-            if exiting_vector.Length == 0:
-                exiting_vector = cq.Vector(1, 0, 0)  # Default direction
+            if exiting_vector.length == 0:
+                exiting_vector = b3d.Vector(1, 0, 0)  # Default direction
 
             exiting_direction = exiting_vector.normalized()
 
@@ -168,9 +169,9 @@ class PathSegment:
                 adjusted_end = node_point + move_vector
 
                 # Update the puzzle end node's coordinates
-                self.nodes[0].x = adjusted_end.x
-                self.nodes[0].y = adjusted_end.y
-                self.nodes[0].z = adjusted_end.z
+                self.nodes[0].X = adjusted_end.X
+                self.nodes[0].Y = adjusted_end.Y
+                self.nodes[0].Z = adjusted_end.Z
                 self.nodes[0].segment_end = True
             else:
                 if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
@@ -179,11 +180,11 @@ class PathSegment:
                     adjust_distance_end = node_size if next_curve_type is not None else node_size / 2
 
                     adjusted_start = node_point - entering_direction * adjust_distance_start
-                    start_node = Node(adjusted_start.x, adjusted_start.y, adjusted_start.z)
+                    start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
                     start_node.segment_start = True
 
                     adjusted_end = node_point + exiting_direction * adjust_distance_end
-                    end_node = Node(adjusted_end.x, adjusted_end.y, adjusted_end.z)
+                    end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
                     end_node.segment_end = True
 
                     self.nodes.insert(0, start_node)

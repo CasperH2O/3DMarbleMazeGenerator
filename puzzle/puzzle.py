@@ -8,7 +8,7 @@ import numpy as np
 from config import CaseShape, Config
 from .path_interpolator import PathInterpolator
 from .path_finder import AStarPathFinder
-from shapes.path_architect import PathArchitect
+from cad.path_architect import PathArchitect
 from .node import Node
 from .node_creator import SphereGridNodeCreator, BoxGridNodeCreator
 from .casing import SphereCasing, BoxCasing

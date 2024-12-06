@@ -1,0 +1,363 @@
+# cad/path_profile_type_shapes.py
+
+import config
+from typing import Optional
+from build123d import *
+
+def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates an L-shaped cross-section centered at the origin or on the given work plane.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the L-shape.
+    - wall_thickness: The thickness of the walls of the L-shape.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created L-shape.
+    """
+    half_width = height_width / 2
+    inner_half_width = half_width - wall_thickness
+
+    l_shape_points = [
+        (-half_width,  half_width),      # 1
+        (-inner_half_width,  half_width),# 2
+        (-inner_half_width, -inner_half_width), # 3
+        ( half_width, -inner_half_width),# 4
+        ( half_width, -half_width),      # 5
+        (-half_width, -half_width),      # 6
+        (-half_width,  half_width)       # close
+    ]
+
+    with BuildSketch(work_plane) as l_shape_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(l_shape_points)
+        make_face()
+
+    return l_shape_sketch
+
+
+def create_l_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates an L-shaped cross-section with adjusted height centered at the origin or on the given work plane.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the L-shape.
+    - wall_thickness: The thickness of the walls of the L-shape.
+    - lower_distance: The distance to reduce the height from the top.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created L-shape with adjusted height.
+    """
+    # Check reduced height does not become so large as to remove side walls completely
+    if height_width - lower_distance < wall_thickness:
+        lower_distance = height_width - wall_thickness
+
+    # Adjusted top Y-coordinate
+    adjusted_top_y = height_width / 2 - lower_distance
+
+    half_width = height_width / 2
+    inner_half_width = half_width - wall_thickness
+
+    l_shape_adjusted_points = [
+        (-half_width, -half_width),                # 1
+        (-half_width, adjusted_top_y),             # 2
+        (-inner_half_width, adjusted_top_y),       # 3
+        (-inner_half_width, -inner_half_width),    # 4
+        ( inner_half_width, -inner_half_width),    # 5
+        ( inner_half_width, adjusted_top_y),       # 6
+        ( half_width, adjusted_top_y),             # 7
+        ( half_width, -half_width),                # 8
+        (-half_width, -half_width)                 # close
+    ]
+
+    with BuildSketch(work_plane) as l_shape_adjusted_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(l_shape_adjusted_points)
+        make_face()
+
+    return l_shape_adjusted_sketch
+
+
+def create_o_shape(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates a tube-shaped cross-section centered at the origin or on the given work plane.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - outer_diameter: The outer diameter of the tube.
+    - wall_thickness: The thickness of the tube walls.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the O-shape (two concentric circles).
+    """
+    # Calculate inner diameter
+    inner_diameter = outer_diameter - 2 * wall_thickness
+    outer_radius = outer_diameter / 2
+    inner_radius = inner_diameter / 2
+
+    with BuildSketch(work_plane) as o_shape_sketch:
+        Circle(radius=outer_radius)
+        Circle(radius=inner_radius)
+        make_face()
+
+    return o_shape_sketch
+
+
+def create_o_shape_support(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates a circle-shaped cross-section centered at the origin or on the given work plane.
+    Required as additional 3D print support material for the O-shaped cross-section.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - outer_diameter: The outer diameter of the tube.
+    - wall_thickness: The thickness of the tube walls.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created support shape (a square + a circle).
+    """
+    # Distance from edges
+    distance = wall_thickness + config.Manufacturing.LAYER_THICKNESS * 2
+
+    # Calculate inner diameter
+    inner_diameter = outer_diameter - 2 * wall_thickness - distance
+
+    with BuildSketch(work_plane) as support_sketch:
+        RegularPolygon(radius=(inner_diameter - distance) / 2, side_count=4)    
+        Circle(360, radius=inner_diameter / 2)
+        make_face()
+
+    return support_sketch
+
+
+def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+    """
+    Creates a U-shaped cross-section centered at the origin or on the given work plane.
+    The width of the shape can be scaled using the factor parameter.
+    Optionally, the wall thickness can also be defined.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height: The total height of the U-shape (along the Y-axis).
+    - width: The total width of the U-shape (along the X-axis).
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - factor: Scaling factor applied only to the width.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created U-shape.
+    """
+    adjusted_width = width * factor
+    adjusted_height = height
+
+    half_width = adjusted_width / 2
+    half_height = adjusted_height / 2
+    inner_half_width = half_width - wall_thickness
+    inner_half_height = half_height - wall_thickness
+
+    u_shape_points = [
+        (-half_width,  half_height),                # 1
+        (-inner_half_width,  half_height),          # 2
+        (-inner_half_width, -inner_half_height),    # 3
+        ( inner_half_width, -inner_half_height),    # 4
+        ( inner_half_width,  half_height),          # 5
+        ( half_width,  half_height),                # 6
+        ( half_width, -half_height),                # 7
+        (-half_width, -half_height),                # 8
+        (-half_width,  half_height)                 # close
+    ]
+
+    with BuildSketch(work_plane) as u_shape_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(u_shape_points)
+        make_face()
+
+    return u_shape_sketch
+
+
+def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+    """
+    Creates a single layer path for within a U-shaped cross-section to apply a color on top.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height: The total height of the U-shape (along the Y-axis).
+    - width: The total width of the U-shape (along the X-axis).
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - factor: Scaling factor applied only to the width.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created single layer path for the U-shape.
+    """
+    adjusted_width = width * factor
+    adjusted_height = height
+    
+    half_width = adjusted_width / 2
+    half_height = adjusted_height / 2
+    inner_half_width = half_width - wall_thickness
+    inner_half_height = half_height - wall_thickness
+
+    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+
+    u_shape_path_color_points = [
+        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-inner_half_width, -inner_half_height),                    # 2
+        ( inner_half_width, -inner_half_height),                    # 3
+        ( inner_half_width, -inner_half_height + nozzle_diameter),  # 4
+        (-inner_half_width, -inner_half_height + nozzle_diameter)   # close
+    ]
+
+    with BuildSketch(work_plane) as u_shape_path_color_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(u_shape_path_color_points)
+        make_face()
+
+    return u_shape_path_color_sketch
+
+
+def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates a U-shaped cross-section with adjusted height centered at the origin or on the given work plane.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the U-shape.
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - lower_distance: The distance to reduce the height from the top.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created U-shape with adjusted height.
+    """
+    # Check reduced height does not become so large as to remove side walls completely
+    if height_width - lower_distance < wall_thickness:
+        lower_distance = height_width - wall_thickness
+
+    # Adjusted top Y-coordinate
+    adjusted_top_y = height_width / 2 - lower_distance
+
+    half_width = height_width / 2
+    inner_half_width = half_width - wall_thickness
+
+    u_shape_adjusted_points = [
+        (-half_width, -half_width),              # 1
+        (-half_width, adjusted_top_y),           # 2
+        (-inner_half_width, adjusted_top_y),     # 3
+        (-inner_half_width, -inner_half_width),  # 4
+        ( inner_half_width, -inner_half_width),  # 5
+        ( inner_half_width, adjusted_top_y),     # 6
+        ( half_width, adjusted_top_y),           # 7
+        ( half_width, -half_width),              # 8
+        (-half_width, -half_width)               # close
+    ]
+
+    with BuildSketch(work_plane) as u_shape_adjusted_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(u_shape_adjusted_points)
+        make_face()
+
+    return u_shape_adjusted_sketch
+
+
+def create_v_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates a V-shaped cross-section centered at the origin or on the given work plane.
+    Height/width define the dimensions.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the V-shape.
+    - wall_thickness: The thickness of the walls of the V-shape.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created V-shape.
+    """
+    v_shape_points = [
+        (-wall_thickness, -height_width / 2),                     # 1 start bottom left outer corner
+        (-height_width / 2, -wall_thickness),                     # 2
+        (-height_width / 2 + wall_thickness, -wall_thickness),    # 3
+        (-wall_thickness, -height_width / 2 + wall_thickness),    # 4
+        ( wall_thickness, -height_width / 2 + wall_thickness),    # 5
+        ( height_width / 2 - wall_thickness, -wall_thickness),    # 6
+        ( height_width / 2, -wall_thickness),                     # 7
+        ( wall_thickness, -height_width / 2),                     # 8
+        (-wall_thickness, -height_width / 2)                      # close
+    ]
+
+    with BuildSketch(work_plane) as v_shape_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(v_shape_points)
+        make_face()
+
+    return v_shape_sketch
+
+
+def create_v_shape_path_color(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+    """
+    Creates a colored path area for the V-shaped cross-section centered at the origin or on the given work plane.
+    Height/width define the dimensions.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the V-shape.
+    - wall_thickness: The thickness of the walls of the V-shape.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the colored path area of the V-shape.
+    """
+    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+
+    v_shape_path_color_points = [
+        (-wall_thickness, -height_width / 2 + wall_thickness),                                      # 1
+        (-wall_thickness - nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter),  # 2
+        ( wall_thickness + nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter),  # 3
+        ( wall_thickness, -height_width / 2 + wall_thickness),                                      # 4
+        (-wall_thickness, -height_width / 2 + wall_thickness)                                       # close
+    ]
+
+    with BuildSketch(work_plane) as v_shape_path_color_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(v_shape_path_color_points)
+        make_face()
+
+    return v_shape_path_color_sketch
+
+
+def create_rectangle_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, rotation_angle: float = -90):
+    """
+    Creates a rectangular cross-section centered at the origin or on the given work plane.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height_width: The total height and width of the rectangle.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created rectangle shape.
+    """
+
+    half_side = height_width / 2
+
+    rectangle_points = [
+        (-half_side, -half_side),
+        ( half_side, -half_side),
+        ( half_side,  half_side),
+        (-half_side,  half_side),
+        (-half_side, -half_side) # close
+    ]
+
+    with BuildSketch(work_plane) as rectangle_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(rectangle_points)
+        make_face()
+
+    return rectangle_sketch

@@ -1,13 +1,13 @@
-# shapes/path_builder.py
+# cad/path_builder.py
 
 from typing import List
 from ocp_vscode import *
 import random
 
 from config import *
-from shapes.path_profile_type_shapes import *
+from cad.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel, PathTransitionType
-from shapes.path_segment import PathSegment
+from cad.path_segment import PathSegment
 
 class PathBuilder:
     """

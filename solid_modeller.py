@@ -1,18 +1,18 @@
 # solid_modeller.py
 
-import cadquery as cq
+from build123d import *
 import os
 from ocp_vscode import *
 
 from config import Config
 from config import CaseShape
 from puzzle.puzzle import Puzzle
-from shapes.path_profile_type_shapes import *
-from shapes.path_builder import PathBuilder
-from shapes.case_sphere import CaseSphere
-from shapes.case_box import CaseBox
-from shapes.case_sphere_with_flange import CaseSphereWithFlange
-from shapes.case_sphere_with_flange_enclosed_two_sides import CaseSphereWithFlangeEnclosedTwoSides
+from cad.path_profile_type_shapes import *
+from cad.path_builder import PathBuilder
+from cad.case_sphere import CaseSphere
+from cad.case_box import CaseBox
+from cad.case_sphere_with_flange import CaseSphereWithFlange
+from cad.case_sphere_with_flange_enclosed_two_sides import CaseSphereWithFlangeEnclosedTwoSides
 
 if 'show_object' not in globals():
     def show_object(*args, **kwargs):
@@ -66,6 +66,7 @@ puzzle = Puzzle(
 # Get the total path nodes
 CAD_nodes = puzzle.total_path
 
+'''
 # Initialize the PathBuilder
 path_builder = PathBuilder(puzzle.path_architect)
 
@@ -81,14 +82,6 @@ path_builder.sweep_profiles_along_paths()
 
 # Make holes in o shape path profile segments (and it's respective support)
 path_builder.cut_holes_in_o_shape_path_profile_segments()
-
-# Optionally, display the swept bodies individually
-'''        
-broken, segment change
-#for idx, body in enumerate(path_bodies):
-    #actual_idx = indices_to_sweep[idx] if indices_to_sweep else idx
-    #show_object(body, name=f"Swept_Body_{actual_idx}")
-'''
     
 final_path_bodies = path_builder.build_final_path_body()
 
@@ -118,6 +111,7 @@ if final_path_bodies['coloring']:
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     mounting_ring = mounting_ring.cut(standard_path)
 
+'''
 ######################
 # Ball and ball path #
 ######################
@@ -125,30 +119,22 @@ if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
 # Extract node positions from CAD_nodes
 node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
 
-# Place the ball at the second node position
-ball = cq.Workplane("XY").sphere(Config.Puzzle.BALL_DIAMETER / 2).translate(node_positions[1])
+# Create and place the ball at the start of the path
+with BuildPart(Pos(node_positions[1])) as ball:
+    Sphere(Config.Puzzle.BALL_DIAMETER / 2)
 
-# Create a circular profile on a rotated work plane at the ball's position
-ball_path_profile = (
-    cq.Workplane("XY")
-    .transformed(offset=cq.Vector(node_positions[1]), rotate=(0, 90, 270))
-    .circle(Config.Puzzle.BALL_DIAMETER / 10)
-)
-
-# Create the 3D path using a polyline starting from the second node
-# Since we have segments now, we can reconstruct the full path from the node positions
-ball_path_points = node_positions[1:]  # Exclude the first node if needed
-
-# Create the path
-path = cq.Workplane("XY").polyline(ball_path_points)
-
-# Sweep the profile along the path
-ball_path = ball_path_profile.sweep(path, transition='right')
+# Create ball path indicator
+with BuildPart()as ball_path:
+    with BuildLine() as ball_path_line:
+        Polyline(node_positions[1:]) # Exclude the first node
+    with BuildSketch(ball_path_line.line^0) as ball_path_sketch:
+        Circle(Config.Puzzle.BALL_DIAMETER / 10)
+    sweep(transition=Transition.RIGHT)
 
 ###########
 # Display #
 ###########
-
+'''
 # Show the final path
 show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PATH_COLOR})
 
@@ -162,7 +148,7 @@ if coloring_path:
 
 if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
     show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.MOUNTING_RING_COLOR})
-
+'''
 show_object(ball, name="Ball", options={"color": Config.Puzzle.BALL_COLOR})
 show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.BALL_COLOR})
 

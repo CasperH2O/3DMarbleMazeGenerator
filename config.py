@@ -4,9 +4,9 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.GENERIC
-    CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange
+    CASE_SHAPE = CaseShape.BOX # Options: Sphere, Box, Sphere with flange
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
@@ -62,7 +62,7 @@ class Path:
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         #PathProfileType.O_SHAPE,
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
-        PathProfileType.V_SHAPE
+        #PathProfileType.V_SHAPE
         ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {
