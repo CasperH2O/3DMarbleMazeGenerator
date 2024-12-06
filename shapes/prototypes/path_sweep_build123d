@@ -74,12 +74,12 @@ with BuildPart() as swept_shape_part_3:
         Polyline(path_pts_3)      
     # Create the U-shape sketch in the YZ plane
     with BuildSketch(path_line_2.line^1) as u_shape_sketch_3:
-        with BuildLine(Rot(Z=-90)) as u_shape_line_3:
+        with BuildLine(Rot(Z=-180)) as u_shape_line_3:
             Polyline(profile_pts)
         make_face()
     sweep(transition=Transition.RIGHT)         
 
 # Display the results
-set_defaults(reset_camera=Camera.KEEP)
-
+#set_defaults(reset_camera=Camera.KEEP)
+set_defaults(reset_camera=Camera.RESET)
 show_all()
