@@ -14,194 +14,253 @@ from cad.case_box import CaseBox
 from cad.case_sphere_with_flange import CaseSphereWithFlange
 from cad.case_sphere_with_flange_enclosed_two_sides import CaseSphereWithFlangeEnclosedTwoSides
 
-if 'show_object' not in globals():
-    def show_object(*args, **kwargs):
-        pass
 
-########
-# Case #
-########
+def main() -> None:
+    """
+    Main function to generate a puzzle and export it to STEP format.
+    """
 
-# Create the appropriate case
-if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE:
-    case = CaseSphere()
-elif Config.Puzzle.CASE_SHAPE == CaseShape.BOX:
-    case = CaseBox()
-elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    case = CaseSphereWithFlange()
-elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES:
-    case = CaseSphereWithFlangeEnclosedTwoSides()    
-else:
-    raise ValueError(f"Unknown CASE_SHAPE '{Config.Puzzle.CASE_SHAPE}' specified in config.py.")
+    # Create the puzzle
+    puzzle = Puzzle(
+        node_size=Config.Puzzle.NODE_SIZE,
+        seed=Config.Puzzle.SEED,
+        case_shape=Config.Puzzle.CASE_SHAPE
+    )
 
-# Get the case objects
-case_objects = case.get_cad_objects()
+    # Create the case and retrieve case objects and cut shape
+    case, case_objects, cut_shape, mounting_ring = puzzle_casing()
 
-# Display case objects, with options if applicable
-for name, value in case_objects.items():
-    if isinstance(value, tuple):
-        obj, options = value
-        if name == 'Mounting Ring' and Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-            mounting_ring = obj
+    # Build paths associated with the puzzle and cut them from the case
+    #standard_path, support_path, coloring_path = path(puzzle, case, cut_shape, mounting_ring)
+    standard_path, support_path, coloring_path = None, None, None
+
+    # Create the ball and ball path
+    ball, ball_path = ball_and_path_indicators(puzzle)
+
+    # Display all relevant objects
+    display_objects(case_objects, standard_path, support_path, coloring_path, mounting_ring, ball, ball_path)
+
+    # Set viewer configuration
+    set_viewer()
+
+    # Retrieve dome parts if they exist
+    dome_top = case_objects.get("Dome Top", None)
+    dome_bottom = case_objects.get("Dome Bottom", None)
+    
+    # path_body was originally commented out, we will assume path_body = standard_path
+    path_body = standard_path
+
+    # Export relevant objects, including those previously commented out
+    export(ball, mounting_ring, dome_top, dome_bottom, path_body)
+
+
+def puzzle_casing():
+    """
+    Create the puzzle case based on the configuration and return:
+    - case: The instantiated case object
+    - case_objects: A dictionary of objects belonging to the case
+    - cut_shape: The shape used to cut paths from the case
+    - mounting_ring: The mounting ring object if applicable, else None
+    """
+    mounting_ring = None
+
+    # Create the appropriate case
+    if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE:
+        case = CaseSphere()
+    elif Config.Puzzle.CASE_SHAPE == CaseShape.BOX:
+        case = CaseBox()
+    elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+        case = CaseSphereWithFlange()
+    elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES:
+        case = CaseSphereWithFlangeEnclosedTwoSides()
+    else:
+        raise ValueError(f"Unknown CASE_SHAPE '{Config.Puzzle.CASE_SHAPE}' specified in config.py.")
+
+    # Get the case objects
+    case_objects = case.get_cad_objects()
+
+    # Display the case objects and identify mounting ring if present
+    for name, value in case_objects.items():
+        if isinstance(value, tuple):
+            obj, options = value
+            if name == 'Mounting Ring' and Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+                # Store for later use
+                mounting_ring = obj
+            else:
+                show_object(obj, name=name, options=options)
         else:
-            show_object(obj, name=name, options=options)
-    else:
-        obj = value
-        show_object(obj, name=name)
+            obj = value
+            show_object(obj, name=name)
 
-########
-# Path #
-########
+    # Obtain the shape that will be used to cut paths
+    cut_shape = case.get_cut_shape()
 
-support_path = None
-coloring_path = None
+    return case, case_objects, cut_shape, mounting_ring
 
-# Create the puzzle
-puzzle = Puzzle(
-    node_size=Config.Puzzle.NODE_SIZE,
-    seed=Config.Puzzle.SEED,
-    case_shape=Config.Puzzle.CASE_SHAPE
-)
 
-# Get the total path nodes
-CAD_nodes = puzzle.total_path
+def path(puzzle, case, cut_shape, mounting_ring):
+    """
+    Generate the path objects, cut them from the case where needed, and return:
+    - standard_path
+    - support_path
+    - coloring_path
+    """
+    support_path = None
+    coloring_path = None
 
-'''
-# Initialize the PathBuilder
-path_builder = PathBuilder(puzzle.path_architect)
+    # Get the total path nodes
+    CAD_nodes = puzzle.total_path
 
-# Create the loft between the first two nodes
-# todo, improve/fix/investigate start area creation
-start_area = path_builder.create_start_area_funnel(CAD_nodes)
+    # Initialize the PathBuilder
+    path_builder = PathBuilder(puzzle.path_architect)
 
-# Prepare profiles and paths
-path_builder.prepare_profiles_and_paths()
+    # Create the loft between the first two nodes (start area)
+    start_area = path_builder.create_start_area_funnel(CAD_nodes)
 
-# Now sweep the selected profiles along the paths
-path_builder.sweep_profiles_along_paths()
+    # Prepare profiles and paths
+    path_builder.prepare_profiles_and_paths()
 
-# Make holes in o shape path profile segments (and it's respective support)
-path_builder.cut_holes_in_o_shape_path_profile_segments()
-    
-final_path_bodies = path_builder.build_final_path_body()
+    # Sweep profiles along paths
+    path_builder.sweep_profiles_along_paths()
 
-# Get the shape to cut for the current case
-cut_shape = case.get_cut_shape()
+    # Make holes in O-shaped path segments
+    path_builder.cut_holes_in_o_shape_path_profile_segments()
 
-# Handle standard path
-if final_path_bodies['standard']:
-    
-    # Combine path and start area
-    # Todo, dirty hack with using first tuple
-    standard_path = final_path_bodies['standard'].union(start_area[0])
-    
-    # Cut the standard path from the case for bridge
-    standard_path = standard_path.cut(cut_shape)
+    # Build final path bodies
+    final_path_bodies = path_builder.build_final_path_body()
 
-# Handle support bodies separately
-if final_path_bodies['support']:
-    support_path = final_path_bodies['support'].cut(cut_shape)
+    standard_path = None
+    if final_path_bodies['standard']:
+        # Combine path and start area
+        standard_path = final_path_bodies['standard'].union(start_area[0])
+        # Cut the standard path from the case
+        standard_path = standard_path.cut(cut_shape)
 
-# Handle coloring bodies separately
-if final_path_bodies['coloring']:
+    if final_path_bodies['support']:
+        support_path = final_path_bodies['support'].cut(cut_shape)
 
-    # Todo, dirty hack with using second tuple entry
-    coloring_path = final_path_bodies['coloring'].union(start_area[1]).cut(cut_shape)
+    if final_path_bodies['coloring']:
+        # Combine coloring path and second part of start area
+        coloring_path = final_path_bodies['coloring'].union(start_area[1]).cut(cut_shape)
 
-if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    mounting_ring = mounting_ring.cut(standard_path)
+    # If a mounting ring is present (sphere with flange), cut it from the standard_path
+    if mounting_ring and standard_path:
+        mounting_ring = mounting_ring.cut(standard_path)
 
-'''
-######################
-# Ball and ball path #
-######################
+    return standard_path, support_path, coloring_path
 
-# Extract node positions from CAD_nodes
-node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
 
-# Create and place the ball at the start of the path
-with BuildPart(Pos(node_positions[1])) as ball:
-    Sphere(Config.Puzzle.BALL_DIAMETER / 2)
+def ball_and_path_indicators(puzzle):
+    """
+    Create and return the ball and the ball path objects based on the puzzle's nodes.
+    """
+    CAD_nodes = puzzle.total_path
+    node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
 
-# Create ball path indicator
-with BuildPart()as ball_path:
-    with BuildLine() as ball_path_line:
-        Polyline(node_positions[1:]) # Exclude the first node
-    with BuildSketch(ball_path_line.line^0) as ball_path_sketch:
-        Circle(Config.Puzzle.BALL_DIAMETER / 10)
-    sweep(transition=Transition.RIGHT)
+    # Create the ball at the start node (node_positions[1])
+    with BuildPart(Pos(node_positions[2])) as ball:
+        Sphere(Config.Puzzle.BALL_DIAMETER / 2)
 
-###########
-# Display #
-###########
-'''
-# Show the final path
-show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PATH_COLOR})
+    # Create a ball path indicator line
+    with BuildPart() as ball_path:
+        with BuildLine() as ball_path_line:
+            Polyline(node_positions[1:])  # Exclude the first node
+        with BuildSketch(ball_path_line.line^0) as ball_path_sketch:
+            Circle(Config.Puzzle.BALL_DIAMETER / 10)
+        sweep(transition=Transition.RIGHT)
 
-# Show the support path, if it exists
-if support_path:
-    show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
+    return ball, ball_path
 
-# Show the coloring path, if it exists
-if coloring_path:
-    show_object(coloring_path, name="Coloring Path", options={"color": Config.Puzzle.PATH_ACCENT_COLOR})
 
-if Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
-    show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.MOUNTING_RING_COLOR})
-'''
-show_object(ball, name="Ball", options={"color": Config.Puzzle.BALL_COLOR})
-show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.BALL_COLOR})
+def display_objects(case_objects, standard_path, support_path, coloring_path, mounting_ring, ball, ball_path):
+    """
+    Display all puzzle physical objects.
+    """
+    # Show the final standard path
+    if standard_path:
+        show_object(standard_path, name="Standard Path", options={"color": Config.Puzzle.PATH_COLOR})
 
-# Fetch current states from the viewer
-current_states = status()["states"]
+    # Show the support path, if it exists
+    if support_path:
+        show_object(support_path, name="Support Path", options={"alpha": 0.1, "color": (1, 1, 1)})
 
-# Initialize a dictionary to hold the new configuration
-new_config = {}
+    # Show the coloring path, if it exists
+    if coloring_path:
+        show_object(coloring_path, name="Coloring Path", options={"color": Config.Puzzle.PATH_ACCENT_COLOR})
 
-# Iterate through each group in the current states
-for group, config in current_states.items():
-    # If the group is "Standard Path", retain its current configuration
-    if group == "/Group/Standard Path":
-        new_config[group] = config
-    else:
-        # Set other groups to [1, 0]
-        new_config[group] = [1, 0]
+    # Show the mounting ring if applicable
+    if mounting_ring:
+        show_object(mounting_ring, name="Mounting Ring", options={"color": Config.Puzzle.MOUNTING_RING_COLOR})
 
-# Apply the new configuration
-set_viewer_config(states=new_config)
+    # Show ball and ball path
+    show_object(ball, name="Ball", options={"color": Config.Puzzle.BALL_COLOR})
+    show_object(ball_path, name="Ball Path", options={"color": Config.Puzzle.BALL_COLOR})
 
-status()["states"]
 
-###############
-# Export Step #
-###############
+def set_viewer():
+    # Fetch current states from the viewer
+    current_states = status()["states"]
 
-# Chosen step over stl format for improved scaling units and curved line accuracy
+    # Initialize a dictionary to hold the new configuration
+    new_config = {}
 
-# Construct folder name and path
-folder_name = f"Case-{Config.Puzzle.CASE_SHAPE}-Seed-{Config.Puzzle.SEED}"
-path = os.path.join("..", "CAD", "STEP", folder_name)
+    # Iterate through each group in the current states
+    for group, config in current_states.items():
+        # If the group is "Standard Path", retain its current configuration
+        if group == "/Group/Standard Path":
+            new_config[group] = config
+        else:
+            # Set other groups to [1, 0]
+            new_config[group] = [1, 0]
 
-# Check if path exists, if not create the folder
-if not os.path.exists(path):
-    os.makedirs(path)
+    # Apply the new configuration
+    set_viewer_config(states=new_config)
 
-# Define objects we want to export
-objects_to_export = {
-    #"Mounting Ring": mounting_ring,
-    #"Dome Top": dome_top,
-    #"Dome Bottom": dome_bottom,
-    #"Path": path_body,
-    "Ball": ball,
-}
+    # Restore the commented-out lines for reference:
+    #set_defaults(reset_camera=Camera.KEEP)
+    #set_defaults(reset_camera=Camera.RESET)
 
-# Todo, step path is incorrect, use stl
+    status()["states"]
 
-# Export each object
-'''
-for name, obj in objects_to_export.items():
-    file_path = os.path.join(path, f"{name}.stl")
-    obj.val().exportStl(file_path)
-    file_path = os.path.join(path, f"{name}.stl")
-    obj.val().exportStep(file_path)
-'''
+
+def export(ball, mounting_ring, dome_top, dome_bottom, path_body):
+    """
+    Export puzzle components for manufacturing.
+    """
+
+    # Construct folder name and path
+    folder_name = f"Case-{Config.Puzzle.CASE_SHAPE}-Seed-{Config.Puzzle.SEED}"
+    export_path = os.path.join("..", "CAD", "STEP", folder_name)
+
+    # Check if path exists, if not create the folder
+    if not os.path.exists(export_path):
+        os.makedirs(export_path)
+
+    # Define objects we want to export
+    objects_to_export = {
+        "Ball": ball
+    }
+
+    # Conditionally add objects if they exist
+    if mounting_ring is not None:
+        objects_to_export["Mounting Ring"] = mounting_ring
+
+    if dome_top is not None:
+        objects_to_export["Dome Top"] = dome_top
+
+    if dome_bottom is not None:
+        objects_to_export["Dome Bottom"] = dome_bottom
+
+    if path_body is not None:
+        objects_to_export["Path"] = path_body
+
+    # Export each object to STL and STEP
+    for name, obj in objects_to_export.items():
+        stl_file_path = os.path.join(export_path, f"{name}.stl")
+        step_file_path = os.path.join(export_path, f"{name}.step")
+        #obj.val().exportStl(stl_file_path)
+        #obj.val().exportStep(step_file_path)
+
+
+if __name__ == "__main__":
+    main()
