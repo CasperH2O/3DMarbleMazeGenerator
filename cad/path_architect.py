@@ -1,4 +1,4 @@
-# shapes/path_architect.py
+# cad/path_architect.py
 
 import random
 from typing import List

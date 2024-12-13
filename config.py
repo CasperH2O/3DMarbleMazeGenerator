@@ -6,7 +6,7 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.GENERIC
-    CASE_SHAPE = CaseShape.SPHERE # Options: Sphere, Box, Sphere with flange
+    CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
@@ -14,7 +14,7 @@ class Puzzle:
     NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
-    BALL_COLOR = (192, 192, 192)
+    BALL_COLOR = (192, 192, 192)    # Metal grey
     PATH_COLOR = None
     PATH_ACCENT_COLOR = (255, 255, 0)
     TEXT_COLOR = None

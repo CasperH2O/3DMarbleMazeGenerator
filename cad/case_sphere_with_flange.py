@@ -1,70 +1,11 @@
-# shapes/case_sphere_with_flange.py
+# cad/case_sphere_with_flange.py
 
 from .case_base import CaseBase
-import cadquery as cq
+from build123d import *
 import math
+from ocp_vscode import *
+
 from config import Config
-
-
-# Include the faceOnWire method
-def _face_on_wire(self, path: cq.Wire) -> cq.Face:
-    """Reposition a face from alignment to the x-axis to the provided path"""
-    path_length = path.Length()
-
-    bbox = self.BoundingBox()
-    face_bottom_center = cq.Vector((bbox.xmin + bbox.xmax) / 2, 0, 0)
-    relative_position_on_wire = face_bottom_center.x / path_length
-    wire_tangent = path.tangentAt(relative_position_on_wire)
-    wire_angle = math.degrees(math.atan2(wire_tangent.y, wire_tangent.x))
-    wire_position = path.positionAt(relative_position_on_wire)
-
-    return self.rotate(
-        face_bottom_center, face_bottom_center + cq.Vector(0, 0, 1), wire_angle
-    ).translate(wire_position - face_bottom_center)
-
-
-# Attach the method to cq.Face
-cq.Face.faceOnWire = _face_on_wire
-
-
-def text_on_wire(txt: str, fontsize: float, path: cq.Wire, extrude_depth: float) -> cq.Solid:
-    """Create 3D text with a baseline following the given path"""
-    # Create the text as faces
-    text_wp = cq.Workplane("XY").text(
-        txt=txt,
-        fontsize=fontsize,
-        distance=0,  # Create text as faces (2D)
-        halign="center",
-        valign="center",
-        kind="bold",
-        #font='Pacifico-Regular',
-        #fontPath="resources\\Pacifico-Regular.ttf",
-    )
-    linear_faces = text_wp.faces().vals()
-
-    # Fuse the faces together and clean the result
-    text_flat = linear_faces[0]
-    if len(linear_faces) > 1:
-        for face in linear_faces[1:]:
-            text_flat = text_flat.fuse(face)
-        text_flat = text_flat.clean()
-    else:
-        text_flat = text_flat.clean()
-
-    # After fusing, text_flat is a Compound. Extract the faces
-    fused_faces = text_flat.Faces()
-
-    # Reposition each face along the path
-    faces_on_path = [face.faceOnWire(path) for face in fused_faces]
-
-    # Extrude each face by the specified depth using extrudeLinear
-    extruded_solids = [
-        cq.Solid.extrudeLinear(face, cq.Vector(0, 0, extrude_depth)) for face in faces_on_path
-    ]
-
-    # Combine all extruded solids into one compound
-    return cq.Compound.makeCompound(extruded_solids)
-
 
 class CaseSphereWithFlange(CaseBase):
     def __init__(self):
@@ -88,39 +29,30 @@ class CaseSphereWithFlange(CaseBase):
         # Create the components
         self.mounting_ring, self.path_bridges, self.start_text = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
-        self.add_mounting_holes()
+        #self.add_mounting_holes()
 
     def create_mounting_ring(self):
-        # Create the mounting ring
-        mounting_ring = (
-            cq.Workplane("XY")
-            .circle(self.sphere_flange_radius)  # Outer circle
-            .circle(self.sphere_inner_radius)  # Inner circle (hole)
-            .extrude(self.mounting_ring_thickness)  # Extrude thickness
-        )
-        # Move to center in Z
-        mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
+        
+        # Build the mounting ring
+        with BuildPart() as mounting_ring:
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness) # Outer circle
+            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT) # Inner circle
 
-        # Define the circular path for the text
-        text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
-        path = cq.Workplane("XY").circle(text_radius).edges().val()
-
-        # Rotate the path by 180 degrees around the Z-axis if needed
-        path = path.rotate((0, 0, 0), (0, 0, 1), 180)
-
-        # Create the text along the path
-        text_on_path = text_on_wire(
-            txt="START",
-            fontsize=8,  # Adjust fontsize as needed
-            path=path,
-            extrude_depth=-1  # Negative value to extrude into the ring
-        )
+        # Build the start text
+        with BuildPart() as start_text:
+            with BuildSketch():
+                text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
+                text_path = Circle(text_radius, mode=Mode.PRIVATE).edge().rotate(Axis((0, 0, 0), (0, 0, 1)), 180)
+                Text(txt="START", font_size=8, path=text_path)
+            extrude(amount=-1)
 
         # Position the text at the top surface of the ring
-        text_on_path = text_on_path.translate((0, 0, 0.5 * self.mounting_ring_thickness))
+        start_text.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
 
         # Subtract the text from the mounting ring
-        mounting_ring = mounting_ring.cut(text_on_path)
+        mounting_ring.part = mounting_ring.part - start_text.part
+
+        show_all()  
 
         # Add rectangular mounting bridges for the mounting ring, skipping the first one and rotating 180 degrees
         mounting_ring_bridges = (
@@ -145,7 +77,7 @@ class CaseSphereWithFlange(CaseBase):
         path_bridges = path_bridges.cut(mounting_ring)
         mounting_ring = mounting_ring.union(mounting_ring_bridges.cut(path_bridges))
 
-        return mounting_ring, path_bridges, text_on_path
+        return mounting_ring, path_bridges, start_text
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
@@ -166,29 +98,26 @@ class CaseSphereWithFlange(CaseBase):
         x_mid_outer = self.sphere_outer_radius * math.cos(theta_mid_outer)
         y_mid_outer = self.sphere_outer_radius * math.sin(theta_mid_outer)
 
-        # Create the profile on the XZ plane
-        dome_profile = (
-            cq.Workplane("XZ")
-            # Start at the outer circle top
-            .moveTo(0, self.sphere_outer_radius)  # Point A
-            .lineTo(0, self.sphere_inner_radius)  # Line down to Point B
-            .threePointArc((x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))  # Inner arc to Point C
-            .lineTo(self.sphere_flange_radius, 0)  # Line to Point D
-            .lineTo(self.sphere_flange_radius, self.sphere_thickness)  # Line up to Point E
-            .lineTo(x_start_outer, y_start_outer)  # Line to adjusted starting point for outer arc (Point F)
-            .threePointArc((x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))  # Outer arc back to Point A
-            .close()
-        )
-
-        # Revolve the dome profile
-        dome_top = dome_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
-
+        # Create dome top part
+        with BuildPart() as dome_top:
+            with BuildSketch(Plane.XZ):
+                with BuildLine(Plane.XZ):
+                    l1 = Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
+                    l2 = ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
+                    l3 = Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
+                    l4 = Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
+                    l5 = Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
+                    l6 = ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
+                make_face()
+            revolve()
+        
         # Move to make place for mounting ring
-        # Add small distance to prevent overlap artifacts during rendering
-        dome_top = dome_top.translate((0, 0, 0.5 * self.mounting_ring_thickness + 0.01))
+        # Add small distance to prevent overlap artifacts during rendering with transparency
+        dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness + 0.000)
 
         # Mirror the dome for the other side
-        dome_bottom = dome_top.mirror(mirrorPlane="XY")
+        dome_bottom = dome_top
+        dome_bottom = dome_bottom.part.mirror(Plane.XY)
 
         return dome_top, dome_bottom
 
@@ -205,7 +134,7 @@ class CaseSphereWithFlange(CaseBase):
             .workplane()
             .polarArray(hole_pattern_radius, 45, 360, self.mounting_hole_amount, fill=True)
             .circle(self.mounting_hole_diameter / 2)
-            .extrude(3 * self.sphere_thickness, both=True)  # Extrude length sufficient to cut through the bodies
+            .extrude(self.sphere_thickness + self.mounting_ring_thickness / 2, both=True)  # Extrude length sufficient to cut through the bodies
         )
 
         # Cut the holes in applicable bodies

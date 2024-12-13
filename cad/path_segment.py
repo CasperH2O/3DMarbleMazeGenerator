@@ -1,4 +1,5 @@
-# shapes/path_segment
+# cad/path_segment
+
 import cadquery as cq
 import build123d as b3d
 from typing import List, Optional

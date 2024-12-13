@@ -1,4 +1,4 @@
-# shapes/case_sphere_with_flange_enclosed_two_sides.py
+# cad/case_sphere_with_flange_enclosed_two_sides.py
 
 from .case_base import CaseBase
 import cadquery as cq

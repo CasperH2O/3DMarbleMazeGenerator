@@ -1,4 +1,4 @@
-# shapes/case_box.py
+# cad/case_box.py
 
 from .case_base import CaseBase
 from build123d import *

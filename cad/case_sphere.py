@@ -1,12 +1,9 @@
-# shapes/case_sphere.py
+# cad/case_sphere.py
 
-
+from build123d import *
 
 from .case_base import CaseBase
 from config import Config
-
-from build123d import *
-from ocp_vscode import *
 
 class CaseSphere(CaseBase):
     def __init__(self):
