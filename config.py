@@ -6,7 +6,7 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.GENERIC
-    CASE_SHAPE = CaseShape.BOX # Options: Sphere, Box, Sphere with flange
+    CASE_SHAPE = CaseShape.SPHERE # Options: Sphere, Box, Sphere with flange
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
@@ -37,9 +37,9 @@ class Sphere:
 
 # Box case configuration
 class Box:
+    LENGTH = 100        # Length of the box in mm
     WIDTH = 100         # Width of the box in mm
-    HEIGHT = 100        # Height of the box in mm
-    LENGTH = 150        # Length of the box in mm
+    HEIGHT = 150        # Height of the box in mm
     PANEL_THICKNESS = 3 # Thickness of the box panels in mm
 
 # Path curves and profile configuration

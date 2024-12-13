@@ -145,8 +145,8 @@ class BoxCasing(Casing):
             bool: True if the point is inside the box, False otherwise.
         """
         return (-self.half_width <= x <= self.half_width and
-                -self.half_height <= y <= self.half_height and
-                -self.half_length <= z <= self.half_length)
+                -self.half_length <= y <= self.half_length and
+                -self.half_height <= z <= self.half_height)
 
     def get_start_node(self, node_dict: Dict[Tuple[float, float, float], Node]) -> Optional[Node]:
         """

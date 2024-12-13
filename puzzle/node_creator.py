@@ -204,15 +204,15 @@ class BoxGridNodeCreator(NodeCreator):
 
         # Define grid boundaries adjusted for node_size and casing
         half_width: float = casing.width / 2 - 2 * casing.panel_thickness
-        half_height: float = casing.height / 2 - 2 * casing.panel_thickness
         half_length: float = casing.length / 2 - 2 * casing.panel_thickness
+        half_height: float = casing.height / 2 - 2 * casing.panel_thickness
 
         start_x: float = -half_width + node_size / 2
         end_x: float = half_width - node_size / 2
-        start_y: float = -half_height + node_size / 2
-        end_y: float = half_height - node_size / 2
-        start_z: float = -half_length + node_size / 2
-        end_z: float = half_length - node_size / 2
+        start_y: float = -half_length + node_size / 2
+        end_y: float = half_length - node_size / 2
+        start_z: float = -half_height + node_size / 2
+        end_z: float = half_height - node_size / 2
 
         x_values: List[float] = frange(start_x, end_x, node_size)
         y_values: List[float] = frange(start_y, end_y, node_size)
@@ -233,9 +233,7 @@ class BoxGridNodeCreator(NodeCreator):
         # Find the minimum x among existing nodes
         min_x: float = min(node.x for node in nodes)
         min_y: float = min(node.y for node in nodes if node.x == min_x)
-        min_z: float = min(
-            node.z for node in nodes if node.x == min_x and node.y == min_y
-        )
+        min_z: float = min(node.z for node in nodes if node.x == min_x and node.y == min_y)
 
         # Extend along the negative x-direction
         x1: float = min_x - node_size

@@ -148,8 +148,8 @@ def plot_sphere_casing_plotly(casing):
 
 def plot_box_casing_plotly(casing):
     hw = casing.half_width
-    hh = casing.half_height
-    hl = casing.half_length
+    hh = casing.half_length
+    hl = casing.half_height
 
     # Define the 8 corners of the box
     corners = np.array([

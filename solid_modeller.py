@@ -93,7 +93,7 @@ def puzzle_casing():
             show_object(obj, name=name)
 
     # Obtain the shape that will be used to cut paths
-    cut_shape = case.get_cut_shape()
+    cut_shape = case.cut_shape
 
     return case, case_objects, cut_shape, mounting_ring
 

@@ -38,7 +38,7 @@ class PathSegment:
         # Special handling for single-node end segments
         if len(self.nodes) == 1 and self.nodes[0].puzzle_end and previous_end_point is not None:
             # Create a new start node at the previous_end_point location
-            start_node = Node(previous_end_point.x, previous_end_point.y, previous_end_point.z)
+            start_node = Node(previous_end_point.X, previous_end_point.Y, previous_end_point.Z)
             start_node.segment_start = True
 
             # **Move the puzzle end node by half the node size in the path direction**
@@ -55,9 +55,9 @@ class PathSegment:
             adjusted_end = end_node_point + move_vector
 
             # Update the puzzle end node's coordinates
-            self.nodes[0].x = adjusted_end.x
-            self.nodes[0].y = adjusted_end.y
-            self.nodes[0].z = adjusted_end.z
+            self.nodes[0].x = adjusted_end.X
+            self.nodes[0].y = adjusted_end.Y
+            self.nodes[0].z = adjusted_end.Z
             self.nodes[0].segment_end = True
 
             # Insert the start node

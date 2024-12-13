@@ -7,19 +7,20 @@ from config import Config
 
 class CaseBox(CaseBase):
     def __init__(self):
+        self.length = Config.Box.LENGTH
         self.width = Config.Box.WIDTH
         self.height = Config.Box.HEIGHT
-        self.length = Config.Box.LENGTH
         self.panel_thickness = Config.Box.PANEL_THICKNESS
 
         # Create the box casing
         self.casing = self.create_casing()
+        self.cut_shape = self.create_cut_shape()
 
     def create_casing(self):
         # Create the outer box
         with BuildPart() as casing:
             # Create the outer box
-            Box(self.width, self.height, self.length)
+            Box(self.width, self.length, self.height)
             # Hollow out the box
             offset(amount=-Config.Box.PANEL_THICKNESS, mode=Mode.SUBTRACT)
     
@@ -30,7 +31,7 @@ class CaseBox(CaseBase):
             "Casing": (self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
         }
 
-    def get_cut_shape(self):
+    def create_cut_shape(self):
         # Create a box to ensure it cuts the path body properly
 
         # Add small distance for tolerances
@@ -43,10 +44,11 @@ class CaseBox(CaseBase):
 
         with BuildPart() as cut_shape:
             # Extend the outer box sizes to ensure it cuts the path body properly
-            OuterBox = Box(self.width * 2, self.height * 2, self.length * 2)
-            # Create the inner box
-            InnerBox = Box(inner_width, inner_height, inner_length)
-            # Hollow out the outer box inner box
-            OuterBox - InnerBox
+            Box(self.width * 2, self.length * 2, self.height * 2)
+            with BuildSketch() as cut_sketch:
+                # Size to cut the box
+                Rectangle(inner_width, inner_length)
+            # Hollow out the box
+            extrude(amount=inner_height / 2, both=True, mode=Mode.SUBTRACT)    
 
         return cut_shape
