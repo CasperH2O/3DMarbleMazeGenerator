@@ -1,5 +1,6 @@
 # cad/path_builder.py
 
+from build123d import *
 from typing import List
 from ocp_vscode import *
 import random
@@ -14,11 +15,12 @@ class PathBuilder:
     Handles the creation of segment shapes using profiles, sweeping along paths, and building the final path body.
     """
 
-    def __init__(self, path_architect):
+    def __init__(self, puzzle):
         """
         Initializes the PathBuilder with a reference to the PathArchitect.
         """
-        self.path_architect = path_architect
+        self.path_architect = puzzle.path_architect
+        self.total_path = puzzle.total_path
         self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
 
         self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
@@ -37,6 +39,19 @@ class PathBuilder:
 
         self.seed = Config.Puzzle.SEED
         random.seed(self.seed)  # Set the random seed for reproducibility
+
+        # Create the start area based on the first segment
+        self.start_area = self.create_start_area_funnel(self.path_architect.segments[0])
+
+        # Prepare profiles and paths
+        self.prepare_profiles_and_paths()
+
+        # Sweep profiles along paths
+        self.sweep_profiles_along_paths()
+
+        # Make holes in O-shaped path segments
+        self.cut_holes_in_o_shape_path_profile_segments()
+
 
     def prepare_profiles_and_paths(self):
         """
@@ -337,83 +352,61 @@ class PathBuilder:
         plane = cq.Plane(origin=origin, xDir=x_dir, normal=normal)
         return plane
 
-    def create_start_area_funnel(self, total_path):
+    def create_start_area_funnel(self, segment):
         """
-        Creates two lofted shapes between the first two nodes in total_path.
-        One using wide and regular U-shaped profiles, and another using U-shaped path coloring.
+        Creates two lofted funnel shapes for the first segment of the puzzle
+        One using U-shaped profiles, and another using U-shaped path coloring.
         """
 
-        if len(total_path) < 2:
-            raise ValueError("Total path must contain at least two nodes.")
+        if len(segment.nodes) < 2:
+            raise ValueError("Start erea funnel, segment must contain at least two nodes.")
 
-        # Extract first and second nodes
-        first_node = total_path[0]
-        second_node = total_path[1]
+        # Extract first and second node x, y, z coordinates
+        first_coords = (segment.nodes[0].x, segment.nodes[0].y, segment.nodes[0].z)
+        second_coords = (segment.nodes[-1].x, segment.nodes[-1].y, segment.nodes[-1].z)
 
-        # Get positions
-        first_node_pos = cq.Vector(first_node.x, first_node.y, first_node.z)
-        second_node_pos = cq.Vector(second_node.x, second_node.y, second_node.z)
+        # Create the standard path start area funnel
+        with BuildPart() as start_area_standard:
 
-        # Compute the direction vector from first to second node
-        direction_vector = second_node_pos - first_node_pos
-        distance = direction_vector.Length
-        if distance == 0:
-            raise ValueError("First and second node positions are the same.")
+            u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE.value]
 
-        direction = direction_vector.normalized()
+            with BuildLine() as start_area_line:
+                Line(first_coords, second_coords)
+            # Create the two U-shaped profiles
+            with BuildSketch(start_area_line.line^0):
+                pts = create_u_shape(factor=3, **u_shape_params)
+                with BuildLine(Rot(Z=-90)):
+                    Polyline(pts)
+                make_face()
+            with BuildSketch(start_area_line.line^1):
+                pts = create_u_shape(**u_shape_params)
+                with BuildLine(Rot(Z=-90)):
+                    Polyline(pts)
+                make_face()                 
+            loft() 
+    
+        # Create the coloring path start area funnel
+        with BuildPart() as start_area_coloring:
 
-        # Compute the exiting direction vector for the second node
-        if len(total_path) > 2:
-            # Next node exists, use it to compute the exiting direction
-            third_node = total_path[2]
-            third_node_pos = cq.Vector(third_node.x, third_node.y, third_node.z)
-            exiting_direction = (third_node_pos - second_node_pos).normalized()
-        else:
-            # Use the same direction as from first to second node
-            exiting_direction = direction
+            u_shape_color_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE_PATH_COLOR.value]
 
-        # Adjust the second node position forward along the exiting direction by half the node size
-        adjusted_second_node_pos = second_node_pos + exiting_direction * (self.node_size / 2)
-
-        # Compute the adjusted direction vector and adjusted distance
-        adjusted_direction_vector = adjusted_second_node_pos - first_node_pos
-        adjusted_distance = adjusted_direction_vector.Length
-        if adjusted_distance == 0:
-            raise ValueError("Adjusted second node position is the same as first node position.")
-
-        adjusted_direction = adjusted_direction_vector.normalized()
-
-        # Create a plane at the first node position with the normal pointing along the adjusted direction
-        plane = self.create_plane_at_point(first_node_pos, adjusted_direction)
-
-        # Start the work plane at the first node position
-        wp = cq.Workplane(plane)
-
-        # Get the parameters for 'u_shape' from Config
-        u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE.value]
-
-        # Create the first U-shaped profile with factor 3 applied to width
-        profile = create_u_shape(work_plane=wp, factor=3, **u_shape_params)
-
-        # Move the work plane along the adjusted direction by the adjusted distance
-        profile = profile.workplane(offset=adjusted_distance)
-
-        # Create the second U-shaped profile with factor 1 (no scaling)
-        profile = create_u_shape(work_plane=profile, factor=1, **u_shape_params)
-
-        # Loft between the two profiles for the first body
-        lofted_shape_1 = profile.loft(combine=True)
-
-        # Create the U-shaped path color profiles
-        color_profile = create_u_shape_path_color(work_plane=wp, factor=3, **u_shape_params)
-        color_profile = color_profile.workplane(offset=adjusted_distance)
-        color_profile = create_u_shape_path_color(work_plane=color_profile, factor=1, **u_shape_params)
-
-        # Loft between the two path color profiles for the second body
-        lofted_shape_2 = color_profile.loft(combine=True)
+            with BuildLine() as start_area_line:
+                Line(first_coords, second_coords)
+            # Create the two U-shaped profiles
+            with BuildSketch(start_area_line.line^0):
+                pts = create_u_shape_path_color(factor=3, **u_shape_color_params)
+                with BuildLine(Rot(Z=-90)):
+                    Polyline(pts)
+                make_face()
+            with BuildSketch(start_area_line.line^1):
+                pts = create_u_shape_path_color(**u_shape_color_params)
+                with BuildLine(Rot(Z=-90)):
+                    Polyline(pts)
+                make_face()                 
+            loft() 
 
         # Return both lofted shapes
-        return lofted_shape_1, lofted_shape_2
+        return start_area_standard, start_area_coloring
     
 
     def cut_holes_in_o_shape_path_profile_segments(self):

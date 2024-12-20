@@ -31,8 +31,8 @@ def main() -> None:
     case, case_objects, cut_shape, mounting_ring = puzzle_casing()
 
     # Build paths associated with the puzzle and cut them from the case
-    #standard_path, support_path, coloring_path = path(puzzle, case, cut_shape, mounting_ring)
-    standard_path, support_path, coloring_path = None, None, None
+    standard_path, support_path, coloring_path = path(puzzle, cut_shape, mounting_ring)
+    #standard_path, support_path, coloring_path = None, None, None
 
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
@@ -98,54 +98,55 @@ def puzzle_casing():
     return case, case_objects, cut_shape, mounting_ring
 
 
-def path(puzzle, case, cut_shape, mounting_ring):
+def path(puzzle, cut_shape, mounting_ring):
     """
     Generate the path objects, cut them from the case where needed, and return:
     - standard_path
     - support_path
     - coloring_path
     """
+
+    # Initialize the PathBuilder
+    PathBuilder(puzzle)
+
+    # Build path bodies
+    path_bodies = PathBuilder.final_path_bodies
+    start_area = PathBuilder.start_area
+
+    standard_path = None
     support_path = None
     coloring_path = None
 
-    # Get the total path nodes
-    CAD_nodes = puzzle.total_path
-
-    # Initialize the PathBuilder
-    path_builder = PathBuilder(puzzle.path_architect)
-
-    # Create the loft between the first two nodes (start area)
-    start_area = path_builder.create_start_area_funnel(CAD_nodes)
-
-    # Prepare profiles and paths
-    path_builder.prepare_profiles_and_paths()
-
-    # Sweep profiles along paths
-    path_builder.sweep_profiles_along_paths()
-
-    # Make holes in O-shaped path segments
-    path_builder.cut_holes_in_o_shape_path_profile_segments()
-
-    # Build final path bodies
-    final_path_bodies = path_builder.build_final_path_body()
-
-    standard_path = None
-    if final_path_bodies['standard']:
+    if path_bodies['standard']:
+        # Get all standard path bodies
+        standard_path = path_bodies['standard']
+        
         # Combine path and start area
-        standard_path = final_path_bodies['standard'].union(start_area[0])
-        # Cut the standard path from the case
-        standard_path = standard_path.cut(cut_shape)
+        standard_path.part = standard_path.part + start_area[0].part
+        
+        # Cut the any shapes outside the case
+        standard_path.part = standard_path.part - cut_shape.part
 
-    if final_path_bodies['support']:
-        support_path = final_path_bodies['support'].cut(cut_shape)
+    if path_bodies['support']:
+        # Get all support path bodies
+        support_path = path_bodies['support']
+        
+        # Cut the any shapes outside the case
+        support_path.part = support_path.part - cut_shape.part
 
-    if final_path_bodies['coloring']:
+    if path_bodies['coloring']:
+        # Get all coloring path bodies
+        coloring_path = path_bodies['coloring']
+        
         # Combine coloring path and second part of start area
-        coloring_path = final_path_bodies['coloring'].union(start_area[1]).cut(cut_shape)
+        coloring_path.part = coloring_path.part + start_area[1].part
+        
+        # Cut the any shapes outside the case
+        coloring_path.part = coloring_path.part - cut_shape.part
 
     # If a mounting ring is present (sphere with flange), cut it from the standard_path
     if mounting_ring and standard_path:
-        mounting_ring = mounting_ring.cut(standard_path)
+        mounting_ring.part = mounting_ring.part - standard_path.part
 
     return standard_path, support_path, coloring_path
 

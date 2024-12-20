@@ -102,7 +102,7 @@ def create_o_shape(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999,
 
     with BuildSketch(work_plane) as o_shape_sketch:
         Circle(radius=outer_radius)
-        Circle(radius=inner_radius)
+        Circle(radius=inner_radius, mode=Mode.SUBTRACT)
         make_face()
 
     return o_shape_sketch
@@ -129,14 +129,14 @@ def create_o_shape_support(work_plane: Plane = Plane.XY, outer_diameter: float =
     inner_diameter = outer_diameter - 2 * wall_thickness - distance
 
     with BuildSketch(work_plane) as support_sketch:
-        RegularPolygon(radius=(inner_diameter - distance) / 2, side_count=4)    
         Circle(360, radius=inner_diameter / 2)
+        RegularPolygon(radius=(inner_diameter - distance) / 2, side_count=4, mode=Mode.SUBTRACT)    
         make_face()
 
     return support_sketch
 
 
-def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+def create_u_shape(height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0):
     """
     Creates a U-shaped cross-section centered at the origin or on the given work plane.
     The width of the shape can be scaled using the factor parameter.
@@ -173,15 +173,10 @@ def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: 
         (-half_width,  half_height)                 # close
     ]
 
-    with BuildSketch(work_plane) as u_shape_sketch:
-        with BuildLine(Rot(Z=rotation_angle)):
-            Polyline(u_shape_points)
-        make_face()
-
-    return u_shape_sketch
+    return u_shape_points
 
 
-def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+def create_u_shape_path_color(height: float = 9.9999, width: float = 9.9999, wall_thickness: float = 2.0, factor: float = 1.0):
     """
     Creates a single layer path for within a U-shaped cross-section to apply a color on top.
 
@@ -214,12 +209,7 @@ def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.99
         (-inner_half_width, -inner_half_height + nozzle_diameter)   # close
     ]
 
-    with BuildSketch(work_plane) as u_shape_path_color_sketch:
-        with BuildLine(Rot(Z=rotation_angle)):
-            Polyline(u_shape_path_color_points)
-        make_face()
-
-    return u_shape_path_color_sketch
+    return u_shape_path_color_points
 
 
 def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0, rotation_angle: float = -90):
