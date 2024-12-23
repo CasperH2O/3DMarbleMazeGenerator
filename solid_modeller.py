@@ -107,11 +107,11 @@ def path(puzzle, cut_shape, mounting_ring):
     """
 
     # Initialize the PathBuilder
-    PathBuilder(puzzle)
+    path_builder = PathBuilder(puzzle)
 
-    # Build path bodies
-    path_bodies = PathBuilder.final_path_bodies
-    start_area = PathBuilder.start_area
+    # Path bodies
+    path_bodies = path_builder.final_path_bodies
+    start_area = path_builder.start_area
 
     standard_path = None
     support_path = None
@@ -122,31 +122,31 @@ def path(puzzle, cut_shape, mounting_ring):
         standard_path = path_bodies['standard']
         
         # Combine path and start area
-        standard_path.part = standard_path.part + start_area[0].part
+        standard_path = standard_path + start_area[0].part
         
         # Cut the any shapes outside the case
-        standard_path.part = standard_path.part - cut_shape.part
+        standard_path = standard_path - cut_shape.part
 
     if path_bodies['support']:
         # Get all support path bodies
         support_path = path_bodies['support']
         
         # Cut the any shapes outside the case
-        support_path.part = support_path.part - cut_shape.part
+        support_path = support_path - cut_shape.part
 
     if path_bodies['coloring']:
         # Get all coloring path bodies
         coloring_path = path_bodies['coloring']
         
         # Combine coloring path and second part of start area
-        coloring_path.part = coloring_path.part + start_area[1].part
+        coloring_path = coloring_path + start_area[1].part
         
         # Cut the any shapes outside the case
-        coloring_path.part = coloring_path.part - cut_shape.part
+        coloring_path = coloring_path - cut_shape.part
 
     # If a mounting ring is present (sphere with flange), cut it from the standard_path
     if mounting_ring and standard_path:
-        mounting_ring.part = mounting_ring.part - standard_path.part
+        mounting_ring.part = mounting_ring.part - standard_path
 
     return standard_path, support_path, coloring_path
 

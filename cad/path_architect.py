@@ -3,6 +3,7 @@
 import random
 from typing import List
 import copy
+from build123d import *
 
 import config
 from puzzle.node import Node
@@ -127,7 +128,7 @@ class PathArchitect:
     def assign_path_transition_types(self):
 
         # Initialize the transition tracker
-        next_transition = PathTransitionType.ROUND  # Starting with 'round'
+        next_transition = Transition.ROUND  # Starting with 'round'
 
         for segment in self.segments:        
 
@@ -138,14 +139,14 @@ class PathArchitect:
 
             # Determine the transition type for the segment
             if segment.path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
-                segment.transition_type = PathTransitionType.ROUND
+                segment.transition_type = Transition.ROUND
             elif any(node.mounting for node in segment.nodes):
-                segment.transition_type = PathTransitionType.RIGHT
+                segment.transition_type = Transition.RIGHT
             else:
                 # Alternately choose between 'right' and 'round'
                 segment.transition_type = next_transition
                 # Flip the next_transition for the subsequent else case
-                next_transition = PathTransitionType.ROUND if next_transition == PathTransitionType.RIGHT else PathTransitionType.RIGHT
+                next_transition = Transition.ROUND if next_transition == Transition.RIGHT else Transition.RIGHT
 
     def detect_curves_and_adjust_segments(self):
         i = 0
@@ -209,7 +210,7 @@ class PathArchitect:
                 secondary_index_counter += 1
                 mounting_segment.path_profile_type = original_segment.path_profile_type
                 mounting_segment.curve_model = original_segment.curve_model
-                mounting_segment.transition_type = PathTransitionType.RIGHT
+                mounting_segment.transition_type = Transition.RIGHT
                 sub_segments.append(mounting_segment)
             else:
                 current_segment_nodes.append(node)

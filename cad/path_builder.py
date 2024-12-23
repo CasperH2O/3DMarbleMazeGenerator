@@ -7,7 +7,7 @@ import random
 
 from config import *
 from cad.path_profile_type_shapes import *
-from config import PathProfileType, PathCurveModel, PathTransitionType
+from config import PathProfileType, PathCurveModel
 from cad.path_segment import PathSegment
 
 class PathBuilder:
@@ -50,8 +50,9 @@ class PathBuilder:
         self.sweep_profiles_along_paths()
 
         # Make holes in O-shaped path segments
-        self.cut_holes_in_o_shape_path_profile_segments()
+        #self.cut_holes_in_o_shape_path_profile_segments()
 
+        self.final_path_bodies = self.build_final_path_body()
 
     def prepare_profiles_and_paths(self):
         """
@@ -66,12 +67,10 @@ class PathBuilder:
                 continue
 
             # Get the sub path points (positions of nodes in the segment)
-            sub_path_points = [cq.Vector(node.x, node.y, node.z) for node in segment.nodes]
+            sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
 
             # Initialize the path work planes, each path requires it's own profile for proper sweep creation
-            path_wp = cq.Workplane("XY")
-            accent_path_wp = cq.Workplane("XY")
-            support_path_wp = cq.Workplane("XY")
+            path_line = None
 
             # Create the path based on the curve model
             if segment.curve_model == PathCurveModel.POLYLINE:
@@ -80,88 +79,58 @@ class PathBuilder:
                         first = sub_path_points[0]
                         middle = sub_path_points[len(sub_path_points) // 2]
                         last = sub_path_points[-1]
-                        path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
-                        accent_path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
-                        support_path_wp.bezier([first.toTuple(), middle.toTuple(), last.toTuple()])
+                        path_line = Bezier([(first.X, first.Y, first.Z), (middle.X, middle.Y, middle.Z), (last.X, last.Y, last.Z)])
                 elif segment.curve_type == PathCurveType.S_CURVE:
                     if len(sub_path_points) >= 3:
-                        path_wp.bezier([p.toTuple() for p in sub_path_points])
-                        accent_path_wp.bezier([p.toTuple() for p in sub_path_points])
-                        support_path_wp.bezier([p.toTuple() for p in sub_path_points])
+                        path_line = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
                 else:
-                    path_wp.polyline([p.toTuple() for p in sub_path_points])
-                    accent_path_wp.polyline([p.toTuple() for p in sub_path_points])
-                    support_path_wp.polyline([p.toTuple() for p in sub_path_points])
+                    path_line = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
 
-            elif segment.curve_model == PathCurveModel.SPLINE:
+            elif segment.curve_model == PathCurveModel.SPLINE and False:
                 # Call the method to attempt creating a valid spline path and profile
-                path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points, path_wp)
-
-            # Determine entering direction at the start of the segment
-            if len(sub_path_points) >= 2:
-                entering_direction = (sub_path_points[1] - sub_path_points[0]).normalized()
-            elif len(sub_path_points) == 1 and segment.nodes[0].segment_start and segment.nodes[0].segment_end:
-                entering_direction = cq.Vector(1, 0, 0)
-            else:
-                continue
-
-            # Create a plane at the start point with normal along the entering direction
-            plane = self.create_plane_at_point(sub_path_points[0], entering_direction)
-
-            # Create the path profile workplane
-            wp_main = cq.Workplane(plane)
+                path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points, path_line)
 
             # Get parameters for the profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
             # Create the profile on this work plane
             path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-            path_profile = path_profile_function(work_plane=wp_main, **path_parameters)
+            path_profile = path_profile_function(**path_parameters)
 
             # Store the path profile and path
             segment.path_profile = path_profile
-            segment.path = path_wp
+            segment.path = path_line
 
             # Create the accent profile if the segment has an accent profile type
             if segment.accent_profile_type != None:
-                # Create the work plane at the start point with normal along the entering direction
-                #show_object(wp_main, name=f"{segment.main_index}.{segment.secondary_index} - wp_main pre accent")
-                wp_accent = cq.Workplane(plane)
-
                 # Get parameters for the profile type
                 accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
 
                 # Create the profile on this work plane
                 accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
-                accent_profile = accent_profile_function(work_plane=wp_accent, **accent_path_parameters)
+                accent_profile = accent_profile_function(**accent_path_parameters)
 
                 segment.accent_profile = accent_profile
-                segment.accent_path = accent_path_wp
 
             # Create the support profile if the segment has a support profile type
             if segment.support_profile_type != None:
-                # Create the work plane at the start point with normal along the entering direction
-                wp_support = cq.Workplane(plane)
 
                 # Get parameters for the profile type
                 support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
 
                 # Create the profile on this work plane
                 support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
-                support_profile = support_profile_function(work_plane=wp_support, **support_path_parameters)
+                support_profile = support_profile_function(**support_path_parameters)
 
                 # Store the path profile and path
                 segment.support_profile = support_profile
-                segment.support_path = support_path_wp
+
+            #show_object(segment.path, name=f"path_{segment.main_index}")
             
 
     def sweep_profiles_along_paths(self):
         """
         Sweeps the stored profiles along their corresponding paths.
-
-        Parameters:
-        indices (list of int, optional): The indices of the segments to sweep.
-                                        If None, all segments are processed.
         """
         segments = self.path_architect.segments
 
@@ -229,18 +198,21 @@ class PathBuilder:
                 # For other curve models, use standard sweep
 
                 try:
-                    # Visualize the profiles and the path
-                    #show_object(segment.path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Path Profile Segment")
-                    #show_object(segment.path, name=f"{segment.main_index}.{segment.secondary_index} - Path Segment")
+                    # Create path body out of path profile and path
+                    with BuildPart() as sweep_path_segment:
+                        with BuildLine() as path_line:
+                            add(segment.path)      
+                        # Create the sketch
+                        with BuildSketch(path_line.line^0) as sketch_path_profile:
+                            add(segment.path_profile)
+                        sweep(transition=segment.transition_type)  
 
-                    # Perform sweep for path body
-                    segment.path_body = segment.path_profile.sweep(
-                        segment.path,
-                        transition=segment.transition_type.value
-                    )
+                    segment.path_body = sweep_path_segment
 
-                    # Visualize the path body
-                    #show_object(segment.path_body, name=f"{segment.main_index}.{segment.secondary_index} - Path Body Segment")
+                    # Visualize the path, path profile and body
+                    #show_object(path_line, name=f"{segment.main_index}.{segment.secondary_index} - Path")
+                    #show_object(sketch_path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Path Profile")
+                    #show_object(sweep_path_segment, name=f"{segment.main_index}.{segment.secondary_index} - Path Body")
 
                 except Exception as e:
                     print(f"Error sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
@@ -249,17 +221,20 @@ class PathBuilder:
                     # Perform the sweep for the accent color body
                     if segment.accent_profile_type is not None:
 
-                        # Visualize the profiles and the path
-                        #show_object(segment.accent_profile, name=f"{segment.main_index}.{segment.secondary_index} - Accent Profile Segment")
-                        #show_object(segment.accent_path, name=f"{segment.main_index}.{segment.secondary_index} - Accent Path Segment")
+                        # Create accent color part out of path color profile and path
+                        with BuildPart() as sweep_accent_segment:
+                            with BuildLine() as path_line:
+                                add(segment.path)
+                            # Create the sketch
+                            with BuildSketch(path_line.line^0) as sketch_path_profile:
+                                add(segment.accent_profile)
+                            sweep(transition=segment.transition_type)  
 
-                        segment.accent_body = segment.accent_profile.sweep(
-                            segment.accent_path,
-                            transition=segment.transition_type.value
-                        )
+                        segment.accent_body = sweep_accent_segment
 
-                        # Visualize the path body
-                        #show_object(segment.accent_body, name=f"{segment.main_index}.{segment.secondary_index} - Accent Body Segment")
+                        # Visualize the color accent profile and body of this segment
+                        #show_object(sweep_accent_segment, name=f"{segment.main_index}.{segment.secondary_index} - Accent Body")
+                        #show_object(sketch_path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Accent Profile")
 
                 except Exception as e:
                     print(f"Error sweeping accent for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
@@ -268,17 +243,20 @@ class PathBuilder:
                     # Perform the sweep for the support body
                     if segment.support_profile_type is not None:
 
-                        # Visualize the profiles and the path
-                        #show_object(segment.support_profile, name=f"{segment.main_index}.{segment.secondary_index} - Support Profile Segment")
-                        #show_object(segment.support_path, name=f"{segment.main_index}.{segment.secondary_index} - Support Path Segment")
+                        # Create part out of path profile and path
+                        with BuildPart() as sweep_support_segment:
+                            with BuildLine() as path_line:
+                                add(segment.path)    
+                            # Create the sketch
+                            with BuildSketch(path_line.line^0) as path_support_sketch:
+                                add(segment.support_profile)
+                            sweep(transition=segment.transition_type)  
 
-                        segment.support_body = segment.support_profile.sweep(
-                            segment.support_path,
-                            transition=segment.transition_type.value
-                        )
-
-                        # Visualize the path body
-                        #show_object(segment.support_body, name=f"{segment.main_index}.{segment.secondary_index} - Support Body Segment")
+                        segment.support_body = sweep_support_segment
+                        
+                        # Visualize the support profile and body of this segment
+                        #show_object(sweep_support_segment, name=f"{segment.main_index}.{segment.secondary_index} - Support Body")
+                        #show_object(path_support_sketch, name=f"{segment.main_index}.{segment.secondary_index} - Support Profile")
 
                 except Exception as e:
                     print(f"Error sweeping support for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
@@ -304,23 +282,23 @@ class PathBuilder:
             else:                
                 # Build the path body
                 if standard_body is None:
-                    standard_body = segment.path_body
+                    standard_body = segment.path_body.part
                 else:
-                    standard_body = standard_body.union(segment.path_body)
+                    standard_body = standard_body + segment.path_body.part
 
             # Check if the segment has a (optional) support body
             if segment.support_body != None:
                 if support_body is None:
-                    support_body = segment.support_body
+                    support_body = segment.support_body.part
                 else:
-                    support_body = support_body.union(segment.support_body)
+                    support_body = support_body + segment.support_body.part
             
             # Check if the segment has a (optional) color accent body
             if segment.accent_body != None:
                 if coloring_body is None:
-                    coloring_body = segment.accent_body
+                    coloring_body = segment.accent_body.part
                 else:
-                    coloring_body = coloring_body.union(segment.accent_body)                    
+                    coloring_body = coloring_body + segment.accent_body.part
         
         return {
             'standard': standard_body,
@@ -359,7 +337,7 @@ class PathBuilder:
         """
 
         if len(segment.nodes) < 2:
-            raise ValueError("Start erea funnel, segment must contain at least two nodes.")
+            raise ValueError("Start area funnel, segment must contain at least two nodes.")
 
         # Extract first and second node x, y, z coordinates
         first_coords = (segment.nodes[0].x, segment.nodes[0].y, segment.nodes[0].z)
@@ -374,15 +352,9 @@ class PathBuilder:
                 Line(first_coords, second_coords)
             # Create the two U-shaped profiles
             with BuildSketch(start_area_line.line^0):
-                pts = create_u_shape(factor=3, **u_shape_params)
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(pts)
-                make_face()
+                add(create_u_shape(factor=3, **u_shape_params))
             with BuildSketch(start_area_line.line^1):
-                pts = create_u_shape(**u_shape_params)
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(pts)
-                make_face()                 
+                add(create_u_shape(**u_shape_params))
             loft() 
     
         # Create the coloring path start area funnel
@@ -392,17 +364,11 @@ class PathBuilder:
 
             with BuildLine() as start_area_line:
                 Line(first_coords, second_coords)
-            # Create the two U-shaped profiles
+            # Create the two color profiles
             with BuildSketch(start_area_line.line^0):
-                pts = create_u_shape_path_color(factor=3, **u_shape_color_params)
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(pts)
-                make_face()
+                add(create_u_shape_path_color(factor=3, **u_shape_color_params))
             with BuildSketch(start_area_line.line^1):
-                pts = create_u_shape_path_color(**u_shape_color_params)
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(pts)
-                make_face()                 
+                add(create_u_shape_path_color(**u_shape_color_params))
             loft() 
 
         # Return both lofted shapes

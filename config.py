@@ -1,6 +1,6 @@
 # config.py
 
-from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveModel, PathCurveType, PathProfileType, PathTransitionType
+from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveModel, PathCurveType, PathProfileType
 
 # Puzzle configuration
 class Puzzle:
@@ -16,7 +16,7 @@ class Puzzle:
 
     BALL_COLOR = (192, 192, 192)    # Metal grey
     PATH_COLOR = None
-    PATH_ACCENT_COLOR = (255, 255, 0)
+    PATH_ACCENT_COLOR = (47, 102, 245)
     TEXT_COLOR = None
     MOUNTING_RING_COLOR = None
 
@@ -60,7 +60,7 @@ class Path:
         PathProfileType.U_SHAPE,
         #PathProfileType.L_SHAPE,
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
-        #PathProfileType.O_SHAPE,
+        PathProfileType.O_SHAPE,
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         #PathProfileType.V_SHAPE
         ]

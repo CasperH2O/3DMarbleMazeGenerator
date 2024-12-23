@@ -27,13 +27,6 @@ class PathCurveType(Enum):
     S_CURVE = 's_curve'
     DEGREE_90_SINGLE_PLANE = '90_degree_single_plane'
 
-class PathTransitionType(Enum):
-    """
-    Enumeration representing the different types of path transitions.
-    """
-    RIGHT = 'right'
-    ROUND = 'round'
-
 class PathProfileType(Enum):
     """
     Enumeration representing the different types of path profiles.
