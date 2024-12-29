@@ -159,7 +159,7 @@ def ball_and_path_indicators(puzzle):
     node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
 
     # Create the ball at the start node (node_positions[1])
-    with BuildPart(Pos(node_positions[2])) as ball:
+    with BuildPart(Pos(node_positions[1])) as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
 
     # Create a ball path indicator line
@@ -218,7 +218,7 @@ def set_viewer():
     set_viewer_config(states=new_config)
 
     # Restore the commented-out lines for reference:
-    #set_defaults(reset_camera=Camera.KEEP)
+    set_defaults(reset_camera=Camera.KEEP)
     #set_defaults(reset_camera=Camera.RESET)
 
     status()["states"]

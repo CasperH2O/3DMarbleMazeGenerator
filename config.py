@@ -17,7 +17,7 @@ class Puzzle:
     BALL_COLOR = (192, 192, 192)    # Metal grey
     PATH_COLOR = None
     PATH_ACCENT_COLOR = (47, 102, 245)
-    TEXT_COLOR = None
+    TEXT_COLOR = (47, 102, 245)
     MOUNTING_RING_COLOR = None
 
 # Manufacturing configuration
@@ -48,7 +48,7 @@ class Path:
     PATH_CURVE_MODEL = [
         PathCurveModel.POLYLINE,
         #PathCurveModel.BEZIER,
-        #PathCurveModel.SPLINE
+        PathCurveModel.SPLINE
         ]
 
     PATH_CURVE_TYPE = [
@@ -60,9 +60,9 @@ class Path:
         PathProfileType.U_SHAPE,
         #PathProfileType.L_SHAPE,
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
-        PathProfileType.O_SHAPE,
+        #PathProfileType.O_SHAPE,
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
-        #PathProfileType.V_SHAPE
+        PathProfileType.V_SHAPE
         ]
 
     PATH_PROFILE_TYPE_PARAMETERS = {

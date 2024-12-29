@@ -50,7 +50,7 @@ class PathBuilder:
         self.sweep_profiles_along_paths()
 
         # Make holes in O-shaped path segments
-        #self.cut_holes_in_o_shape_path_profile_segments()
+        self.cut_holes_in_o_shape_path_profile_segments()
 
         self.final_path_bodies = self.build_final_path_body()
 
@@ -68,10 +68,7 @@ class PathBuilder:
 
             # Get the sub path points (positions of nodes in the segment)
             sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
-
-            # Initialize the path work planes, each path requires it's own profile for proper sweep creation
-            path_line = None
-
+            
             # Create the path based on the curve model
             if segment.curve_model == PathCurveModel.POLYLINE:
                 if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
@@ -79,52 +76,44 @@ class PathBuilder:
                         first = sub_path_points[0]
                         middle = sub_path_points[len(sub_path_points) // 2]
                         last = sub_path_points[-1]
-                        path_line = Bezier([(first.X, first.Y, first.Z), (middle.X, middle.Y, middle.Z), (last.X, last.Y, last.Z)])
+                        segment.path = Bezier([(first.X, first.Y, first.Z), (middle.X, middle.Y, middle.Z), (last.X, last.Y, last.Z)])
                 elif segment.curve_type == PathCurveType.S_CURVE:
                     if len(sub_path_points) >= 3:
-                        path_line = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
+                        segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
                 else:
-                    path_line = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
-
-            elif segment.curve_model == PathCurveModel.SPLINE and False:
+                    segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
+            elif segment.curve_model == PathCurveModel.SPLINE:
                 # Call the method to attempt creating a valid spline path and profile
-                path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points, path_line)
+                segment.path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points)
 
-            # Get parameters for the profile type
+            # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
-            # Create the profile on this work plane
+            # Store path profile sketch
             path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-            path_profile = path_profile_function(**path_parameters)
-
-            # Store the path profile and path
-            segment.path_profile = path_profile
-            segment.path = path_line
+            segment.path_profile = path_profile_function(**path_parameters)
 
             # Create the accent profile if the segment has an accent profile type
             if segment.accent_profile_type != None:
-                # Get parameters for the profile type
+
+                # Get parameters for the accent profile type
                 accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
 
-                # Create the profile on this work plane
+                # Store accent color profile sketch
                 accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
-                accent_profile = accent_profile_function(**accent_path_parameters)
-
-                segment.accent_profile = accent_profile
+                segment.accent_profile = accent_profile_function(**accent_path_parameters)
 
             # Create the support profile if the segment has a support profile type
             if segment.support_profile_type != None:
 
-                # Get parameters for the profile type
+                # Get parameters for the support profile type
                 support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
 
-                # Create the profile on this work plane
+                # Store support profile sketch
                 support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
-                support_profile = support_profile_function(**support_path_parameters)
+                segment.support_profile = support_profile_function(**support_path_parameters)
 
-                # Store the path profile and path
-                segment.support_profile = support_profile
-
+            # Visualize the paths for debugging
             #show_object(segment.path, name=f"path_{segment.main_index}")
             
 
@@ -133,6 +122,7 @@ class PathBuilder:
         Sweeps the stored profiles along their corresponding paths.
         """
         segments = self.path_architect.segments
+        previous_path_line = None
 
         for segment in segments:
 
@@ -140,57 +130,34 @@ class PathBuilder:
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
+            # Determine the start workplane, first segment, at the start, 
+            # there after end of previous
+            if previous_path_line is None:
+                with BuildLine() as path_line:
+                    add(segment.path) 
+                workplane = path_line.line^0 
+            else:
+                #workplane = previous_path_line.line^1
+                with BuildLine() as path_line:
+                    add(segment.path) 
+                workplane = path_line.line^0 
+
             if segment.curve_model == PathCurveModel.SPLINE:  
-                # For SPLINE, create a second profile at the end of the current segment's path
-                # Get the path shape (Edge or Wire)
-                path_shape = segment.path.val()
-
-                # Get the end point and tangent at the end of the path
-                end_point = path_shape.positionAt(1.0)
-                tangent_vector = path_shape.tangentAt(1.0)
-
-                # Create a plane at the end point with normal along the tangent vector
-                plane = self.create_plane_at_point(end_point, tangent_vector)
-
-                # Create a workplane at this plane
-                wp = cq.Workplane(plane)
-
-                # Get parameters for the path profile type
-                parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
-
-                # Create the profile on this work plane
-                profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-                profile2 = profile_function(work_plane=wp, **parameters)
-
-                # Extract the shapes from the Workplanes
-                profile1 = segment.path_profile.val()
-                profile2 = profile2.val()
-
-                # Ensure that the profiles are Wires or Faces
-                if not isinstance(profile1, (cq.Wire, cq.Face)):
-                    print(f"Profile in segment {segment.main_index}.{segment.secondary_index} is not a Wire or Face.")
-                    continue
-                if not isinstance(profile2, (cq.Wire, cq.Face)):
-                    print(f"Profile2 in segment {segment.main_index}.{segment.secondary_index} is not a Wire or Face.")
-                    continue
-
-                # Prepare the list of profiles
-                profiles = [profile1, profile2]
-
-                #show_object(profile1, name=f"Profile Start Segment {segment.main_index}.{segment.secondary_index}")
-                #show_object(profile2, name=f"Profile End Segment {segment.main_index}.{segment.secondary_index}")
-                #show_object(segment.path, name=f"Path Segment {segment.main_index}.{segment.secondary_index}")
-                
                 try:
-                    # Perform the sweep_multi
-                    segment.path_body = cq.Solid.sweep_multi(
-                        profiles=profiles,
-                        path=segment.path.val(),
-                    )
+                    # Create a spline path sweep
+                    with BuildPart() as sweep_spline_path_segment:
+                        with BuildLine() as spline_path_line:
+                            add(segment.path)      
+                        with BuildSketch(workplane):
+                            add(segment.path_profile)
+                        sweep()  
 
-                # Visualize the profiles and the path
-                #show_object(segment.path_body, name=f"Path Body Segment {segment.main_index}.{segment.secondary_index}")
+                    segment.path_body = sweep_spline_path_segment                        
 
+                    # Visualize the profiles and the path
+                    #show_object(sweep_spline_path_segment, name=f"Sweep Spline Segment {segment.main_index}.{segment.secondary_index}")
+                    #show_object(spline_path_line, name=f"Spline Path Line {segment.main_index}.{segment.secondary_index}")
+                
                 except Exception as e:
                     print(f"Error multi sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
 
@@ -203,7 +170,7 @@ class PathBuilder:
                         with BuildLine() as path_line:
                             add(segment.path)      
                         # Create the sketch
-                        with BuildSketch(path_line.line^0) as sketch_path_profile:
+                        with BuildSketch(workplane) as sketch_path_profile:
                             add(segment.path_profile)
                         sweep(transition=segment.transition_type)  
 
@@ -211,8 +178,14 @@ class PathBuilder:
 
                     # Visualize the path, path profile and body
                     #show_object(path_line, name=f"{segment.main_index}.{segment.secondary_index} - Path")
-                    #show_object(sketch_path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Path Profile")
+                    #show_object(sketch_path_profile.sketch, name=f"{segment.main_index}.{segment.secondary_index} - Path Profile")
                     #show_object(sweep_path_segment, name=f"{segment.main_index}.{segment.secondary_index} - Path Body")
+                    #show_object(sketch_path_profile.workplanes, name=f"{segment.main_index}.{segment.secondary_index} - Workplane")
+                    
+                    # Visualize the path line coordinate systems along the line
+                    #increments = [0.1, 0.5, 0.9]
+                    #for val in increments:
+                    #    show_object(path_line.line ^ val, name=f"Path Line - {val:.2f}")
 
                 except Exception as e:
                     print(f"Error sweeping segment at index {segment.main_index}.{segment.secondary_index}: {e}")
@@ -226,7 +199,7 @@ class PathBuilder:
                             with BuildLine() as path_line:
                                 add(segment.path)
                             # Create the sketch
-                            with BuildSketch(path_line.line^0) as sketch_path_profile:
+                            with BuildSketch(workplane) as sketch_path_profile:
                                 add(segment.accent_profile)
                             sweep(transition=segment.transition_type)  
 
@@ -234,7 +207,7 @@ class PathBuilder:
 
                         # Visualize the color accent profile and body of this segment
                         #show_object(sweep_accent_segment, name=f"{segment.main_index}.{segment.secondary_index} - Accent Body")
-                        #show_object(sketch_path_profile, name=f"{segment.main_index}.{segment.secondary_index} - Accent Profile")
+                        #show_object(sketch_path_profile.sketch, name=f"{segment.main_index}.{segment.secondary_index} - Accent Profile")
 
                 except Exception as e:
                     print(f"Error sweeping accent for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
@@ -248,7 +221,7 @@ class PathBuilder:
                             with BuildLine() as path_line:
                                 add(segment.path)    
                             # Create the sketch
-                            with BuildSketch(path_line.line^0) as path_support_sketch:
+                            with BuildSketch(workplane) as path_support_sketch:
                                 add(segment.support_profile)
                             sweep(transition=segment.transition_type)  
 
@@ -256,10 +229,12 @@ class PathBuilder:
                         
                         # Visualize the support profile and body of this segment
                         #show_object(sweep_support_segment, name=f"{segment.main_index}.{segment.secondary_index} - Support Body")
-                        #show_object(path_support_sketch, name=f"{segment.main_index}.{segment.secondary_index} - Support Profile")
+                        #show_object(path_support_sketch.sketch, name=f"{segment.main_index}.{segment.secondary_index} - Support Profile")
 
                 except Exception as e:
                     print(f"Error sweeping support for segment at index {segment.main_index}.{segment.secondary_index}: {e}")
+
+            previous_path_line = path_line
 
 
     def build_final_path_body(self):
@@ -306,29 +281,6 @@ class PathBuilder:
             'coloring': coloring_body
         }
 
-    def create_plane_at_point(self, origin, normal_vector):
-        """
-        Creates a plane at the given origin, with the normal vector.
-        The X direction is chosen to be perpendicular to the normal vector.
-        """
-        normal = cq.Vector(normal_vector)
-        if normal.Length == 0:
-            raise ValueError("Normal vector cannot be zero")
-
-        # Choose an arbitrary vector not parallel to the normal vector
-        z_axis = cq.Vector(0, 0, 1)
-        if abs(normal.normalized().dot(z_axis)) >= 0.99:
-            # normal is parallel to Z axis, use X axis
-            arbitrary = cq.Vector(1, 0, 0)
-        else:
-            arbitrary = z_axis
-
-        # Compute the X direction vector as cross product of arbitrary vector and normal
-        x_dir = arbitrary.cross(normal).normalized()
-
-        # Now create the plane
-        plane = cq.Plane(origin=origin, xDir=x_dir, normal=normal)
-        return plane
 
     def create_start_area_funnel(self, segment):
         """
@@ -373,12 +325,11 @@ class PathBuilder:
 
         # Return both lofted shapes
         return start_area_standard, start_area_coloring
-    
+
 
     def cut_holes_in_o_shape_path_profile_segments(self):
-        display_objs = []
         n = 2  # Cut holes every n-th node
-        possible_workplanes = ["XY", "XZ", "YZ"]
+        possible_workplanes = [Plane.XY, Plane.XZ, Plane.YZ]
         main_index_to_workplane_direction = {}
         main_index_to_has_mounting_node = {}
 
@@ -406,7 +357,7 @@ class PathBuilder:
                 has_mounting_node = main_index_to_has_mounting_node[main_index]
                 if has_mounting_node:
                     # Must use 'XY' workplane
-                    workplane_direction = "XY"
+                    workplane_direction = Plane.XY
                 else:
                     # Randomly choose a workplane direction
                     workplane_direction = random.choice(possible_workplanes)
@@ -416,7 +367,7 @@ class PathBuilder:
 
             # Skip O_SHAPE_SUPPORT segments if workplane is not 'XY',
             # no need to print support underneath holes along the Z axis
-            if workplane_direction != "XY" and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT:
+            if workplane_direction != Plane.XY and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT:
                 continue  # Skip this segment
 
             # Skip segments that are not straight
@@ -439,63 +390,41 @@ class PathBuilder:
                 if adjusted_idx % n != 0:
                     continue  # Skip this node
 
-                # Set the height to node_size
-                height = self.node_size
-
                 # Create the cutting cylinder based on workplane direction
-                if workplane_direction == "XY":
-                    # Extrude along +Z
-                    origin = (node.x, node.y, node.z - (height / 2))
-                    hole_cylinder = (
-                        cq.Workplane("XY", origin=origin)
-                        .circle(hole_size / 2)
-                        .extrude(height)
-                    )
-                elif workplane_direction == "XZ":
-                    # Extrude along +Y
-                    origin = (node.x, node.y - (height / 2), node.z)
-                    hole_cylinder = (
-                        cq.Workplane("XZ", origin=origin)
-                        .circle(hole_size / 2)
-                        .extrude(-height)
-                    )
-                elif workplane_direction == "YZ":
-                    # Extrude along +X
-                    origin = (node.x - (height / 2), node.y, node.z)
-                    hole_cylinder = (
-                        cq.Workplane("YZ", origin=origin)
-                        .circle(hole_size / 2)
-                        .extrude(height)
-                    )
-                else:
-                    raise ValueError(f"Invalid workplane direction: {workplane_direction}")
+                with BuildPart() as cutting_cylinder:
+                    with BuildSketch(workplane_direction):
+                        Circle(hole_size / 2)
+                    extrude(amount=-self.node_size / 2, both=True)
 
-                # Visualization
-                display_objs.append(hole_cylinder)
+                # Move the cutting cylinder to the node position
+                cutting_cylinder.part.position = (node.x, node.y, node.z)
 
+                #show_object(cutting_cylinder, name=f"Cutting Cylinder at Node {idx}")
+
+                segment.path_body.part = segment.path_body.part - cutting_cylinder.part
+                if segment.support_body:
+                    segment.support_body.part = segment.support_body.part - cutting_cylinder.part
+
+        '''
                 # Check for intersection
                 if hole_cylinder.val().intersect(segment.path_body.val()).Volume() > 0:
                     segment.path_body = segment.path_body.cut(hole_cylinder)
                     if segment.support_body:
                         segment.support_body = segment.support_body.cut(hole_cylinder)
 
-        # Visualization of hole cylinders
-        if display_objs:
-            combined_display = cq.Compound.makeCompound([obj.val() for obj in display_objs])
-            #show_object(combined_display, name="Hole Cylinders")
+        '''
 
-    def attempt_spline_path_creation(self, segment, sub_path_points, path_wp):
+    def attempt_spline_path_creation(self, segment, sub_path_points):
         """
         Tries different spline point combinations to create a valid path and profile
         for a SPLINE curve model segment.
 
         Parameters:
         segment (PathSegment): The segment to process.
-        sub_path_points (list of cq.Vector): The points defining the path.
-        path_wp (cq.Workplane): The workplane to create paths on.
+        sub_path_points (list of Vectors): The points defining the path.
 
         Returns:
-        path: The created path for spline or a fallback polyline path.
+        path: A feasible path for spline or a fallback polyline path.
         """
 
         segment_curve_model = segment.curve_model
@@ -531,88 +460,51 @@ class PathBuilder:
             else:
                 return None
 
-        # Define the options for spline point combinations
-        # option1
+        # Define the options for spline point combinations that will be attempted
         options = [option1, option2, option3]
 
         # Try each option
         for opt_idx, option in enumerate(options, 1):
             # Debug statement indicating which option is being tried
-            print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
+            #print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
+            # Try the option
             spline_points = option()
+
             if spline_points is None or len(spline_points) < 2:
                 print(f"Option {opt_idx}: Not enough points to create a spline.")
                 continue
 
-
-            # Compute tangents at the start and end points using original nodes
-            # Start tangent: from first node to second node in original nodes
-
-            num_points = len(spline_points)
-            if num_points >= 2:
-                start_tangent = (sub_path_points[1] - sub_path_points[0]).normalized()
-            else:
-                start_tangent = cq.Vector(1, 0, 0)
-
-            # End tangent: from second-to-last node to last node in original nodes
-            if num_points >= 2:
-                end_tangent = (sub_path_points[-1] - sub_path_points[-2]).normalized()
-            else:
-                end_tangent = cq.Vector(1, 0, 0)
-
             try:
+                # Polyline helper path for tangents at start and end of spline
+                help_path = Polyline(sub_path_points)
+
                 # Create the spline with tangents
-                path = path_wp.spline(
-                    [p.toTuple() for p in spline_points],
-                    tangents=[start_tangent.toTuple(), end_tangent.toTuple()]
-                )
-
-                # Determine entering direction at the start of the segment
-                entering_direction = start_tangent
-
-                # Create a plane at the start point with normal along the entering direction
-                plane = self.create_plane_at_point(spline_points[0], entering_direction)
-                wp = cq.Workplane(plane)
+                spline_path = Spline(spline_points, tangents=[help_path%0, help_path%1])
 
                 # Get parameters for the path profile type
                 parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
-                # Create the profile on this work plane
+                # Create the path profile
                 profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-                profile = profile_function(work_plane=wp, **parameters)
+                profile = profile_function(**parameters)
 
                 # For testing purposes, attempt to perform a sweep to see if it will succeed
                 try:
                     # Debug statement indicating sweep attempt
                     print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
-                    # Create a second profile at the end of the path
-                    path_shape = path.val()
-                    end_point = path_shape.positionAt(1.0)
-                    tangent_vector = path_shape.tangentAt(1.0)
-
-                    plane_end = self.create_plane_at_point(end_point, tangent_vector)
-                    wp_end = cq.Workplane(plane_end)
-                    profile2 = profile_function(work_plane=wp_end, **parameters)
-
-                    # Extract the shapes from the Workplanes
-                    profile1 = profile.val()
-                    profile2 = profile2.val()
-
-                    # Prepare the list of profiles
-                    profiles = [profile1, profile2]
-
-                    # Attempt to perform the sweep_multi (but we won't store the result)
-                    test_sweep = cq.Solid.sweep_multi(
-                        profiles=profiles,
-                        path=path.val(),
-                    )
+                    with BuildPart():
+                        with BuildLine():
+                            add(spline_path)      
+                        with BuildSketch(spline_path^0):
+                            add(profile)
+                        sweep()  
 
                     # If we reach this point, the sweep succeeded
                     print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
 
-                    return path, segment_curve_model
+                    return spline_path, segment_curve_model
 
                 except Exception as e:
                     # The sweep failed, try the next option
@@ -628,7 +520,45 @@ class PathBuilder:
         print(f"Falling back to POLYLINE for segment {segment.main_index}.{segment.secondary_index}")
     
         # Create the path as polyline with all nodes
-        path = path_wp.polyline([p.toTuple() for p in sub_path_points])
+        path = Polyline(sub_path_points)
         segment_curve_model =  PathCurveModel.POLYLINE
 
         return path, segment_curve_model
+
+def align_location_to_nearest_90_degrees(self, location):
+    """
+    Align the given location to the nearest 90-degree angle.
+    """
+    # Make a copy so we don't accidentally change the original
+    aligned_location = location.copy()
+
+    # Snap each axis' direction vector to the nearest cardinal axis
+    aligned_location.x_axis.direction = Vector(
+        snap_to_cardinal(aligned_location.x_axis.direction.X),
+        snap_to_cardinal(aligned_location.x_axis.direction.Y),
+        snap_to_cardinal(aligned_location.x_axis.direction.Z),
+    )
+    aligned_location.y_axis.direction = Vector(
+        snap_to_cardinal(aligned_location.y_axis.direction.X),
+        snap_to_cardinal(aligned_location.y_axis.direction.Y),
+        snap_to_cardinal(aligned_location.y_axis.direction.Z),
+    )
+    aligned_location.z_axis.direction = Vector(
+        snap_to_cardinal(aligned_location.z_axis.direction.X),
+        snap_to_cardinal(aligned_location.z_axis.direction.Y),
+        snap_to_cardinal(aligned_location.z_axis.direction.Z),
+    )
+
+    return aligned_location
+    
+def snap_to_cardinal(value: float) -> int:
+    """
+    Given a float in range [-1,1], snap it to -1, 0 or 1 
+    by using +/-0.5 as the threshold.
+    """
+    if value > 0.5:
+        return 1
+    elif value < -0.5:
+        return -1
+    else:
+        return 0    
