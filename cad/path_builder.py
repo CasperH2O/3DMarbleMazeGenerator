@@ -60,6 +60,8 @@ class PathBuilder:
         Skips segments that contain the puzzle start node.
         """
         segments = self.path_architect.segments
+        previous_path_line = None
+        angle = -90
 
         for segment in segments:
             # Skip segments that contain the start node
@@ -86,12 +88,25 @@ class PathBuilder:
                 # Call the method to attempt creating a valid spline path and profile
                 segment.path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points)
 
+            # Determine angle difference between the current segment and the previous segment for rotation
+            if previous_path_line is not None:
+                #print(f"Determining angle for segment index: {segment.main_index}.{segment.secondary_index}")
+                #print(f"Comparing previous path line: {previous_path_line^1} with segment path: {segment.path^0}")
+                loc1 = previous_path_line^1
+                loc2 = segment.path^0
+                angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+                #print(f"\nAngle: {angle}")
+
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
             # Store path profile sketch
             path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-            segment.path_profile = path_profile_function(**path_parameters)
+            segment.path_profile = path_profile_function(**path_parameters, rotation_angle=angle)
+
+            #increments = [0.1, 0.5, 0.9]
+            #for val in increments:
+            #    show_object(segment.path^val, name=f"Path Line - {val:.2f}, index {segment.main_index}.{segment.secondary_index}")
 
             # Create the accent profile if the segment has an accent profile type
             if segment.accent_profile_type != None:
@@ -101,7 +116,7 @@ class PathBuilder:
 
                 # Store accent color profile sketch
                 accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
-                segment.accent_profile = accent_profile_function(**accent_path_parameters)
+                segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=angle)
 
             # Create the support profile if the segment has a support profile type
             if segment.support_profile_type != None:
@@ -111,10 +126,12 @@ class PathBuilder:
 
                 # Store support profile sketch
                 support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
-                segment.support_profile = support_profile_function(**support_path_parameters)
+                segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=angle)
 
             # Visualize the paths for debugging
             #show_object(segment.path, name=f"path_{segment.main_index}")
+
+            previous_path_line = segment.path
             
 
     def sweep_profiles_along_paths(self):
@@ -492,7 +509,7 @@ class PathBuilder:
                 # For testing purposes, attempt to perform a sweep to see if it will succeed
                 try:
                     # Debug statement indicating sweep attempt
-                    print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
+                    #print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
                     with BuildPart():
                         with BuildLine():
@@ -502,7 +519,7 @@ class PathBuilder:
                         sweep()  
 
                     # If we reach this point, the sweep succeeded
-                    print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
+                    #print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
 
                     return spline_path, segment_curve_model
 
