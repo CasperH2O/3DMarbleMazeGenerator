@@ -60,8 +60,9 @@ class PathBuilder:
         Skips segments that contain the puzzle start node.
         """
         segments = self.path_architect.segments
-        previous_path_line = None
-        angle = -90
+        path_line_angle = -90
+        profile_angle = 0
+        previous_segment = None
 
         for segment in segments:
             # Skip segments that contain the start node
@@ -89,20 +90,24 @@ class PathBuilder:
                 segment.path, segment.curve_model = self.attempt_spline_path_creation(segment, sub_path_points)
 
             # Determine angle difference between the current segment and the previous segment for rotation
-            if previous_path_line is not None:
+            if previous_segment is not None:
                 #print(f"Determining angle for segment index: {segment.main_index}.{segment.secondary_index}")
                 #print(f"Comparing previous path line: {previous_path_line^1} with segment path: {segment.path^0}")
-                loc1 = previous_path_line^1
+                loc1 = previous_segment.path^1
                 loc2 = segment.path^0
-                angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-                #print(f"\nAngle: {angle}")
+                path_line_angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+                print(f"Path line angle: {path_line_angle}")
+
+            if previous_segment is not None:
+                profile_angle = self.determine_path_profile_angle(previous_segment, segment, path_line_angle)
+                print(f"Profile angle for segment index: {segment.main_index}.{segment.secondary_index} is {profile_angle}")
 
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
             # Store path profile sketch
             path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-            segment.path_profile = path_profile_function(**path_parameters, rotation_angle=angle)
+            segment.path_profile = path_profile_function(**path_parameters, rotation_angle=path_line_angle + profile_angle)
 
             #increments = [0.1, 0.5, 0.9]
             #for val in increments:
@@ -116,7 +121,7 @@ class PathBuilder:
 
                 # Store accent color profile sketch
                 accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
-                segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=angle)
+                segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
             # Create the support profile if the segment has a support profile type
             if segment.support_profile_type != None:
@@ -126,12 +131,12 @@ class PathBuilder:
 
                 # Store support profile sketch
                 support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
-                segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=angle)
+                segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
             # Visualize the paths for debugging
             #show_object(segment.path, name=f"path_{segment.main_index}")
 
-            previous_path_line = segment.path
+            previous_segment = segment
             
 
     def sweep_profiles_along_paths(self):
@@ -541,6 +546,64 @@ class PathBuilder:
         segment_curve_model =  PathCurveModel.POLYLINE
 
         return path, segment_curve_model
+        
+    def determine_path_profile_angle(self, previous_segment, current_segment, start_angle: float) -> float:
+        """
+        Determine the relative rotation angle between the profile of the `previous_segment`
+        and the start of the `current_segment`.
+
+        This function creates a swept shape from `previous_segment` using its path and
+        path profile. It then attempts to match that profile with a sketch placed at
+        the start of the `current_segment.path`. The function returns the rotation offset
+        (0 <= angle < 360) at which the profile matches, or 0 if no match is found.
+
+        :param previous_segment: The segment whose swept profile is being checked
+        :param current_segment: The segment at whose start we want to match the profile
+        :param start_angle: Base rotation offset to apply when creating the profile
+        :return: The additional rotation angle (in degrees) at which the profile matches;
+                returns 0 if no matching angle is found
+        """
+
+        # Create sweep of previous segment, as it was not made yet
+        with BuildPart() as swept_shape_part:
+            with BuildLine():
+                add(previous_segment.path)
+            # Create the sketch for the profile
+            with BuildSketch(previous_segment.path^0):
+                add(previous_segment.path_profile)
+            sweep(transition=Transition.RIGHT)  
+
+        # Obtain faces from the swept shape
+        faces = swept_shape_part.faces()
+
+        # Get parameters for the path profile type
+        path_parameters = self.path_profile_type_parameters.get(previous_segment.path_profile_type.value, {})
+        # Apply the path profile function
+        path_profile_function = self.path_profile_type_functions.get(previous_segment.path_profile_type, create_u_shape)
+
+        # Create previous segment profile type at the start of the current segment path with 90 degree angle increments
+        for angle in range(0, 360, 90):
+
+            # Create path profile sketch at the combined angle
+            previous_segment_path_profile = path_profile_function(**path_parameters, rotation_angle=angle + start_angle)
+
+            # Create sketch at start of the second path at respective angle
+            with BuildSketch(current_segment.path^0) as current_segment_path_profile:
+                add(previous_segment_path_profile)
+
+            # Compare the newly-created sketch with the faces of the sweep
+            for face in faces:
+                 # Filter out faces that have a (nearly) identical area
+                if are_float_values_close(face.area, current_segment_path_profile.sketch.area):
+                    # Check equality of face shape geometry
+                    if are_equal_faces(face, current_segment_path_profile.sketch):
+                        return angle
+
+        # If no mathcing angle found, notify and return 0 degrees
+        print(f"No matching profile type angle found for segment {previous_segment.main_index}.{previous_segment.secondary_index} to segment {current_segment.main_index}.{current_segment.secondary_index}")
+        
+        return 0
+
 
 def align_location_to_nearest_90_degrees(self, location):
     """
@@ -578,4 +641,55 @@ def snap_to_cardinal(value: float) -> int:
     elif value < -0.5:
         return -1
     else:
-        return 0    
+        return 0 
+    
+
+def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) -> bool:
+    """
+    Checks if two float values are within a given percentage (default 1%) of one another.
+    
+    :param val1: First float value
+    :param val2: Second float value
+    :param tolerance: A fraction representing how close they should be 
+                      (e.g., 0.01 = within 1%)
+    :return: True if the values differ by at most 'tolerance' fraction of their average,
+             otherwise False
+    """
+    
+    # If both values are exactly 0, consider them close.
+    if val1 == 0 and val2 == 0:
+        return True
+    
+    # Calculate the absolute difference
+    diff = abs(val1 - val2)
+    
+    # Calculate the reference scale, using the average of the two values.
+    # Guard for the case if their average is 0 (which can happen if, say, one is 0 and the other is very small).
+    avg = (abs(val1) + abs(val2)) / 2.0
+    if avg == 0:
+        # if the average is zero but one or both values are non-zero, they are not within 1%.
+        return diff == 0
+    
+    # Compare difference to the tolerance fraction of the average
+    return (diff / avg) <= tolerance
+
+
+def are_equal_faces(face1, face2, tolerance=0.01):
+    """
+    Check if two faces have 'approximately' the same area within a given tolerance (default 1%).
+
+    We measure the total 'difference area' (areas in face1 not in face2 plus 
+    areas in face2 not in face1) and compare it against the average area.
+    """
+    # Calculate the 'difference area' - area that doesn't overlap
+    difference_area = (face1 - face2).area + (face2 - face1).area
+    
+    # Use the average of the two face areas as the reference
+    avg_area = (face1.area + face2.area) / 2
+    
+    # Guard against division by zero if either face has zero area
+    if avg_area == 0:
+        return difference_area == 0
+
+    # Compare the difference area to a tolerance fraction of the average area
+    return (difference_area / avg_area) <= tolerance

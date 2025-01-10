@@ -1,3 +1,4 @@
+import build123d
 from build123d import *
 from ocp_vscode import *
 
@@ -12,5 +13,7 @@ with BuildPart() as hook_part:
 
 show_object(hook_part)
 
-print(hook_part.part.is_valid())
-print(hook_part.part.is_manifold) # Holds water?
+print(f"\n{build123d.__version__}")
+print(f"Amount of faces: {len(hook_part.part.faces())}")
+print(f"is_valid: {hook_part.part.is_valid()}")
+print(f"is_manifold: {hook_part.part.is_manifold}") # Holds water?

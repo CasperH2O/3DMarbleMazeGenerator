@@ -41,7 +41,7 @@ with BuildPart() as path_sweep_part0:
     with BuildSketch(path_line0.line^0) as sketch_path_profile0:
         add(sketch0)
     sweep(transition=Transition.RIGHT)  
-o
+
 show_object(path_line0, name=f"Path Line 1")
 show_object(sketch_path_profile0.sketch, name=f"Path Profile 1")
 show_object(path_sweep_part0, name=f"Path Body 1")

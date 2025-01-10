@@ -15,20 +15,20 @@ class PathSegment:
         
         self.curve_type: Optional[PathCurveType] = None             # Curve type as enum
         self.curve_model: Optional[PathCurveModel] = None           # Assigned path curve model
-        self.transition_type: Optional[b3d.Transition] = None   # Assigned path transition type
+        self.transition_type: Optional[b3d.Transition] = None       # Assigned path transition type
                                                   
         self.path: None                                             # CAD path
         self.path_profile_type: Optional[PathProfileType] = None    # Assigned path profile type
         self.path_profile: Optional[b3d.Sketch] = None              # CAD path profile
-        self.path_body: Optional[b3d.Part] = None               # CAD swept path body
+        self.path_body: Optional[b3d.Part] = None                   # CAD swept path body
 
         self.accent_profile_type: Optional[PathProfileType] = None  # Path corresponding accent profile type
-        self.accent_profile: Optional[b3d.Sketch] = None          # CAD path profile
-        self.accent_body: Optional[b3d.Part] = None             # CAD accent body
+        self.accent_profile: Optional[b3d.Sketch] = None            # CAD path profile
+        self.accent_body: Optional[b3d.Part] = None                 # CAD accent body
 
         self.support_profile_type: Optional[PathProfileType] = None # Path corresponding support profile type
-        self.support_profile: Optional[b3d.Sketch] = None         # CAD path profile
-        self.support_body: Optional[b3d.Part] = None            # CAD support body
+        self.support_profile: Optional[b3d.Sketch] = None           # CAD path profile
+        self.support_body: Optional[b3d.Part] = None                # CAD support body
 
     def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
                                 previous_curve_type=None, next_curve_type=None):
