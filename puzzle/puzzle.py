@@ -267,10 +267,15 @@ class Puzzle:
         # Additional useful information
         print("\n=== Additional Details ===")
         print(f"Number of nodes: {len(self.nodes)}")
+        
+        # Find the start and end node
+        start_node = next(node for node in self.nodes if node.puzzle_start)
+        end_node = next(node for node in self.nodes if node.puzzle_end)
+
+        # Print the start and end node coordinates
         print(
-            f"Start point (xyz): ({self.nodes[0].x:.2f}, {self.nodes[0].y:.2f}, {self.nodes[0].z:.2f})"
+            f"Start point (xyz): ({start_node.x:.2f}, {start_node.y:.2f}, {start_node.z:.2f})"
         )
-        print(
-            f"End point (xyz): ({self.nodes[-1].x:.2f}, {self.nodes[-1].y:.2f}, {self.nodes[-1].z:.2f})"
+        print(f"End point (xyz): ({end_node.x:.2f}, {end_node.y:.2f}, {end_node.z:.2f})"
         )
         print("\n")

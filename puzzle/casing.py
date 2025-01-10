@@ -80,7 +80,7 @@ class SphereCasing(Casing):
             List[Node]: List of mounting nodes.
         """
         num_mounting_waypoints = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
-        radius = self.inner_radius
+        radius = self.inner_radius + Config.Puzzle.NODE_SIZE
         angle_increment = 2 * math.pi / num_mounting_waypoints
         mounting_nodes = []
 
