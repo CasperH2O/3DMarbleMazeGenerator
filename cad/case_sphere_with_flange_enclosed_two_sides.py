@@ -1,8 +1,11 @@
 # cad/case_sphere_with_flange_enclosed_two_sides.py
 
 from .case_base import CaseBase
-import cadquery as cq
+from build123d import *
 import math
+from ocp_vscode import *
+from copy import deepcopy, copy
+
 from config import Config
 
 
@@ -26,45 +29,63 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
         # Create the components
-        self.mounting_ring, self.path_bridges = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges, self.start_text = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
-        self.add_mounting_holes()
+        self.cut_shape = self.create_cut_shape()
+        self.cut_mounting_holes()
 
     def create_mounting_ring(self):
-        # Create the mounting ring
-        mounting_ring = (
-            cq.Workplane("XY")
-            .circle(self.sphere_flange_radius)  # Outer circle
-            .circle(self.sphere_inner_radius)  # Inner circle (hole)
-            .extrude(self.mounting_ring_thickness)  # Extrude thickness
-        )
-        # Move to center in Z
-        mounting_ring = mounting_ring.translate((0, 0, -0.5 * self.mounting_ring_thickness))
+        
+        # Build the mounting ring
+        with BuildPart() as mounting_ring:
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness) # Outer circle
+            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT) # Inner circle
 
-        # Add rectangular mounting bridges for the mounting ring, skipping the first one and rotating 180 degrees
-        mounting_ring_bridges = (
-            cq.Workplane("XY")
-            .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
-            .rect(self.node_size * 2, self.node_size)  # Define the rectangle
-            .extrude(self.mounting_ring_thickness / 2, both=True)  # Extrude symmetrically
-        )
+        # Build the start indicator
+        with BuildPart() as start_indicator:
+            # Start indicator, generate a triangle in the start area funnel
+            pass
 
-        # Add rectangular mounting bridges for the path within, skipping the first one and rotating 180 degrees
+        # Add mounting bridges with an outer bridge that connects to 
+        # the mounting ring and an inner bridge that connects to the path
+        # Skip the first location as that is the start area
+        num_points = self.number_of_mounting_points
+        start_angle = 360 / num_points + 180   
+        count = num_points - 1                  
+        angle_range = 360 - 360 / num_points
+
         printing_layer_thickness = Config.Manufacturing.LAYER_THICKNESS
         printing_nozzle_diameter = Config.Manufacturing.NOZZLE_DIAMETER
 
-        path_bridges = (
-            cq.Workplane("XY")
-            .polarArray(self.mounting_distance / 2, 180, 360, self.number_of_mounting_points)[1:]  # Skip the first rectangle and start at 180 degrees
-            .rect(self.node_size * 2 + 4 * printing_nozzle_diameter, self.node_size - 4 * printing_nozzle_diameter)  # Define the rectangle
-            .extrude(self.mounting_ring_thickness / 2 - printing_layer_thickness * 4, both=True)  # Extrude symmetrically
-        )
+        # Build the external mounting ring bridges
+        with BuildPart() as mounting_ring_bridges:
+            with PolarLocations(radius=self.mounting_distance/2, 
+                                count=count, 
+                                start_angle=start_angle, 
+                                angular_range=angle_range):
+                Box(
+                    width=self.node_size,
+                    length=self.node_size * 2,
+                    height=self.mounting_ring_thickness
+                )
 
-        # Combine the ring and the nodes, cut out path bridge
-        path_bridges = path_bridges.cut(mounting_ring)
-        mounting_ring = mounting_ring.union(mounting_ring_bridges.cut(path_bridges))
+        # Build the internal path bridges
+        with BuildPart() as path_bridges:
+            with PolarLocations(radius=self.mounting_distance/2, 
+                                count=count, 
+                                start_angle=start_angle, 
+                                angular_range=angle_range):
+                Box(
+                    width=self.node_size - 4 * printing_nozzle_diameter,
+                    length=self.node_size * 2 + 4 * printing_nozzle_diameter,
+                    height=self.mounting_ring_thickness - printing_layer_thickness * 8
+                )
 
-        return mounting_ring, path_bridges
+        # Combine the mounting ring with the external bridge, cut out internal path bridge
+        path_bridges.part = path_bridges.part - mounting_ring.part
+        mounting_ring.part = mounting_ring.part + (mounting_ring_bridges.part - path_bridges.part)
+
+        return mounting_ring, path_bridges, start_indicator
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
@@ -85,52 +106,46 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         x_mid_outer = self.sphere_outer_radius * math.cos(theta_mid_outer)
         y_mid_outer = self.sphere_outer_radius * math.sin(theta_mid_outer)
 
-        # Create the profile on the XZ plane
-        dome_profile = (
-            cq.Workplane("XZ")
-            # Start at the outer circle top
-            .moveTo(0, self.sphere_outer_radius)  # Point A
-            .lineTo(0, self.sphere_inner_radius)  # Line down to Point B
-            .threePointArc((x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))  # Inner arc to Point C
-            .lineTo(self.sphere_flange_radius, 0)  # Line to Point D
-            .lineTo(self.sphere_flange_radius, self.sphere_thickness)  # Line up to Point E
-            .lineTo(x_start_outer, y_start_outer)  # Line to adjusted starting point for outer arc (Point F)
-            .threePointArc((x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))  # Outer arc back to Point A
-            .close()
-        )
-
-        # Revolve the dome profile
-        dome_top = dome_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
-
+        # Create dome top part
+        with BuildPart() as dome_top:
+            with BuildSketch(Plane.XZ):
+                with BuildLine(Plane.XZ):
+                    l1 = Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
+                    l2 = ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
+                    l3 = Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
+                    l4 = Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
+                    l5 = Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
+                    l6 = ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
+                make_face()
+            revolve()
+        
         # Move to make place for mounting ring
-        # Add small distance to prevent overlap artifacts during rendering
-        dome_top = dome_top.translate((0, 0, 0.5 * self.mounting_ring_thickness + 0.01))
+        # Add small distance to prevent overlap artifacts during rendering with transparency
+        dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
 
         # Mirror the dome for the other side
-        dome_bottom = dome_top.mirror(mirrorPlane="XY")
-
+        dome_bottom = copy(dome_top)
+        dome_bottom.part = dome_bottom.part.mirror(Plane.XY)
+        
         return dome_top, dome_bottom
 
-    def add_mounting_holes(self):
+    def cut_mounting_holes(self):
         # Calculate the hole pattern radius
-        hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2  # Average radius
+        hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
 
-        # Create a work plane on the XY plane
-        wp = cq.Workplane("XY")
+        # Create the holes as a separate BuildPart
+        with BuildPart() as holes:
+            # Set up polar locations at the given radius and start angle
+            with PolarLocations(radius=hole_pattern_radius,
+                                count=self.mounting_hole_amount,
+                                start_angle=45,     # start from 45 degrees as per the original code
+                                angular_range=360):
+                Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2 + self.mounting_ring_thickness)
 
-        # Define the hole pattern
-        holes = (
-            wp
-            .workplane()
-            .polarArray(hole_pattern_radius, 45, 360, self.mounting_hole_amount, fill=True)
-            .circle(self.mounting_hole_diameter / 2)
-            .extrude(3 * self.sphere_thickness, both=True)  # Extrude length sufficient to cut through the bodies
-        )
-
-        # Cut the holes in applicable bodies
-        self.mounting_ring = self.mounting_ring.cut(holes)
-        self.dome_top = self.dome_top.cut(holes)
-        self.dome_bottom = self.dome_bottom.cut(holes)
+        # Now subtract the holes from the existing parts
+        self.mounting_ring.part = self.mounting_ring.part - holes.part
+        self.dome_top.part = self.dome_top.part - holes.part
+        self.dome_bottom.part = self.dome_bottom.part - holes.part
 
     def get_cad_objects(self):
         return {
@@ -138,9 +153,10 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             "Dome Top": (self.dome_top, {"alpha": 0.05, "color":(1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
+            "Start Indicator": (self.start_text, {"color": Config.Puzzle.TEXT_COLOR}),
         }
 
-    def get_cut_shape(self):
+    def create_cut_shape(self):
         # Add small distance for tolerances
         flush_distance_tolerance = 0.0
 
@@ -156,35 +172,24 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         mid_inner_x = R_inner / math.sqrt(2)
         mid_inner_y = R_inner / math.sqrt(2)
 
-        # Create the cross-sectional profile of the hollow sphere
-        hollow_sphere_profile = (
-            cq.Workplane("XZ")
-            # Start at point A: (0, R_outer)
-            .moveTo(0, R_outer)
-            # Draw the outer quarter-circle arc from A to B: (R_outer, 0), via midpoint
-            .threePointArc((mid_outer_x, mid_outer_y), (R_outer, 0))
-            # Draw a vertical line down to the inner radius at point C: (R_outer, R_inner)
-            .lineTo(R_inner, 0)
-            # Draw the inner quarter-circle arc from C to D: (0, R_inner), via midpoint
-            .threePointArc((mid_inner_x, mid_inner_y), (0, R_inner))
-            # Close the profile
-            .close()
-        )
-
-        # Revolve the profile to create the hollow sphere solid
-        hollow_sphere_top = hollow_sphere_profile.revolve(angleDegrees=360, axisStart=(0, 0, 0), axisEnd=(0, 1, 0))
-
-        # Mirror the sphere for the other side
-        hollow_sphere_bottom = hollow_sphere_top.mirror(mirrorPlane="XY")
-
-        # Compensate for the original translation amount in create_domes
-        translation_z = (0.5 * self.mounting_ring_thickness + 0.01) - 0.33333 * self.mounting_ring_thickness
-
-        # Adjust the domes by translating them along the Z-axis
-        hollow_sphere_top = hollow_sphere_top.translate((0, 0, translation_z))
-        hollow_sphere_bottom = hollow_sphere_bottom.translate((0, 0, -translation_z))
-
-        # Combine the domes using union
-        cut_shape = hollow_sphere_top.union(hollow_sphere_bottom)
+        with BuildPart() as cut_shape:
+            with BuildSketch(Plane.XZ):
+                with BuildLine(Plane.XZ):
+                    # Outer arc
+                    ThreePointArc((0, R_outer), (mid_outer_x, mid_outer_y), (R_outer, 0))
+                    # Vertical line down to inner radius
+                    Line((R_outer, 0), (R_inner, 0))
+                    # Inner arc
+                    ThreePointArc((R_inner, 0), (mid_inner_x, mid_inner_y), (0, R_inner))
+                    # Close the loop by connecting back to (0,R_outer)
+                    Line((0, R_inner), (0, R_outer))
+                make_face()
+            # Revolve the profile to create the hollow half sphere solid
+            revolve()
+            # Move to create gap, leave a small gap to create connection with start area
+            translation_z = (0.5 * self.mounting_ring_thickness) - 0.33333 * self.mounting_ring_thickness
+            cut_shape.part.position = (0, 0, -translation_z)
+            # Mirror the top half to create the bottom half
+            mirror(about=Plane.XY)           
 
         return cut_shape

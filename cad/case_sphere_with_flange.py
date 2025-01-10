@@ -54,8 +54,6 @@ class CaseSphereWithFlange(CaseBase):
         # Subtract the text from the mounting ring
         mounting_ring.part = mounting_ring.part - start_text.part
 
-        show_all()  
-
         # Add mounting bridges with an outer bridge that connects to 
         # the mounting ring and an inner bridge that connects to the path
         # Skip the first location as that is the start area
@@ -197,7 +195,7 @@ class CaseSphereWithFlange(CaseBase):
             # Revolve the profile to create the hollow half sphere solid
             revolve()
             # Move to create gap, leave a small gap to create connection with start area
-            translation_z = (0.5 * self.mounting_ring_thickness) - 0.33333 * self.mounting_ring_thickness
+            translation_z = 0.5 * self.mounting_ring_thickness - 0.33333 * self.mounting_ring_thickness
             cut_shape.part.position = (0, 0, -translation_z)
             # Mirror the top half to create the bottom half
             mirror(about=Plane.XY)           

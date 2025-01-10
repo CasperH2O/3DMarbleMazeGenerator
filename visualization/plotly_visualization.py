@@ -272,7 +272,7 @@ def visualize_path_architect(nodes, segments, casing):
     # Visualize the path and segments using Plotly
     fig = go.Figure()
 
-    # Plot all nodes using the updated plotting method
+    # Plot all nodes
     node_traces = plot_nodes_plotly(nodes)
     for trace in node_traces:
         fig.add_trace(trace)
