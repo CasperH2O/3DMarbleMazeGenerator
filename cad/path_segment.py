@@ -1,6 +1,7 @@
 # cad/path_segment
 
 import build123d as b3d
+import math
 from typing import List, Optional
 
 from config import PathCurveModel, PathCurveType, PathProfileType
@@ -32,7 +33,12 @@ class PathSegment:
 
     def adjust_start_and_endpoints(self, node_size, previous_end_point=None, next_start_point=None,
                                 previous_curve_type=None, next_curve_type=None):
-
+        """
+        Adjust the start and end nodes of this PathSegment based on puzzle rules, 
+        while handling 'bridging' segments (segments that occupy the same location 
+        as both the previous_end_point and next_start_point).
+        """
+        
         # Special handling for single-node end segments
         if len(self.nodes) == 1 and self.nodes[0].puzzle_end and previous_end_point is not None:
             # Create a new start node at the previous_end_point location
@@ -66,8 +72,8 @@ class PathSegment:
         if self.curve_type is not None:
             return
         
-        # Do not adjust segments that have been created to bridge curves
-        if previous_curve_type is not None and next_curve_type is not None:
+        # If the segment is bridging or was handled accordingly, we can exit
+        if self._check_and_handle_bridging_segment(previous_end_point, next_start_point, node_size):            
             return
 
         if len(self.nodes) >= 2:
@@ -191,6 +197,91 @@ class PathSegment:
                     self.nodes[0].segment_start = self.nodes[0].puzzle_start
                     self.nodes[0].segment_end = self.nodes[0].puzzle_end
 
+    def _is_same_location(self, p1, p2, tol=1e-7):
+        """
+        Utility: returns True if p1 and p2 are effectively the same point 
+        within a given floating-point tolerance.
+        """
+        return (p1 - p2).length < tol
+
+    def _check_and_handle_bridging_segment(self, previous_end_point, next_start_point, node_size):
+        """
+        Returns True if this segment is a 'bridging segment' that should prevent 
+        further adjustments. Otherwise, returns False.
+
+        Also handles partial bridging: e.g., if the segment’s single node 
+        coincides with previous_end_point but not next_start_point, 
+        """
+        # Quick exit if we have no valid endpoints to compare
+        if (previous_end_point is None) and (next_start_point is None):
+            return False
+
+        # Convert Node -> b3d.Vector for convenience
+        def as_vector(n):
+            return b3d.Vector(n.x, n.y, n.z)
+
+        # ---- Single-node check ----
+        if len(self.nodes) == 1:
+            node_vec = as_vector(self.nodes[0])
+
+            # 1) Single node equals both previous_end_point & next_start_point
+            if (previous_end_point is not None and 
+                next_start_point is not None and
+                self._is_same_location(node_vec, previous_end_point) and
+                self._is_same_location(node_vec, next_start_point)):
+                # This is a perfect bridging node: same as end of previous, start of next
+                return True  # Stop further adjustments
+
+            # 2) Single node only matches previous_end_point => connect it to next_start_point
+            if previous_end_point is not None and \
+            self._is_same_location(node_vec, previous_end_point) and \
+            next_start_point is not None and \
+            not self._is_same_location(node_vec, next_start_point):
+                # For example, shift the node to match the next_start_point if you want
+                # or do nothing if you prefer to keep it bridging in place
+                #
+                # Example: shift to the next_start_point
+                self.nodes[0].x = next_start_point.X
+                self.nodes[0].y = next_start_point.Y
+                self.nodes[0].z = next_start_point.Z
+                return True
+
+            # 3) Single node only matches next_start_point => connect it to previous_end_point
+            if next_start_point is not None and \
+            self._is_same_location(node_vec, next_start_point) and \
+            previous_end_point is not None and \
+            not self._is_same_location(node_vec, previous_end_point):
+                # Shift node to the previous_end_point if needed
+                self.nodes[0].x = previous_end_point.X
+                self.nodes[0].y = previous_end_point.Y
+                self.nodes[0].z = previous_end_point.Z
+                return True
+
+            # If it doesn’t match anything, we just return False
+            # so that the normal adjustments happen
+            return False
+
+        # ---- Multiple-node check (check first and last node) ----
+        else:
+            first_vec = b3d.Vector(self.nodes[0].x, self.nodes[0].y, self.nodes[0].z)
+            last_vec = b3d.Vector(self.nodes[-1].x, self.nodes[-1].y, self.nodes[-1].z)
+
+            both_endpoints_present = (previous_end_point is not None and next_start_point is not None)
+
+            # Check if first node matches previous_end_point AND last node matches next_start_point
+            if both_endpoints_present and \
+            self._is_same_location(first_vec, previous_end_point) and \
+            self._is_same_location(last_vec, next_start_point):
+                # Perfect bridging
+                return True
+
+            # Similarly, you can handle partial bridging if you want:
+            #  - if first node matches only previous_end_point
+            #  - if last node matches only next_start_point
+            # and shift as needed
+
+            # If no bridging pattern matched, let normal adjustments proceed
+            return False
 
     def copy_attributes_from(self, other_segment):
         self.path_profile_type = other_segment.path_profile_type
