@@ -50,8 +50,7 @@ class PathSegment:
         # partial bridging logic, handle it accordingly and possibly return.
         # If bridging is detected and handled, we can skip further adjustments.
         if self._check_and_handle_bridging_segment(previous_end_point,
-                                                   next_start_point, 
-                                                   node_size):
+                                                   next_start_point):
             return
 
         # Special handling for single-node puzzle-end segments:
@@ -99,8 +98,8 @@ class PathSegment:
             # Check if the single node matches both previous_end_point and next_start_point:
             if (previous_end_point is not None 
                 and next_start_point is not None
-                and self._is_same_location(node_vec, previous_end_point) 
-                and self._is_same_location(node_vec, next_start_point)):
+                and is_same_location(node_vec, previous_end_point) 
+                and is_same_location(node_vec, next_start_point)):
                 # Perfect bridging node: same location as both ends
                 return True
 
@@ -114,8 +113,8 @@ class PathSegment:
 
             if (previous_end_point is not None 
                 and next_start_point is not None
-                and self._is_same_location(first_vec, previous_end_point)
-                and self._is_same_location(last_vec, next_start_point)):
+                and is_same_location(first_vec, previous_end_point)
+                and is_same_location(last_vec, next_start_point)):
                 # Perfect bridging: first node = previous_end_point AND last node = next_start_point
                 return True
 
@@ -312,10 +311,10 @@ class PathSegment:
         self.transition_type = other_segment.transition_type
 
 
-    @staticmethod
-    def _is_same_location(p1: b3d.Vector, p2: b3d.Vector, tol: float = 1e-7) -> bool:
-        """
-        Returns True if p1 and p2 are effectively the same point 
-        within a given floating-point tolerance.
-        """
-        return (p1 - p2).length < tol        
+def is_same_location(p1: b3d.Vector, p2: b3d.Vector, tol: float = 1e-7) -> bool:
+    """
+    Returns True if p1 and p2 are effectively the same point 
+    within a given floating-point tolerance.
+    """
+    return (p1 - p2).length < tol        
+

@@ -29,7 +29,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
         # Create the components
-        self.mounting_ring, self.path_bridges, self.start_text = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges, self.start_indcator = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
         self.cut_shape = self.create_cut_shape()
         self.cut_mounting_holes()
@@ -38,13 +38,16 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         
         # Build the mounting ring
         with BuildPart() as mounting_ring:
-            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness) # Outer circle
-            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT) # Inner circle
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness / 2) # Outer circle
+            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness / 2, mode=Mode.SUBTRACT) # Inner circle
 
         # Build the start indicator
         with BuildPart() as start_indicator:
-            # Start indicator, generate a triangle in the start area funnel
-            pass
+            with BuildSketch():
+                text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
+                text_path = Circle(text_radius, mode=Mode.PRIVATE).edge().rotate(Axis((0, 0, 0), (0, 0, 1)), 180)
+                Text(txt="^", font_size=8, path=text_path)
+            extrude(amount=-1)
 
         # Add mounting bridges with an outer bridge that connects to 
         # the mounting ring and an inner bridge that connects to the path
@@ -120,7 +123,6 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             revolve()
         
         # Move to make place for mounting ring
-        # Add small distance to prevent overlap artifacts during rendering with transparency
         dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
 
         # Mirror the dome for the other side
@@ -153,7 +155,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             "Dome Top": (self.dome_top, {"alpha": 0.05, "color":(1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
-            "Start Indicator": (self.start_text, {"color": Config.Puzzle.TEXT_COLOR}),
+            "Start Indicator": (self.start_indcator, {"color": Config.Puzzle.TEXT_COLOR}),
         }
 
     def create_cut_shape(self):

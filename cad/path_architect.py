@@ -537,5 +537,6 @@ class PathArchitect:
                 secondary_index_counter += 1
 
         self.secondary_index_counters[main_index] = secondary_index_counter
+        
         return new_segments
 

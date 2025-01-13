@@ -4,7 +4,7 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.GENERIC
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
     THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
     
@@ -64,50 +64,53 @@ class Path:
         #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.V_SHAPE
         ]
+    
+    # Tight corner sweep tolerance
+    sweep_tolerance = 0.0001
 
     PATH_PROFILE_TYPE_PARAMETERS = {
         'l_shape': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },
         'l_shape_adjusted_height': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
             'lower_distance': 3.5
         },
         'o_shape': {
-            'outer_diameter': 10.0 - 0.0001,
+            'outer_diameter': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2
         },
         'o_shape_support': {
-            'outer_diameter': 10.0 - 0.0001,
+            'outer_diameter': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },
         'u_shape': {
-            'height': 10.0 - 0.0001,
-            'width': 10.0 - 0.0001,
+            'height': 10.0 - sweep_tolerance,
+            'width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },
         'u_shape_path_color': {
-            'height': 10.0 - 0.0001,
-            'width': 10.0 - 0.0001,
+            'height': 10.0 - sweep_tolerance,
+            'width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },        
         'u_shape_adjusted_height': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
             'lower_distance': 3.5
         },
         'v_shape': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },
         'v_shape_path_color': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
         },
         'rectangle_shape': {
-            'height_width': 10.0 - 0.0001,
+            'height_width': 10.0 - sweep_tolerance,
         }
     }
 
