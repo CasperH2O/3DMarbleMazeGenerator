@@ -418,7 +418,7 @@ class PathArchitect:
             new_node = Node(new_point.X, new_point.Y, new_point.Z)
 
             # Create new segment consisting of last_node and new_node
-            new_segment_nodes = [last_node, new_node]
+            new_segment_nodes = [new_node, last_node]
 
             # Create new PathSegment for the closing shape
             new_segment = PathSegment(

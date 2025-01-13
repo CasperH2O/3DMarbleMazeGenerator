@@ -46,12 +46,6 @@ class PathBuilder:
         # Create the segments
         self.create_segments()
 
-        # Prepare profiles and paths
-        #self.prepare_profiles_and_paths()
-
-        # Sweep profiles along paths
-        #self.sweep_profiles_along_paths()
-
         # Make holes in O-shaped path segments
         self.cut_holes_in_o_shape_path_profile_segments()
 
@@ -63,7 +57,6 @@ class PathBuilder:
         """
         segments = self.path_architect.segments
         previous_segment = None
-        path_line_angle = -90
 
         for segment in segments:
             # Skip segments that contain the start node
@@ -72,15 +65,15 @@ class PathBuilder:
 
             # Polyline and spline segments are handled differently
             if segment.curve_model == PathCurveModel.POLYLINE:
-                segment, path_line_angle = self.create_polyline_segment(previous_segment, segment, path_line_angle)
+                segment = self.create_polyline_segment(previous_segment, segment)
             elif segment.curve_model == PathCurveModel.SPLINE:
-                segment = self.create_spline_segment(previous_segment, segment, path_line_angle)
+                segment = self.create_spline_segment(previous_segment, segment)
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
 
             previous_segment = segment
 
-    def create_polyline_segment(self, previous_segment, segment, path_line_angle):
+    def create_polyline_segment(self, previous_segment, segment):
         """
         Creates a polyline segment.
         """
@@ -104,7 +97,7 @@ class PathBuilder:
                 segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
 
         # Profile
-
+        path_line_angle = -90
         profile_angle = 0      
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
@@ -112,13 +105,10 @@ class PathBuilder:
             loc1 = previous_segment.path^1
             loc2 = segment.path^0
             path_line_angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Path line angle: {path_line_angle}")
 
         # Determine the angle of the profile based on the previous segment
         if previous_segment is not None:
-            # todo, rework this method to check actually made solid instead of doing it's own sweep again
             profile_angle = self.determine_path_profile_angle(previous_segment, segment, path_line_angle)
-            #print(f"Profile angle for segment index: {segment.main_index}.{segment.secondary_index} is {profile_angle}")
 
         # Get parameters for the path profile type
         path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
@@ -126,6 +116,9 @@ class PathBuilder:
         # Store path profile sketch
         path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
         segment.path_profile = path_profile_function(**path_parameters, rotation_angle=path_line_angle + profile_angle)
+
+        # Sweep for the main path body
+        segment.path_body = sweep_single_profile(segment, segment.path_profile, segment.transition_type, "Path")
 
         # Create the accent profile if the segment has an accent profile type
         if segment.accent_profile_type != None:
@@ -137,6 +130,9 @@ class PathBuilder:
             accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
             segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
+            # Sweep for the accent body
+            segment.accent_body = sweep_single_profile(segment, segment.accent_profile, segment.transition_type, "Accent")
+
         # Create the support profile if the segment has a support profile type
         if segment.support_profile_type != None:
 
@@ -147,48 +143,10 @@ class PathBuilder:
             support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
             segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
-        # Visualize the paths for debugging
-        #show_object(segment.path, name=f"path_{segment.main_index}")
+            # Sweep for the support body
+            segment.support_body = sweep_single_profile(segment, segment.support_profile, segment.transition_type, "Support")
 
-        # Sweep the wanted bodies along the path with the profiles
-
-        # Determine the start workplane, at the start of the path
-        with BuildLine() as path_line:
-            add(segment.path) 
-        workplane = path_line.line^0 
-
-        # Perform the sweep for the main path body
-        segment.path_body = sweep_single_profile(
-            segment,
-            workplane,
-            segment.path_profile,
-            segment.transition_type,
-            "Path"
-        )
-
-        # Perform the sweep for the accent body, if required
-        if segment.accent_profile is not None:
-
-            segment.accent_body = sweep_single_profile(
-                segment,
-                workplane,
-                segment.accent_profile,
-                segment.transition_type,
-                "Accent"
-            )
-
-        # Perform the sweep for the support body, if required
-        if segment.support_profile_type is not None:
-
-            segment.support_body = sweep_single_profile(
-                segment, 
-                workplane, 
-                segment.support_profile, 
-                segment.transition_type, 
-                "Support"
-            )
-
-        return segment, path_line_angle
+        return segment
 
 
     def create_spline_segment(self, previous_segment, segment, path_line_angle, profile_angle):
@@ -363,14 +321,6 @@ class PathBuilder:
                 if segment.support_body:
                     segment.support_body.part = segment.support_body.part - cutting_cylinder.part
 
-        '''
-                # Check for intersection
-                if hole_cylinder.val().intersect(segment.path_body.val()).Volume() > 0:
-                    segment.path_body = segment.path_body.cut(hole_cylinder)
-                    if segment.support_body:
-                        segment.support_body = segment.support_body.cut(hole_cylinder)
-
-        '''
 
     def attempt_spline_path_creation(self, segment, sub_path_points):
         """
@@ -488,10 +438,10 @@ class PathBuilder:
         Determine the relative rotation angle between the profile of the `previous_segment`
         and the start of the `current_segment`.
 
-        This function creates a swept shape from `previous_segment` using its path and
-        path profile. It then attempts to match that profile with a sketch placed at
-        the start of the `current_segment.path`. The function returns the rotation offset
-        (0 <= angle < 360) at which the profile matches, or 0 if no match is found.
+        This function takes the swept path shape from `previous_segment` It then attempts 
+        to match that profile with a sketch placed at the start of the `current_segment.path`. 
+        The function returns the rotation offset (0 <= angle < 360) at which the profile 
+        matches, or 0 if no match is found.
 
         :param previous_segment: The segment whose swept profile is being checked
         :param current_segment: The segment at whose start we want to match the profile
@@ -500,17 +450,8 @@ class PathBuilder:
                 returns 0 if no matching angle is found
         """
 
-        # Create sweep of previous segment, as it was not made yet
-        with BuildPart() as swept_shape_part:
-            with BuildLine():
-                add(previous_segment.path)
-            # Create the sketch for the profile
-            with BuildSketch(previous_segment.path^0):
-                add(previous_segment.path_profile)
-            sweep(transition=Transition.RIGHT)  
-
         # Obtain faces from the swept shape
-        faces = swept_shape_part.faces()
+        faces = previous_segment.path_body.part.faces()
 
         # Get parameters for the path profile type
         path_parameters = self.path_profile_type_parameters.get(previous_segment.path_profile_type.value, {})
@@ -539,45 +480,6 @@ class PathBuilder:
         print(f"No matching profile type angle found for segment {previous_segment.main_index}.{previous_segment.secondary_index} to segment {current_segment.main_index}.{current_segment.secondary_index}")
         
         return 0
-
-
-def align_location_to_nearest_90_degrees(self, location):
-    """
-    Align the given location to the nearest 90-degree angle.
-    """
-    # Make a copy so we don't accidentally change the original
-    aligned_location = location.copy()
-
-    # Snap each axis' direction vector to the nearest cardinal axis
-    aligned_location.x_axis.direction = Vector(
-        snap_to_cardinal(aligned_location.x_axis.direction.X),
-        snap_to_cardinal(aligned_location.x_axis.direction.Y),
-        snap_to_cardinal(aligned_location.x_axis.direction.Z),
-    )
-    aligned_location.y_axis.direction = Vector(
-        snap_to_cardinal(aligned_location.y_axis.direction.X),
-        snap_to_cardinal(aligned_location.y_axis.direction.Y),
-        snap_to_cardinal(aligned_location.y_axis.direction.Z),
-    )
-    aligned_location.z_axis.direction = Vector(
-        snap_to_cardinal(aligned_location.z_axis.direction.X),
-        snap_to_cardinal(aligned_location.z_axis.direction.Y),
-        snap_to_cardinal(aligned_location.z_axis.direction.Z),
-    )
-
-    return aligned_location
-    
-def snap_to_cardinal(value: float) -> int:
-    """
-    Given a float in range [-1,1], snap it to -1, 0 or 1 
-    by using +/-0.5 as the threshold.
-    """
-    if value > 0.5:
-        return 1
-    elif value < -0.5:
-        return -1
-    else:
-        return 0 
     
 
 def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) -> bool:
@@ -630,30 +532,30 @@ def are_equal_faces(face1, face2, tolerance=0.01):
     # Compare the difference area to a tolerance fraction of the average area
     return (difference_area / avg_area) <= tolerance
 
-def sweep_single_profile(segment, workplane, profile, transition_type, sweep_label="Path"):
-        """
-        Helper for sweeping a single profile (main path, accent, or support).
-        """
-        try:
-            # Create part out of path profile and path
-            with BuildPart() as sweep_result:
-                with BuildLine() as path_line:
-                    add(segment.path)
-                # Create the path profile sketch on the workplane
-                with BuildSketch(workplane) as sketch_path_profile:
-                    add(profile)
-                sweep(transition=transition_type)
+def sweep_single_profile(segment, profile, transition_type, sweep_label="Path"):
+    """
+    Helper for sweeping a single profile (main path, accent, or support).
+    """
+    try:
+        # Create part out of path profile and path
+        with BuildPart() as sweep_result:
+            with BuildLine() as path_line:
+                add(segment.path)
+            # Create the path profile sketch on the workplane
+            with BuildSketch(path_line.line^0) as sketch_path_profile:
+                add(profile)
+            sweep(transition=transition_type)
 
-            # Debugging / visualization
-            #show_object(path_line, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path")
-            #show_object(sketch_path_profile.sketch, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile")
-            #show_object(sweep_result, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body")
+        # Debugging / visualization
+        #show_object(path_line, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path")
+        #show_object(sketch_path_profile.sketch, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile")
+        #show_object(sweep_result, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body")
 
-            return sweep_result
+        return sweep_result
 
-        except Exception as e:
-            print(
-                f"Error sweeping {sweep_label.lower()} for segment "
-                f"{segment.main_index}.{segment.secondary_index}: {e}"
-            )
-            return None
+    except Exception as e:
+        print(
+            f"Error sweeping {sweep_label.lower()} for segment "
+            f"{segment.main_index}.{segment.secondary_index}: {e}"
+        )
+        return None
