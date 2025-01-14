@@ -104,7 +104,8 @@ class PathBuilder:
         if previous_segment is not None:
             loc1 = previous_segment.path^1
             loc2 = segment.path^0
-            path_line_angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+            path_angle_delta = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+            path_line_angle += 90 * round(path_angle_delta / 90.0)
 
         # Determine the angle of the profile based on the previous segment
         if previous_segment is not None:
