@@ -222,24 +222,36 @@ class PathBuilder:
                 loc1 = previous_segment.path^1
                 loc2 = segment.path^0
                 path_line_angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+            #print(f"Path line angle: {path_line_angle}")
 
             # Determine the angle of the profile based on the previous segment
             if previous_segment is not None:
                 profile_angle = self.determine_path_profile_angle(previous_segment, segment, path_line_angle)
+            #print(f"Profile angle: {profile_angle}")
 
             # Determine spline path end angle for additional end of path profile rotation
             loc1 = help_path^1
             loc2 = segment.path^1
             angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
             angle_profile_end_of_path = angle_profile_end_of_path % 90
+            #print(f"Profile end of path angle: {angle_profile_end_of_path}")
+
+            # Determine the twist of the spline as a result of tangents
+            loc1 = segment.path^0
+            loc2 = segment.path^1
+            spline_twist_angle = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+            #print(f"Spline twist angle: {spline_twist_angle}")
+
+            final_angle_sketch1 = profile_angle + angle_profile_end_of_path
+            final_angle_sketch2 = profile_angle + angle_profile_end_of_path + spline_twist_angle
 
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
             # Store path profile sketch
             path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
-            segment.path_profile = path_profile_function(**path_parameters, rotation_angle=path_line_angle + profile_angle)
-            path_profile_end = path_profile_function(**path_parameters, rotation_angle=profile_angle + angle_profile_end_of_path)
+            segment.path_profile = path_profile_function(**path_parameters, rotation_angle=final_angle_sketch1)
+            path_profile_end = path_profile_function(**path_parameters, rotation_angle=final_angle_sketch2)
 
             try:
                 print(f"Sweeping for segment {segment.main_index}.{segment.secondary_index}")
@@ -266,8 +278,8 @@ class PathBuilder:
 
                     # Store accent color profile sketch
                     accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
-                    segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=path_line_angle + profile_angle)
-                    path_profile_end = accent_profile_function(**accent_path_parameters, rotation_angle=profile_angle + angle_profile_end_of_path)
+                    segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=final_angle_sketch1)
+                    path_profile_end = accent_profile_function(**accent_path_parameters, rotation_angle=final_angle_sketch2)
 
                     # Sweep for the accent body
                     with BuildPart() as segment.accent_body:
@@ -287,8 +299,8 @@ class PathBuilder:
 
                     # Store support profile sketch
                     support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
-                    segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=path_line_angle + profile_angle)
-                    path_profile_end = support_profile_function(**support_path_parameters, rotation_angle=profile_angle + angle_profile_end_of_path)
+                    segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=final_angle_sketch1)
+                    path_profile_end = support_profile_function(**support_path_parameters, rotation_angle=final_angle_sketch2)
 
                     # Sweep for the support body
                     with BuildPart() as segment.support_body:
@@ -303,8 +315,16 @@ class PathBuilder:
                 # If we reach this point, the sweep succeeded, return segment
                 #print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
 
-                return segment
+                '''        
+                show_object(l, f"Spline Line - segment {segment.main_index}.{segment.secondary_index}")
+                show_object(help_path, f"Help path - segment {segment.main_index}.{segment.secondary_index}")
+                path_increments = [0.1, 0.5, 0.9]
+                for val in path_increments:
+                    show_object(l.line ^ val, name=f"Spline Line - {val:.2f} - segment {segment.main_index}.{segment.secondary_index}")  
+                    show_object(help_path ^ val, name=f"Help path - segment {segment.main_index}.{segment.secondary_index}")      
+                '''
 
+                return segment
 
             except Exception as e:
                 # The spline creation failed, try the next option
