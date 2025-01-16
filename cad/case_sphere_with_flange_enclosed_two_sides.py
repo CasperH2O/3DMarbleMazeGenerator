@@ -32,14 +32,24 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.mounting_ring, self.path_bridges, self.start_indcator = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
         self.cut_shape = self.create_cut_shape()
-        self.cut_mounting_holes()
 
     def create_mounting_ring(self):
         
         # Build the mounting ring
-        with BuildPart() as mounting_ring:
+        with BuildPart() as mounting_ring_top:
             Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness / 2) # Outer circle
             Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness / 2, mode=Mode.SUBTRACT) # Inner circle
+
+        # Move to place over flange
+        mounting_ring_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
+
+        # Mirror the dome for the other side. TODO instead of mirroring flip 180 degrees
+        mounting_ring_bottom = copy(mounting_ring_top)
+        mounting_ring_bottom.part = mounting_ring_bottom.part.mirror(Plane.XY)            
+
+        # Combine mounting rings in one part
+        mounting_ring = BuildPart()
+        mounting_ring.part = mounting_ring_top.part + mounting_ring_bottom.part
 
         # Build the start indicator
         with BuildPart() as start_indicator:
@@ -88,6 +98,30 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         path_bridges.part = path_bridges.part - mounting_ring.part
         mounting_ring.part = mounting_ring.part + (mounting_ring_bridges.part - path_bridges.part)
 
+        # Build the mounting ring clips
+        with BuildPart() as mounting_ring_clips:
+            with PolarLocations(radius=self.sphere_flange_diameter/2, 
+                    count=num_points, 
+                    start_angle=start_angle, 
+                    angular_range=360):
+                Box(
+                    width=14,
+                    length=9,
+                    height=10
+                )
+            # Subtract the inside part out of the clip
+            Cylinder(self.sphere_flange_radius + 3, 10 - 4, mode=Mode.SUBTRACT)
+
+            # Subtract the side of the clip that is against the domes
+            Cylinder(self.sphere_inner_radius + self.sphere_thickness, 10, mode=Mode.SUBTRACT)
+
+        # Build the shape to cut off from the outside of the mounting ring clips
+        with BuildPart() as mounting_ring_clips_outer_cut:
+            Cylinder(self.sphere_flange_radius + 8, 10) # Outer circle
+            Cylinder(self.sphere_flange_radius + 4, 10, mode=Mode.SUBTRACT) # Inner circle
+
+        mounting_ring.part = mounting_ring.part + (mounting_ring_clips.part - mounting_ring_clips_outer_cut.part)
+
         return mounting_ring, path_bridges, start_indicator
 
     def create_domes(self):
@@ -121,7 +155,29 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     l6 = ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
                 make_face()
             revolve()
-        
+
+            # Create the holes with fillets
+            # Calculate the hole pattern radius
+            hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2 + 1
+            
+            polar_location_start_angle = 8
+
+            # Set up polar locations at the given radius and start angle
+            with PolarLocations(radius=hole_pattern_radius,
+                                count=self.mounting_hole_amount,
+                                start_angle=polar_location_start_angle,     # start from 45 degrees as per the original code
+                                angular_range=360):
+                Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)
+              
+            # Mirored set of polar locations at the given radius and start angle
+            with PolarLocations(radius=hole_pattern_radius,
+                                count=self.mounting_hole_amount,
+                                start_angle=-polar_location_start_angle,     # start from 45 degrees as per the original code
+                                angular_range=360):
+                Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)     
+
+            fillet(dome_top.edges().filter_by(Axis.Z), radius=2)
+       
         # Move to make place for mounting ring
         dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
 
@@ -131,23 +187,6 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         
         return dome_top, dome_bottom
 
-    def cut_mounting_holes(self):
-        # Calculate the hole pattern radius
-        hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
-
-        # Create the holes as a separate BuildPart
-        with BuildPart() as holes:
-            # Set up polar locations at the given radius and start angle
-            with PolarLocations(radius=hole_pattern_radius,
-                                count=self.mounting_hole_amount,
-                                start_angle=45,     # start from 45 degrees as per the original code
-                                angular_range=360):
-                Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2 + self.mounting_ring_thickness)
-
-        # Now subtract the holes from the existing parts
-        self.mounting_ring.part = self.mounting_ring.part - holes.part
-        self.dome_top.part = self.dome_top.part - holes.part
-        self.dome_bottom.part = self.dome_bottom.part - holes.part
 
     def get_cad_objects(self):
         return {
@@ -157,6 +196,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
             "Start Indicator": (self.start_indcator, {"color": Config.Puzzle.TEXT_COLOR}),
         }
+    
 
     def create_cut_shape(self):
         # Add small distance for tolerances
@@ -192,6 +232,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             translation_z = (0.5 * self.mounting_ring_thickness) - 0.33333 * self.mounting_ring_thickness
             cut_shape.part.position = (0, 0, -translation_z)
             # Mirror the top half to create the bottom half
-            mirror(about=Plane.XY)           
+            mirror(about=Plane.XY)   
 
         return cut_shape
+

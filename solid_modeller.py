@@ -83,7 +83,7 @@ def puzzle_casing():
     for name, value in case_objects.items():
         if isinstance(value, tuple):
             obj, options = value
-            if name == 'Mounting Ring' and Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
+            if name == 'Mounting Ring' and (Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE or Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES):
                 # Store for later use
                 mounting_ring = obj
             else:
@@ -261,7 +261,7 @@ def export(ball, mounting_ring, dome_top, dome_bottom, path_body):
         step_file_path = os.path.join(export_path, f"{name}.step")
         #obj.val().exportStl(stl_file_path)
         #obj.val().exportStep(step_file_path)
-
+        
 
 if __name__ == "__main__":
     main()
