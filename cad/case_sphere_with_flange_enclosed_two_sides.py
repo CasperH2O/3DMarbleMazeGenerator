@@ -13,13 +13,18 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
     def __init__(self):
         self.sphere_outer_diameter = Config.Sphere.SPHERE_DIAMETER
         self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
+        self.sphere_flange_inner_diameter = Config.Sphere.SPHERE_FLANGE_INNER_DIAMETER
+        self.sphere_flange_slot_angle = Config.Sphere.SPHERE_FLANGE_SLOT_ANGLE
         self.sphere_thickness = Config.Sphere.SHELL_THICKNESS
         self.mounting_ring_thickness = Config.Sphere.MOUNTING_RING_THICKNESS
+        self.mounting_ring_edge = Config.Sphere.MOUNTING_RING_EDGE
+        self.mounting_ring_inner_height = Config.Sphere.MOUNTING_RING_INNER_HEIGHT
         self.ball_diameter = Config.Puzzle.BALL_DIAMETER
         self.mounting_hole_diameter = Config.Sphere.MOUNTING_HOLE_DIAMETER
         self.mounting_hole_amount = Config.Sphere.MOUNTING_HOLE_AMOUNT
         self.node_size = Config.Puzzle.NODE_SIZE
         self.number_of_mounting_points = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
+        self.mounting_bridge_height = Config.Sphere.MOUNTING_BRIDGE_HEIGHT
         self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Puzzle.NODE_SIZE
 
         # Derived variables
@@ -27,6 +32,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.sphere_outer_radius = self.sphere_outer_diameter / 2
         self.sphere_inner_radius = self.sphere_inner_diameter / 2
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
+        self.sphere_flange_inner_radius = self.sphere_flange_inner_diameter / 2
 
         # Create the components
         self.mounting_ring, self.path_bridges, self.start_indcator = self.create_mounting_ring()
@@ -36,20 +42,88 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
     def create_mounting_ring(self):
         
         # Build the mounting ring
-        with BuildPart() as mounting_ring_top:
-            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness / 2) # Outer circle
-            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness / 2, mode=Mode.SUBTRACT) # Inner circle
+        with BuildPart() as mounting_ring_bottom:
+            
+            # Create the outer ring
+            Cylinder(radius=self.sphere_flange_radius, height=self.mounting_ring_thickness)
+            Cylinder(radius=self.sphere_flange_inner_radius, height=self.mounting_ring_thickness, mode=Mode.SUBTRACT)
+            Cylinder(radius=self.sphere_flange_radius - self.mounting_ring_edge, height=self.mounting_ring_inner_height, mode=Mode.SUBTRACT)
+            
+            split(bisect_by=Plane.XY, keep=Keep.BOTTOM) # Split and keep one side, which is later copied and rotated (twice)
 
-        # Move to place over flange
-        mounting_ring_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
+            # Create pegs
+            peg_radius = self.sphere_flange_inner_radius + ((self.sphere_flange_radius - self.mounting_ring_edge) - self.sphere_flange_inner_radius) / 2
+            peg_tolerance = 0.1
 
-        # Mirror the dome for the other side. TODO instead of mirroring flip 180 degrees
-        mounting_ring_bottom = copy(mounting_ring_top)
-        mounting_ring_bottom.part = mounting_ring_bottom.part.mirror(Plane.XY)            
+            # Pegs with holes
+            with PolarLocations(radius=peg_radius, 
+                                count=round(self.number_of_mounting_points / 2), 
+                                start_angle=self.sphere_flange_slot_angle, 
+                                angular_range=360):
+                Cylinder(
+                    radius=2,
+                    height=self.mounting_ring_inner_height
+                )
 
-        # Combine mounting rings in one part
-        mounting_ring = BuildPart()
+                Cylinder(
+                    radius=1.2 + peg_tolerance,
+                    height=self.mounting_ring_inner_height,
+                    mode=Mode.SUBTRACT
+                )
+
+            with PolarLocations(radius=peg_radius, 
+                                count=round(self.number_of_mounting_points / 2), 
+                                start_angle=-self.sphere_flange_slot_angle + 360 / self.number_of_mounting_points, 
+                                angular_range=360):
+                Cylinder(
+                    radius=2,
+                    height=self.mounting_ring_inner_height
+                )
+
+                Cylinder(
+                    radius=1.2 + peg_tolerance,
+                    height=self.mounting_ring_inner_height,
+                    mode=Mode.SUBTRACT
+                )     
+
+            # Reduce height of pegs with holes
+            split(bisect_by=Plane.XY, keep=Keep.BOTTOM)
+
+            # Regular pegs
+            with PolarLocations(radius=peg_radius, 
+                                count=round(self.number_of_mounting_points / 2), 
+                                start_angle=-self.sphere_flange_slot_angle, 
+                                angular_range=360):
+                Cylinder(
+                    radius=1.2,
+                    height=self.mounting_ring_inner_height
+                )
+
+            with PolarLocations(radius=peg_radius, 
+                                count=round(self.number_of_mounting_points / 2), 
+                                start_angle=self.sphere_flange_slot_angle + 360 / self.number_of_mounting_points, 
+                                angular_range=360):
+                Cylinder(
+                    radius=1.2,
+                    height=self.mounting_ring_inner_height
+                )               
+
+            # Reduce height of the pegs
+            height_reduction_plane = Plane(mounting_ring_bottom.faces().sort_by(Axis.Z)[-1]).offset(-Config.Manufacturing.LAYER_THICKNESS * 2)
+            split(bisect_by=height_reduction_plane, keep=Keep.BOTTOM)
+
+        # Flip mounting ring and rotate for the next set of peg/hole
+        mounting_ring_top = copy(mounting_ring_bottom)
+        mounting_ring_top.part = mounting_ring_top.part.rotate(Axis((0, 0, 0), (0, 1, 0)), 180) # Flip upside down
+        mounting_ring_top.part = mounting_ring_top.part.rotate(Axis((0, 0, 0), (0, 0, 1)), 360 / self.number_of_mounting_points) # Rotate to next set
+
+        show_all()
+
+        mounting_ring = copy(mounting_ring_bottom)
         mounting_ring.part = mounting_ring_top.part + mounting_ring_bottom.part
+
+        # Export
+        #export_stl(to_export=mounting_ring_bottom.part,file_path="MountingRingBottom.stl")
 
         # Build the start indicator
         with BuildPart() as start_indicator:
@@ -79,7 +153,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                 Box(
                     width=self.node_size,
                     length=self.node_size * 2,
-                    height=self.mounting_ring_thickness
+                    height=self.mounting_bridge_height
                 )
 
         # Build the internal path bridges
@@ -91,7 +165,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                 Box(
                     width=self.node_size - 4 * printing_nozzle_diameter,
                     length=self.node_size * 2 + 4 * printing_nozzle_diameter,
-                    height=self.mounting_ring_thickness - printing_layer_thickness * 8
+                    height=self.mounting_bridge_height - printing_layer_thickness * 2
                 )
 
         # Combine the mounting ring with the external bridge, cut out internal path bridge
@@ -149,9 +223,9 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                 with BuildLine(Plane.XZ):
                     l1 = Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
                     l2 = ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
-                    l3 = Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
-                    l4 = Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
-                    l5 = Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
+                    l3 = Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius - self.mounting_ring_edge , 0))
+                    l4 = Line((self.sphere_flange_radius - self.mounting_ring_edge , 0), (self.sphere_flange_radius - self.mounting_ring_edge , self.sphere_thickness))
+                    l5 = Line((self.sphere_flange_radius - self.mounting_ring_edge , self.sphere_thickness), (x_start_outer, y_start_outer))
                     l6 = ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
                 make_face()
             revolve()
@@ -159,32 +233,30 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             # Create the holes with fillets
             # Calculate the hole pattern radius
             hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2 + 1
-            
-            polar_location_start_angle = 8
 
             # Set up polar locations at the given radius and start angle
             with PolarLocations(radius=hole_pattern_radius,
                                 count=self.mounting_hole_amount,
-                                start_angle=polar_location_start_angle,     # start from 45 degrees as per the original code
+                                start_angle=self.sphere_flange_slot_angle,     # start from 45 degrees as per the original code
                                 angular_range=360):
                 Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)
               
             # Mirored set of polar locations at the given radius and start angle
             with PolarLocations(radius=hole_pattern_radius,
                                 count=self.mounting_hole_amount,
-                                start_angle=-polar_location_start_angle,     # start from 45 degrees as per the original code
+                                start_angle=-self.sphere_flange_slot_angle,     # start from 45 degrees as per the original code
                                 angular_range=360):
                 Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)     
 
             fillet(dome_top.edges().filter_by(Axis.Z), radius=2)
        
         # Move to make place for mounting ring
-        dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
+        dome_top.part.position = (0, 0, 0.5 * self.mounting_bridge_height)
 
         # Mirror the dome for the other side
         dome_bottom = copy(dome_top)
         dome_bottom.part = dome_bottom.part.mirror(Plane.XY)
-        
+
         return dome_top, dome_bottom
 
 

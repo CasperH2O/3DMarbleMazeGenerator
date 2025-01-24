@@ -9,8 +9,13 @@ def apply_overrides(Puzzle, Sphere, Box, Path):
     apply_base_overrides(Puzzle, Sphere, Box, Path)
     
     # Apply specific overrides for the 120 mm sphere    
-    Sphere.SPHERE_DIAMETER = 120
-    Sphere.SPHERE_FLANGE_DIAMETER = Sphere.SPHERE_DIAMETER + 4 * 2
+    Sphere.SPHERE_FLANGE_DIAMETER = 132 
+    Sphere.SPHERE_FLANGE_INNER_DIAMETER = 117.4
+    Sphere.SPHERE_DIAMETER = Sphere.SPHERE_FLANGE_INNER_DIAMETER
+    Sphere.SPHERE_FLANGE_SLOT_ANGLE = 8
     Sphere.SHELL_THICKNESS = 0.3
     Sphere.MOUNTING_HOLE_DIAMETER = 6
-    Sphere.MOUNTING_RING_THICKNESS = 4
+    Sphere.MOUNTING_RING_THICKNESS = 8.3
+    Sphere.MOUNTING_RING_EDGE = 1.6
+    Sphere.MOUNTING_RING_INNER_HEIGHT = 3.3
+    Sphere.MOUNTING_BRIDGE_HEIGHT = 1.6

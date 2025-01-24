@@ -4,14 +4,14 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_SAIDKOCC_100_MM
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
     THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
     SEED = 24                       # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 1         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
     BALL_COLOR = (192, 192, 192)    # Metal grey
@@ -27,13 +27,18 @@ class Manufacturing:
 
 # Sphere case configuration
 class Sphere:
-    SPHERE_DIAMETER = 100           # Diameter of the sphere in mm
+    SPHERE_DIAMETER = 200           # Diameter of the sphere in mm
     SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
+    SPHERE_FLANGE_INNER_DIAMETER = SPHERE_FLANGE_DIAMETER - 5
+    SPHERE_FLANGE_SLOT_ANGLE = 5
     SHELL_THICKNESS = 2.5           # Thickness of the sphere shell in mm
     MOUNTING_RING_THICKNESS = 3     # Thickness of the mounting ring in mm
+    MOUNTING_RING_EDGE = 1          # Thickness internal 
+    MOUNTING_RING_INNER_HEIGHT = 2  # Inner opening of two sided flange
     MOUNTING_HOLE_DIAMETER = 4.2    # Diameter of the mounting holes in mm
     MOUNTING_HOLE_AMOUNT = 4        # Number of mounting holes
     NUMBER_OF_MOUNTING_POINTS = 4   # Number of mounting points
+    MOUNTING_BRIDGE_HEIGHT = MOUNTING_RING_THICKNESS
 
 # Box case configuration
 class Box:
