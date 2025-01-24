@@ -172,29 +172,38 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         path_bridges.part = path_bridges.part - mounting_ring.part
         mounting_ring.part = mounting_ring.part + (mounting_ring_bridges.part - path_bridges.part)
 
+        mounting_clip_radius = self.sphere_flange_inner_radius + (self.sphere_flange_radius - self.sphere_flange_inner_radius) / 2
+
         # Build the mounting ring clips
         with BuildPart() as mounting_ring_clips:
-            with PolarLocations(radius=self.sphere_flange_diameter/2, 
+            with PolarLocations(
+                    radius=mounting_clip_radius, 
                     count=num_points, 
                     start_angle=start_angle, 
                     angular_range=360):
                 Box(
                     width=14,
-                    length=9,
-                    height=10
+                    length=20, # Get's cut off at both sides
+                    height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
                 )
             # Subtract the inside part out of the clip
-            Cylinder(self.sphere_flange_radius + 3, 10 - 4, mode=Mode.SUBTRACT)
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT)
 
             # Subtract the side of the clip that is against the domes
-            Cylinder(self.sphere_inner_radius + self.sphere_thickness, 10, mode=Mode.SUBTRACT)
+            Cylinder(self.sphere_flange_inner_radius, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT)
 
         # Build the shape to cut off from the outside of the mounting ring clips
         with BuildPart() as mounting_ring_clips_outer_cut:
-            Cylinder(self.sphere_flange_radius + 8, 10) # Outer circle
-            Cylinder(self.sphere_flange_radius + 4, 10, mode=Mode.SUBTRACT) # Inner circle
+            Cylinder(self.sphere_flange_radius + 5 * 1.6, self.mounting_ring_thickness + 2 * 1.6) # Outer circle
+            Cylinder(self.sphere_flange_radius + 1.6, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT) # Inner circle
 
-        mounting_ring.part = mounting_ring.part + (mounting_ring_clips.part - mounting_ring_clips_outer_cut.part)
+        mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_outer_cut.part
+
+        show_all()
+
+        mounting_ring.part = mounting_ring.part + mounting_ring_clips.part
+
+
 
         return mounting_ring, path_bridges, start_indicator
 
