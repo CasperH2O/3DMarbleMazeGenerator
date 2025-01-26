@@ -18,4 +18,4 @@ def apply_overrides(Puzzle, Sphere, Box, Path):
     Sphere.MOUNTING_RING_THICKNESS = 8.3
     Sphere.MOUNTING_RING_EDGE = 1.6
     Sphere.MOUNTING_RING_INNER_HEIGHT = 3.3
-    Sphere.MOUNTING_BRIDGE_HEIGHT = 1.6
+    Sphere.MOUNTING_BRIDGE_HEIGHT = Sphere.MOUNTING_RING_INNER_HEIGHT - 2 * Sphere.SHELL_THICKNESS
