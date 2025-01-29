@@ -144,25 +144,16 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         printing_layer_thickness = Config.Manufacturing.LAYER_THICKNESS
         printing_nozzle_diameter = Config.Manufacturing.NOZZLE_DIAMETER
 
-        # Build the external mounting ring bridges
-        with BuildPart() as mounting_ring_bridges:
+        # Build the external bridge ring
+        with BuildPart() as bridge_ring:
             tolerance = 0.2
 
             # Build an external ring
             Cylinder(radius=self.sphere_flange_radius - self.mounting_ring_edge - tolerance, height=self.mounting_bridge_height - tolerance)
             Cylinder(radius=self.sphere_flange_inner_radius, height=self.mounting_bridge_height - tolerance, mode=Mode.SUBTRACT)
 
-            # Create holes in the external ring for the pegs, reusing the peg coordinates
-            hole_locations = peg_locations.locations + peg_locations_mirrored.locations + peg_with_hole_locations.locations + peg_with_hole_locations_mirrored.locations
-
-            with Locations(hole_locations):
-                Cylinder(
-                    radius=2 + tolerance,
-                    height=self.mounting_ring_inner_height - tolerance,
-                    mode=Mode.SUBTRACT
-                )
-
-            # Build the external bridges
+        # Build the external bridges
+        with BuildPart() as external_bridges:          
             with PolarLocations(radius=self.mounting_distance/2, 
                                 count=count, 
                                 start_angle=start_angle, 
@@ -173,8 +164,19 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     height=self.mounting_bridge_height - tolerance
                 )
 
+        # Create peg holes for later subtraction
+        with BuildPart() as peg_holes:
+            # Reusing the peg coordinates
+            hole_locations = peg_locations.locations + peg_locations_mirrored.locations + peg_with_hole_locations.locations + peg_with_hole_locations_mirrored.locations
+
+            with Locations(hole_locations):
+                Cylinder(
+                    radius=2 + tolerance,
+                    height=self.mounting_ring_inner_height - tolerance,
+                )
+
         # Build the internal path bridges
-        with BuildPart() as path_bridges:
+        with BuildPart() as internal_path_bridges:
             with PolarLocations(radius=self.mounting_distance/2, 
                                 count=count, 
                                 start_angle=start_angle, 
@@ -185,13 +187,23 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     height=self.mounting_bridge_height - printing_layer_thickness * 8
                 )
 
-        # Combine the mounting ring with the external bridge, cut out internal path bridge
-        path_bridges.part = path_bridges.part - mounting_ring.part
-        mounting_ring.part = mounting_ring.part + (mounting_ring_bridges.part - path_bridges.part)
+        # Cut the ring off the inner path bridges, keep inner bridge shapes
+        internal_path_bridges.part = internal_path_bridges.part - bridge_ring.part
+        internal_path_bridges.part = internal_path_bridges.part.solids().sort_by(SortBy.VOLUME)[-count:]
 
-        mounting_clip_radius = self.sphere_flange_inner_radius + (self.sphere_flange_radius - self.sphere_flange_inner_radius) / 2
+        # Combine ring and outer bridges
+        bridge_ring.part = bridge_ring.part + external_bridges.part
+
+        # Apply fillet, restore bridges we don't want filleted
+        bridge_ring.part = fillet(bridge_ring.part.edges().filter_by(Axis.Z), radius=4)      
+        bridge_ring.part = bridge_ring.part + external_bridges.part
+
+        # Cut out peg holes
+        bridge_ring.part = bridge_ring.part - peg_holes.part - internal_path_bridges.part
 
         # Build the mounting ring clips
+        mounting_clip_radius = self.sphere_flange_inner_radius + (self.sphere_flange_radius - self.sphere_flange_inner_radius) / 2
+        
         with BuildPart() as mounting_ring_clips:
             with PolarLocations(
                     radius=mounting_clip_radius, 
@@ -216,13 +228,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
 
         mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_outer_cut.part
 
-        #show_all()
-
-        mounting_ring.part = mounting_ring.part + mounting_ring_clips.part
-
-
-
-        return mounting_ring, path_bridges, start_indicator
+        return mounting_ring, internal_path_bridges, start_indicator
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
