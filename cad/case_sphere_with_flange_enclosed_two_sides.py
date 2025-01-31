@@ -120,7 +120,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         #show_all()
 
         mounting_ring = copy(mounting_ring_bottom)
-        mounting_ring.part = mounting_ring_top.part + mounting_ring_bottom.part
+        mounting_ring.part = mounting_ring_bottom.part + mounting_ring_top.part
 
         # Export
         #export_stl(to_export=mounting_ring_bottom.part,file_path="MountingRingBottom.stl")
@@ -215,11 +215,38 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     length=20, # Gets cut off at both sides
                     height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
                 )
-            # Subtract the inside part out of the clip
-            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT)
 
             # Subtract the side of the clip that is against the domes
             Cylinder(self.sphere_flange_inner_radius, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT)
+
+        with BuildPart() as mounting_ring_clips_inner_cut:
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness + 0.4)
+            chamfer(mounting_ring_clips_inner_cut.edges(), length=1)
+
+        # Subtract the inside part out of the clip
+        mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_inner_cut.part
+
+        # Build "second" set of mounting clips that is slightly wider for mounting ring cutout
+        with BuildPart() as mounting_ring_clips_with_tolerance:
+            with PolarLocations(
+                    radius=mounting_clip_radius, 
+                    count=num_points, 
+                    start_angle=start_angle, 
+                    angular_range=360):
+                Box(
+                    width=14 + 0.4,
+                    length=20, # Gets cut off at both sides
+                    height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
+                )
+
+            # Subtract the side of the clip that is against the domes
+            Cylinder(self.sphere_flange_inner_radius, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT)
+
+        with BuildPart() as mounting_ring_clips_inner_cut_with_tolerance:
+            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness)
+            chamfer(mounting_ring_clips_inner_cut_with_tolerance.edges(), length=1 + 0.2)
+
+        mounting_ring_clips_with_tolerance.part = mounting_ring_clips_with_tolerance.part - mounting_ring_clips_inner_cut_with_tolerance.part
 
         # Build the shape to cut off from the outside of the mounting ring clips
         with BuildPart() as mounting_ring_clips_outer_cut:
@@ -228,7 +255,12 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
 
         mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_outer_cut.part
 
-        return mounting_ring, internal_path_bridges, start_indicator
+        # Create cut out of clips from mounting ring for clearer placement and snap fit
+        mounting_ring.part = mounting_ring.part - mounting_ring_clips_with_tolerance.part
+
+        bridge_ring.part = bridge_ring.part + mounting_ring_clips.part + mounting_ring_clips.part
+
+        return bridge_ring, internal_path_bridges, mounting_ring
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
