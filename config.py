@@ -11,7 +11,7 @@ class Puzzle:
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
     SEED = 24                       # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 1         # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
     BALL_COLOR = (192, 192, 192)    # Metal grey
@@ -63,10 +63,10 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
-        #PathProfileType.L_SHAPE,
+        PathProfileType.L_SHAPE,
         #PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         #PathProfileType.O_SHAPE,
-        #PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
+        PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.V_SHAPE
         ]
     
