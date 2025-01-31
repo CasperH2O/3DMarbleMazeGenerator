@@ -3,7 +3,7 @@
 from .case_base import CaseBase
 from build123d import *
 import math
-from ocp_vscode import *
+from ocp_vscode import show_all
 from copy import copy
 
 from config import Config
@@ -35,7 +35,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.sphere_flange_inner_radius = self.sphere_flange_inner_diameter / 2
 
         # Create the components
-        self.mounting_ring, self.path_bridges, self.start_indcator = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges, self.start_indicator = self.create_mounting_ring()
         self.dome_top, self.dome_bottom = self.create_domes()
         self.cut_shape = self.create_cut_shape()
 
@@ -212,7 +212,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     angular_range=360):
                 Box(
                     width=14,
-                    length=20, # Get's cut off at both sides
+                    length=20, # Gets cut off at both sides
                     height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
                 )
             # Subtract the inside part out of the clip
@@ -273,7 +273,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                                 angular_range=360):
                 Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)
               
-            # Mirored set of polar locations at the given radius and start angle
+            # Mirrored set of polar locations at the given radius and start angle
             with PolarLocations(radius=hole_pattern_radius,
                                 count=self.mounting_hole_amount,
                                 start_angle=-self.sphere_flange_slot_angle,     # start from 45 degrees as per the original code
@@ -298,7 +298,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             "Dome Top": (self.dome_top, {"alpha": 0.05, "color":(1, 1, 1)}),
             "Dome Bottom": (self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Path Bridge": (self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
-            "Start Indicator": (self.start_indcator, {"color": Config.Puzzle.TEXT_COLOR}),
+            "Start Indicator": (self.start_indicator, {"color": Config.Puzzle.TEXT_COLOR}),
         }
     
 
@@ -307,28 +307,28 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         flush_distance_tolerance = 0.0
 
         # Define the outer and inner radii
-        R_outer = self.sphere_flange_diameter
-        R_inner = self.sphere_inner_radius - flush_distance_tolerance
+        radius_outer = self.sphere_flange_diameter
+        radius_inner = self.sphere_inner_radius - flush_distance_tolerance
 
         # Calculate the midpoint for the outer arc
-        mid_outer_x = R_outer / math.sqrt(2)
-        mid_outer_y = R_outer / math.sqrt(2)
+        mid_outer_x = radius_outer / math.sqrt(2)
+        mid_outer_y = radius_outer / math.sqrt(2)
 
         # Calculate the midpoint for the inner arc
-        mid_inner_x = R_inner / math.sqrt(2)
-        mid_inner_y = R_inner / math.sqrt(2)
+        mid_inner_x = radius_inner / math.sqrt(2)
+        mid_inner_y = radius_inner / math.sqrt(2)
 
         with BuildPart() as cut_shape:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
                     # Outer arc
-                    ThreePointArc((0, R_outer), (mid_outer_x, mid_outer_y), (R_outer, 0))
+                    ThreePointArc((0, radius_outer), (mid_outer_x, mid_outer_y), (radius_outer, 0))
                     # Vertical line down to inner radius
-                    Line((R_outer, 0), (R_inner, 0))
+                    Line((radius_outer, 0), (radius_inner, 0))
                     # Inner arc
-                    ThreePointArc((R_inner, 0), (mid_inner_x, mid_inner_y), (0, R_inner))
-                    # Close the loop by connecting back to (0,R_outer)
-                    Line((0, R_inner), (0, R_outer))
+                    ThreePointArc((radius_inner, 0), (mid_inner_x, mid_inner_y), (0, radius_inner))
+                    # Close the loop by connecting back to (0,radius_outer)
+                    Line((0, radius_inner), (0, radius_outer))
                 make_face()
             # Revolve the profile to create the hollow half sphere solid
             revolve()

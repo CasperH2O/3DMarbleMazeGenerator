@@ -68,14 +68,14 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
 
 
 def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
-    curve_lengths = [5, 3]  # Marking 5 and 3 nodes, but segments are of length N + 2 (7 and 5)
-    N_to_curve_type = {
+    curve_lengths = [5, 3]  # Marking 5 and 3 nodes, but segments are of length n + 2 (7 and 5)
+    n_to_curve_type = {
         5: PathCurveType.DEGREE_90_SINGLE_PLANE,
         3: PathCurveType.DEGREE_90_SINGLE_PLANE,
     }
 
-    for N in curve_lengths:
-        segment_length = N + 2  # Actual segment length to consider
+    for n in curve_lengths:
+        segment_length = n + 2  # Actual segment length to consider
         if len(nodes) < segment_length:
             continue  # Not enough nodes for this curve length
 
@@ -90,7 +90,7 @@ def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
             if check_90_deg_curve(segment):
                 # Mark only the middle nodes as part of the curve
                 for node in middle_nodes:
-                    node.path_curve_type = N_to_curve_type[N]
+                    node.path_curve_type = n_to_curve_type[n]
                     node.used_in_curve = True  # Mark node as used
                     node.curve_id = curve_id_counter  # Assign curve ID
                 curve_id_counter += 1  # Increment curve ID counter

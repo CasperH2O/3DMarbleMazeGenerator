@@ -310,7 +310,7 @@ def visualize_path_architect(nodes, segments, casing):
                 control_points = [[node.x, node.y, node.z] for node in segment.nodes]
                 num_control_points = len(control_points)
                 if num_control_points < 2:
-                    # Not enough points for Bezier curve, fall back to straight lines
+                    # Not enough points for Bézier curve, fall back to straight lines
                     x_vals = [node.x for node in segment.nodes]
                     y_vals = [node.y for node in segment.nodes]
                     z_vals = [node.z for node in segment.nodes]

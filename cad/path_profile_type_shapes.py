@@ -1,7 +1,6 @@
 # cad/path_profile_type_shapes.py
 
 import config
-from typing import Optional
 from build123d import *
 
 def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):

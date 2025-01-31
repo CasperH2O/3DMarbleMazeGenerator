@@ -34,7 +34,7 @@ class Sphere:
     SHELL_THICKNESS = 2.5           # Thickness of the sphere shell in mm
     MOUNTING_RING_THICKNESS = 3     # Thickness of the mounting ring in mm
     MOUNTING_RING_EDGE = 1          # Thickness internal 
-    MOUNTING_RING_INNER_HEIGHT = 2  # Inner opening of two sided flange
+    MOUNTING_RING_INNER_HEIGHT = 2  # Inner opening of two-sided flange
     MOUNTING_HOLE_DIAMETER = 4.2    # Diameter of the mounting holes in mm
     MOUNTING_HOLE_AMOUNT = 4        # Number of mounting holes
     NUMBER_OF_MOUNTING_POINTS = 4   # Number of mounting points

@@ -1,14 +1,11 @@
 # cad/path_builder.py
 
-from build123d import *
-from typing import List
 from ocp_vscode import *
 import random
 
 from config import *
 from cad.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel
-from cad.path_segment import PathSegment
 
 class PathBuilder:
     """
@@ -122,7 +119,7 @@ class PathBuilder:
         segment.path_body = sweep_single_profile(segment, segment.path_profile, segment.transition_type, "Path")
 
         # Create the accent profile if the segment has an accent profile type
-        if segment.accent_profile_type != None:
+        if segment.accent_profile_type is not None:
 
             # Get parameters for the accent profile type
             accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
@@ -135,7 +132,7 @@ class PathBuilder:
             segment.accent_body = sweep_single_profile(segment, segment.accent_profile, segment.transition_type, "Accent")
 
         # Create the support profile if the segment has a support profile type
-        if segment.support_profile_type != None:
+        if segment.support_profile_type is not None:
 
             # Get parameters for the support profile type
             support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
@@ -176,8 +173,7 @@ class PathBuilder:
             This reduces the number of intermediate points to simplify the spline.
             """
             if len(sub_path_points) >= 2:
-                spline_points = [sub_path_points[0]] + sub_path_points[1:-1:2] + [sub_path_points[-1]]
-                return spline_points
+                return [sub_path_points[0]] + sub_path_points[1:-1:2] + [sub_path_points[-1]]
             else:
                 return None
 
@@ -271,7 +267,7 @@ class PathBuilder:
                     print(f"Segment {segment.main_index}.{segment.secondary_index} has an invalid path body")
 
                 # Create the accent profile if the segment has an accent profile type
-                if segment.accent_profile_type != None:
+                if segment.accent_profile_type is not None:
 
                     # Get parameters for the accent profile type
                     accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
@@ -292,7 +288,7 @@ class PathBuilder:
                         sweep([s1.sketch,s2.sketch],l.line,multisection=True)   
 
                 # Create the support profile if the segment has a support profile type
-                if segment.support_profile_type != None:
+                if segment.support_profile_type is not None:
 
                     # Get parameters for the support profile type
                     support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
@@ -369,14 +365,14 @@ class PathBuilder:
                     standard_body = standard_body + segment.path_body.part
 
             # Check if the segment has a (optional) support body
-            if segment.support_body != None:
+            if segment.support_body is not None:
                 if support_body is None:
                     support_body = segment.support_body.part
                 else:
                     support_body = support_body + segment.support_body.part
             
             # Check if the segment has a (optional) color accent body
-            if segment.accent_body != None:
+            if segment.accent_body is not None:
                 if coloring_body is None:
                     coloring_body = segment.accent_body.part
                 else:
@@ -399,8 +395,8 @@ class PathBuilder:
             raise ValueError("Start area funnel, segment must contain at least two nodes.")
 
         # Extract first and second node x, y, z coordinates
-        first_coords = (segment.nodes[0].x, segment.nodes[0].y, segment.nodes[0].z)
-        second_coords = (segment.nodes[-1].x, segment.nodes[-1].y, segment.nodes[-1].z)
+        first_coordinate = (segment.nodes[0].x, segment.nodes[0].y, segment.nodes[0].z)
+        second_coordinate = (segment.nodes[-1].x, segment.nodes[-1].y, segment.nodes[-1].z)
 
         # Create the standard path start area funnel
         with BuildPart() as start_area_standard:
@@ -408,7 +404,7 @@ class PathBuilder:
             u_shape_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE.value]
 
             with BuildLine() as start_area_line:
-                Line(first_coords, second_coords)
+                Line(first_coordinate, second_coordinate)
             # Create the two U-shaped profiles
             with BuildSketch(start_area_line.line^0):
                 add(create_u_shape(factor=3, **u_shape_params))
@@ -422,7 +418,7 @@ class PathBuilder:
             u_shape_color_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[PathProfileType.U_SHAPE_PATH_COLOR.value]
 
             with BuildLine() as start_area_line:
-                Line(first_coords, second_coords)
+                Line(first_coordinate, second_coordinate)
             # Create the two color profiles
             with BuildSketch(start_area_line.line^0):
                 add(create_u_shape_path_color(factor=3, **u_shape_color_params))
@@ -436,8 +432,8 @@ class PathBuilder:
 
     def cut_holes_in_o_shape_path_profile_segments(self):
         n = 2  # Cut holes every n-th node
-        possible_workplanes = [Plane.XY, Plane.XZ, Plane.YZ]
-        main_index_to_workplane_direction = {}
+        possible_work_planes = [Plane.XY, Plane.XZ, Plane.YZ]
+        main_index_to_work_plane_direction = {}
         main_index_to_has_mounting_node = {}
 
         # First pass: Build main_index_to_has_mounting_node mapping
@@ -459,22 +455,22 @@ class PathBuilder:
             if segment.path_profile_type not in [PathProfileType.O_SHAPE] or segment.curve_model != PathCurveModel.POLYLINE:
                 continue  # Skip this segment
 
-            # Determine the workplane direction for this main_index
-            if main_index not in main_index_to_workplane_direction:
+            # Determine the work plane direction for this main_index
+            if main_index not in main_index_to_work_plane_direction:
                 has_mounting_node = main_index_to_has_mounting_node[main_index]
                 if has_mounting_node:
-                    # Must use 'XY' workplane
-                    workplane_direction = Plane.XY
+                    # Must use 'XY' work plane
+                    work_plane = Plane.XY
                 else:
-                    # Randomly choose a workplane direction
-                    workplane_direction = random.choice(possible_workplanes)
-                main_index_to_workplane_direction[main_index] = workplane_direction
+                    # Randomly choose a work plane direction
+                    work_plane = random.choice(possible_work_planes)
+                main_index_to_work_plane_direction[main_index] = work_plane
             else:
-                workplane_direction = main_index_to_workplane_direction[main_index]
+                work_plane = main_index_to_work_plane_direction[main_index]
 
-            # Skip O_SHAPE_SUPPORT segments if workplane is not 'XY',
+            # Skip O_SHAPE_SUPPORT segments if work plane is not 'XY',
             # no need to print support underneath holes along the Z axis
-            if workplane_direction != Plane.XY and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT:
+            if work_plane != Plane.XY and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT:
                 continue  # Skip this segment
 
             # Skip segments that are not straight
@@ -497,9 +493,9 @@ class PathBuilder:
                 if adjusted_idx % n != 0:
                     continue  # Skip this node
 
-                # Create the cutting cylinder based on workplane direction
+                # Create the cutting cylinder based on work plane direction
                 with BuildPart() as cutting_cylinder:
-                    with BuildSketch(workplane_direction):
+                    with BuildSketch(work_plane):
                         Circle(hole_size / 2)
                     extrude(amount=-self.node_size / 2, both=True)
 
@@ -531,14 +527,14 @@ class PathBuilder:
         """
 
         # Obtain faces from the swept shape
-        faces = previous_segment.path_body.part.faces()
+        swept_path_faces = previous_segment.path_body.part.faces()
 
         # Get parameters for the path profile type
         path_parameters = self.path_profile_type_parameters.get(previous_segment.path_profile_type.value, {})
         # Apply the path profile function
         path_profile_function = self.path_profile_type_functions.get(previous_segment.path_profile_type, create_u_shape)
 
-        # Create previous segment profile type at the start of the current segment path with 90 degree angle increments
+        # Create previous segment profile type at the start of the current segment path with 90-degree angle increments
         for angle in range(0, 360, 90):
 
             # Create path profile sketch at the combined angle
@@ -549,14 +545,14 @@ class PathBuilder:
                 add(previous_segment_path_profile)
 
             # Compare the newly-created sketch with the faces of the sweep
-            for face in faces:
+            for swept_path_face in swept_path_faces:
                  # Filter out faces that have a (nearly) identical area
-                if are_float_values_close(face.area, current_segment_path_profile.sketch.area):
+                if are_float_values_close(swept_path_face.area, current_segment_path_profile.sketch.area):
                     # Check equality of face shape geometry
-                    if are_equal_faces(face, current_segment_path_profile.sketch):
+                    if are_equal_faces(swept_path_face, current_segment_path_profile.sketch):
                         return angle
 
-        # If no mathcing angle found, notify and return 0 degrees
+        # If no matching angle found, notify and return 0 degrees
         print(f"No matching profile type angle found for segment {previous_segment.main_index}.{previous_segment.secondary_index} to segment {current_segment.main_index}.{current_segment.secondary_index}")
         
         return 0
@@ -621,8 +617,8 @@ def sweep_single_profile(segment, profile, transition_type, sweep_label="Path"):
         with BuildPart() as sweep_result:
             with BuildLine() as path_line:
                 add(segment.path)
-            # Create the path profile sketch on the workplane
-            with BuildSketch(path_line.line^0) as sketch_path_profile:
+            # Create the path profile sketch on the work plane
+            with BuildSketch(path_line.line^0):
                 add(profile)
             sweep(transition=transition_type)
 

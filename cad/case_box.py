@@ -45,7 +45,7 @@ class CaseBox(CaseBase):
         with BuildPart() as cut_shape:
             # Extend the outer box sizes to ensure it cuts the path body properly
             Box(self.width * 2, self.length * 2, self.height * 2)
-            with BuildSketch() as cut_sketch:
+            with BuildSketch():
                 # Size to cut the box
                 Rectangle(inner_width, inner_length)
             # Hollow out the box

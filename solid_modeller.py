@@ -1,7 +1,5 @@
 # solid_modeller.py
 
-from build123d import *
-import os
 from ocp_vscode import *
 
 from config import Config
@@ -124,14 +122,14 @@ def path(puzzle, cut_shape, mounting_ring):
         # Combine path and start area
         standard_path = standard_path + start_area[0].part
         
-        # Cut the any shapes outside the case
+        # Cut any shapes outside the case
         standard_path = standard_path - cut_shape.part
 
     if path_bodies['support']:
         # Get all support path bodies
         support_path = path_bodies['support']
         
-        # Cut the any shapes outside the case
+        # Cut any shapes outside the case
         support_path = support_path - cut_shape.part
 
     if path_bodies['coloring']:
@@ -141,7 +139,7 @@ def path(puzzle, cut_shape, mounting_ring):
         # Combine coloring path and second part of start area
         coloring_path = coloring_path + start_area[1].part
         
-        # Cut the any shapes outside the case
+        # Cut any shapes outside the case
         coloring_path = coloring_path - cut_shape.part
 
     # If a mounting ring is present (sphere with flange), cut it from the standard_path
@@ -155,8 +153,8 @@ def ball_and_path_indicators(puzzle):
     """
     Create and return the ball and the ball path objects based on the puzzle's nodes.
     """
-    CAD_nodes = puzzle.total_path
-    node_positions = [(node.x, node.y, node.z) for node in CAD_nodes]
+    cad_nodes = puzzle.total_path
+    node_positions = [(node.x, node.y, node.z) for node in cad_nodes]
 
     # Create the ball at the start node (node_positions[1])
     with BuildPart(Pos(node_positions[1])) as ball:
@@ -166,7 +164,7 @@ def ball_and_path_indicators(puzzle):
     with BuildPart() as ball_path:
         with BuildLine() as ball_path_line:
             Polyline(node_positions[1:])  # Exclude the first node
-        with BuildSketch(ball_path_line.line^0) as ball_path_sketch:
+        with BuildSketch(ball_path_line.line^0):
             Circle(Config.Puzzle.BALL_DIAMETER / 10)
         sweep(transition=Transition.RIGHT)
 
@@ -206,10 +204,10 @@ def set_viewer():
     new_config = {}
 
     # Iterate through each group in the current states
-    for group, config in current_states.items():
+    for group, viewer_config in current_states.items():
         # If the group is "Standard Path", retain its current configuration
         if group == "/Group/Standard Path":
-            new_config[group] = config
+            new_config[group] = viewer_config
         else:
             # Set other groups to [1, 0]
             new_config[group] = [1, 0]
@@ -220,8 +218,6 @@ def set_viewer():
     # Restore the commented-out lines for reference:
     set_defaults(reset_camera=Camera.KEEP)
     #set_defaults(reset_camera=Camera.RESET)
-
-    status()["states"]
 
 
 def export(ball, mounting_ring, dome_top, dome_bottom, path_body):

@@ -40,10 +40,10 @@ class CaseSphere(CaseBase):
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
                     # Create the cross-sectional profile, shaped like a C
-                    l1 = Line((0, self.inner_radius + flush_distance_tolerance), (0, self.outer_radius * 2))
-                    l2 = ThreePointArc((0, self.outer_radius * 2), (-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
-                    l3 = Line((0, -self.outer_radius * 2), (0, -self.inner_radius + flush_distance_tolerance))
-                    l4 = ThreePointArc((0, -self.inner_radius + flush_distance_tolerance), (-self.inner_radius + flush_distance_tolerance, 0), (0, self.inner_radius - flush_distance_tolerance))
+                    Line((0, self.inner_radius + flush_distance_tolerance), (0, self.outer_radius * 2))
+                    ThreePointArc((0, self.outer_radius * 2), (-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
+                    Line((0, -self.outer_radius * 2), (0, -self.inner_radius + flush_distance_tolerance))
+                    ThreePointArc((0, -self.inner_radius + flush_distance_tolerance), (-self.inner_radius + flush_distance_tolerance, 0), (0, self.inner_radius - flush_distance_tolerance))
                 make_face()
             revolve()
 

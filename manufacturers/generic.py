@@ -1,6 +1,6 @@
 # manufacturers/generic.py
 
 
-def apply_overrides(Puzzle, Sphere, Box, Path):
-    """Generic case manufacturere, apply no overriddes."""
+def apply_overrides(puzzle, sphere, box, path):
+    """Generic case manufacturer, apply no overrides."""
     pass

@@ -1,6 +1,5 @@
 # puzzle/utils/distances.py
 
-from typing import Union
 from puzzle.node import Node
 
 def manhattan_distance(node_a: Node, node_b: Node) -> float:

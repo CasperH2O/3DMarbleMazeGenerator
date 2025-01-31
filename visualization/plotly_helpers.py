@@ -10,10 +10,6 @@ def plot_nodes_plotly(nodes):
     Plots the nodes in a 3D scatter plot with different colors and sizes for different node types.
     Adds legends for start, end, waypoint, and other node types.
     """
-    # Prepare coordinates
-    xs = [node.x for node in nodes]
-    ys = [node.y for node in nodes]
-    zs = [node.z for node in nodes]
 
     # Segregate nodes based on their properties
     start_nodes = [node for node in nodes if node.puzzle_start]

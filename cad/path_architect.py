@@ -2,7 +2,6 @@
 
 import random
 from typing import List
-import copy
 from build123d import *
 
 import config

@@ -3,8 +3,7 @@
 from .case_base import CaseBase
 from build123d import *
 import math
-from ocp_vscode import *
-from copy import deepcopy, copy
+from copy import copy
 
 from config import Config
 
@@ -118,12 +117,12 @@ class CaseSphereWithFlange(CaseBase):
         with BuildPart() as dome_top:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
-                    l1 = Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
-                    l2 = ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
-                    l3 = Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
-                    l4 = Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
-                    l5 = Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
-                    l6 = ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
+                    Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
+                    ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
+                    Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
+                    Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
+                    Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
+                    ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
                 make_face()
             revolve()
         
@@ -169,28 +168,28 @@ class CaseSphereWithFlange(CaseBase):
         flush_distance_tolerance = 0.0
 
         # Define the outer and inner radii
-        R_outer = self.sphere_flange_diameter
-        R_inner = self.sphere_inner_radius - flush_distance_tolerance
+        radius_outer = self.sphere_flange_diameter
+        radius_inner = self.sphere_inner_radius - flush_distance_tolerance
 
         # Calculate the midpoint for the outer arc
-        mid_outer_x = R_outer / math.sqrt(2)
-        mid_outer_y = R_outer / math.sqrt(2)
+        mid_outer_x = radius_outer / math.sqrt(2)
+        mid_outer_y = radius_outer / math.sqrt(2)
 
         # Calculate the midpoint for the inner arc
-        mid_inner_x = R_inner / math.sqrt(2)
-        mid_inner_y = R_inner / math.sqrt(2)
+        mid_inner_x = radius_inner / math.sqrt(2)
+        mid_inner_y = radius_inner / math.sqrt(2)
 
         with BuildPart() as cut_shape:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
                     # Outer arc
-                    ThreePointArc((0, R_outer), (mid_outer_x, mid_outer_y), (R_outer, 0))
+                    ThreePointArc((0, radius_outer), (mid_outer_x, mid_outer_y), (radius_outer, 0))
                     # Vertical line down to inner radius
-                    Line((R_outer, 0), (R_inner, 0))
+                    Line((radius_outer, 0), (radius_inner, 0))
                     # Inner arc
-                    ThreePointArc((R_inner, 0), (mid_inner_x, mid_inner_y), (0, R_inner))
+                    ThreePointArc((radius_inner, 0), (mid_inner_x, mid_inner_y), (0, radius_inner))
                     # Close the loop by connecting back to (0,R_outer)
-                    Line((0, R_inner), (0, R_outer))
+                    Line((0, radius_inner), (0, radius_outer))
                 make_face()
             # Revolve the profile to create the hollow half sphere solid
             revolve()

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import heapq
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 from puzzle.utils.distances import manhattan_distance, euclidean_distance
 from puzzle.node import Node
