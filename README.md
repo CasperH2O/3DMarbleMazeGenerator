@@ -22,7 +22,7 @@ The puzzle route, for paths, curve types and node grid can be generated and visu
 generate_puzzle.py
 ```
 
-Results in a HTML file which opens in the browser to showcase the enclosure shape, node grid, paths and path curve types divided by segments:
+Results in an HTML file which opens in the browser to showcase the enclosure shape, node grid, paths and path curve types divided by segments:
 
 <img src="resources/path_visualization_large.png" alt="Path Visualization Large" width="400"/></p>
 
@@ -39,9 +39,11 @@ Results in a 3D model made out of separate solid bodies for the enclosure, path,
 <img src="resources/3d_large.png" alt="3D Large" width="400"/>
 
 ## Requirements
-Python 3.11 <= due to library dependencies
 
-For the 3D model visualization, CQ-Editor or Visual Studio Code OCP CAD Viewer extension are recommended.
+Python 3.11
+requirements.txt is availible for dependencies
+
+For the 3D model visualization, the [Visual Studio Code extension OCP CAD Viewer](https://marketplace.visualstudio.com/items?itemName=bernhard-42.ocp-cad-viewer) or it's [standalone mode](https://github.com/bernhard-42/vscode-ocp-cad-viewer?tab=readme-ov-file#standalone-mode) is required.
 
 ## References
 - For 3D modelling, this project relies heavily on Build123: [Build123D a python CAD library]( https://github.com/gumyr/build123d)
