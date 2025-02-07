@@ -26,6 +26,9 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         self.number_of_mounting_points = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
         self.mounting_bridge_height = Config.Sphere.MOUNTING_BRIDGE_HEIGHT
         self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Puzzle.NODE_SIZE
+        self.mounting_ring_clips_width = 20
+        self.mounting_ring_clips_length = 14
+        self.mounting_ring_clips_thickness = 1.6
 
         # Derived variables
         self.sphere_inner_diameter = self.sphere_outer_diameter - (2 * self.sphere_thickness)
@@ -202,65 +205,67 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         bridge_ring.part = bridge_ring.part - peg_holes.part - internal_path_bridges.part
 
         # Build the mounting ring clips
-        mounting_clip_radius = self.sphere_flange_inner_radius + (self.sphere_flange_radius - self.sphere_flange_inner_radius) / 2
-        
-        with BuildPart() as mounting_ring_clips:
-            with PolarLocations(
-                    radius=mounting_clip_radius, 
-                    count=num_points, 
-                    start_angle=start_angle, 
-                    angular_range=360):
-                Box(
-                    width=14,
-                    length=20, # Gets cut off at both sides
-                    height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
-                )
+        mounting_ring_clips = self.create_mounting_ring_clips(0.0)
+        mounting_ring_clips_tolerance_cut_out = self.create_mounting_ring_clips(0.2)
 
-            # Subtract the side of the clip that is against the domes
-            Cylinder(self.sphere_flange_inner_radius, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT)
-
-        with BuildPart() as mounting_ring_clips_inner_cut:
-            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness + 0.4)
-            chamfer(mounting_ring_clips_inner_cut.edges(), length=1)
-
-        # Subtract the inside part out of the clip
-        mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_inner_cut.part
-
-        # Build "second" set of mounting clips that is slightly wider for mounting ring cutout
-        with BuildPart() as mounting_ring_clips_with_tolerance:
-            with PolarLocations(
-                    radius=mounting_clip_radius, 
-                    count=num_points, 
-                    start_angle=start_angle, 
-                    angular_range=360):
-                Box(
-                    width=14 + 0.4,
-                    length=20, # Gets cut off at both sides
-                    height=self.mounting_ring_thickness + 2 * 1.6 # TODO turn 1.6 into config variable
-                )
-
-            # Subtract the side of the clip that is against the domes
-            Cylinder(self.sphere_flange_inner_radius, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT)
-
-        with BuildPart() as mounting_ring_clips_inner_cut_with_tolerance:
-            Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness)
-            chamfer(mounting_ring_clips_inner_cut_with_tolerance.edges(), length=1 + 0.2)
-
-        mounting_ring_clips_with_tolerance.part = mounting_ring_clips_with_tolerance.part - mounting_ring_clips_inner_cut_with_tolerance.part
-
-        # Build the shape to cut off from the outside of the mounting ring clips
-        with BuildPart() as mounting_ring_clips_outer_cut:
-            Cylinder(self.sphere_flange_radius + 5 * 1.6, self.mounting_ring_thickness + 2 * 1.6) # Outer circle
-            Cylinder(self.sphere_flange_radius + 1.6, self.mounting_ring_thickness + 2 * 1.6, mode=Mode.SUBTRACT) # Inner circle
-
-        mounting_ring_clips.part = mounting_ring_clips.part - mounting_ring_clips_outer_cut.part
-
-        # Create cut out of clips from mounting ring for clearer placement and snap fit
-        mounting_ring.part = mounting_ring.part - mounting_ring_clips_with_tolerance.part
-
-        bridge_ring.part = bridge_ring.part + mounting_ring_clips.part + mounting_ring_clips.part
+        # Cut out toleranced clip 
+        mounting_ring.part = mounting_ring.part - mounting_ring_clips_tolerance_cut_out.part
+        bridge_ring.part = bridge_ring.part + mounting_ring_clips.part
 
         return bridge_ring, internal_path_bridges, mounting_ring
+
+    def create_mounting_ring_clips(self, tolerance):
+        """
+        Create mounting ring clips for both the physical parts and the cut-out pattern,
+        applying an additional clearance tolerance where needed.
+
+        Parameters:
+            tolerance (float): Extra tolerance (clearance) to be applied to key dimensions.
+
+        Returns:
+            BuildPart: The constructed mounting ring clips.
+        """
+
+        mounting_clip_radius = (self.sphere_flange_inner_radius + self.sphere_flange_radius) / 2
+        mounting_clip_height = self.mounting_ring_thickness + 2 * self.mounting_ring_clips_thickness
+
+        with BuildPart() as mounting_ring_clips:
+            # Create blocks arranged in a circular pattern.
+            with BuildSketch():
+                with PolarLocations(radius=mounting_clip_radius, count=self.number_of_mounting_points):
+                    # Add tolerance to the clip length if required.
+                    Rectangle(self.mounting_ring_clips_width, self.mounting_ring_clips_length + tolerance)
+            extrude(amount=mounting_clip_height / 2, both=True)
+
+            # Remove the outer curved shape from the blocks.
+            with BuildSketch():
+                # Draw the outer circle with an extended radius.
+                Circle(self.sphere_flange_radius + 5 * self.mounting_ring_clips_thickness)
+                # Subtract an inner circle to form a ring-like feature.
+                Circle(self.sphere_flange_radius + self.mounting_ring_clips_thickness, mode=Mode.SUBTRACT)
+            extrude(amount=mounting_clip_height / 2, mode=Mode.SUBTRACT, both=True)
+
+            # Cut out the inner area to create a U-shape with chamfered edges.
+            with BuildSketch(Plane.XZ) as sketch_inner_cut:
+                Rectangle(self.sphere_flange_radius, mounting_clip_height - 2 * self.mounting_ring_clips_thickness, 
+                          align=(Align.MIN, Align.CENTER))
+                chamfer(sketch_inner_cut.vertices(), 1.5 + tolerance)
+            revolve(mode=Mode.SUBTRACT)
+
+            # Cut the side of the clip that touch with the domes.
+            with BuildSketch(Plane.XZ):
+                Rectangle(self.sphere_inner_radius, mounting_clip_height, align=(Align.MIN, Align.CENTER))            
+            revolve(mode=Mode.SUBTRACT)            
+
+            # Create internal ridges on both sides.
+            with BuildSketch(Plane.XY.offset(-1 * (mounting_clip_height / 2) + self.mounting_ring_clips_thickness)):
+                with PolarLocations(radius=tolerance + (self.sphere_flange_inner_radius + mounting_clip_radius) / 2, 
+                                    count=self.number_of_mounting_points):
+                    Rectangle(2 + tolerance, 7 + tolerance)
+            extrude(amount=5, taper=45)
+            mirror(about=Plane.XY)
+
+        return mounting_ring_clips
 
     def create_domes(self):
         # Calculate the intermediate point at 45 degrees (π/4 radians)
