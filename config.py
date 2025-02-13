@@ -4,14 +4,14 @@ from puzzle.utils.enums import CaseShape, CaseManufacturer, Theme, PathCurveMode
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE_WITH_FLANGE # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
     
     BALL_DIAMETER = 6               # Diameter of the ball in mm
     NODE_SIZE = 10                  # Node size in mm
     SEED = 24                       # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 6         # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 10         # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2    # Change path profile and curve type every n waypoints
 
     BALL_COLOR = (192, 192, 192)    # Metal grey

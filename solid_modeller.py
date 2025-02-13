@@ -39,7 +39,7 @@ def main() -> None:
     display_objects(case_objects, standard_path, support_path, coloring_path, mounting_ring, ball, ball_path)
 
     # Set viewer configuration
-    set_viewer()
+    #set_viewer()
 
     # Retrieve dome parts if they exist
     dome_top = case_objects.get("Dome Top", None)

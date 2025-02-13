@@ -214,32 +214,51 @@ class PathBuilder:
             path_line_angle = -90
 
             # Determine path line angle difference between the current segment and the previous segment for rotation
-            if previous_segment is not None:
-                loc1 = previous_segment.path^1
-                loc2 = segment.path^0
-                path_line_angle += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Path line angle: {path_line_angle}")
+            location_end_previous_segment = previous_segment.path^1
+            location_start_current_segment = segment.path^0
+            path_line_angle += location_start_current_segment.y_axis.direction.get_signed_angle(location_end_previous_segment.y_axis.direction, location_start_current_segment.z_axis.direction)
+            print(f"Path line angle: {path_line_angle}")
 
             # Determine the angle of the profile based on the previous segment
-            if previous_segment is not None:
-                profile_angle = self.determine_path_profile_angle(previous_segment, segment, path_line_angle)
-            #print(f"Profile angle: {profile_angle}")
+            profile_angle = self.determine_path_profile_angle(previous_segment, segment, path_line_angle)
+            print(f"Profile angle: {profile_angle}")
 
-            # Determine spline path end angle for additional end of path profile rotation
+            # Determine delta between start of help path and end of help path
+            loc1 = help_path^0
+            loc2 = help_path^1
+            angle_helper_path_start_end = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
+            print(f"Helper path start end diff angle: {angle_helper_path_start_end}")
+
+            # Determine spline path end angle for additional end of path profile rotation due to help path tangent
             loc1 = help_path^1
             loc2 = segment.path^1
             angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            angle_profile_end_of_path = angle_profile_end_of_path % 90
-            #print(f"Profile end of path angle: {angle_profile_end_of_path}")
+            print(f"Profile end of path angle: {angle_profile_end_of_path}")
 
-            # Determine the twist of the spline as a result of tangents
+            # Determine the twist of the spline
             loc1 = segment.path^0
             loc2 = segment.path^1
             spline_twist_angle = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Spline twist angle: {spline_twist_angle}")
+            print(f"Spline twist angle: {spline_twist_angle}")
 
-            final_angle_sketch1 = profile_angle + angle_profile_end_of_path
-            final_angle_sketch2 = profile_angle + angle_profile_end_of_path + spline_twist_angle
+            final_angle_sketch1 = path_line_angle + profile_angle
+            final_angle_sketch2 = -final_angle_sketch1 - angle_helper_path_start_end - angle_profile_end_of_path + spline_twist_angle
+
+            print(f"Final angle 1: {final_angle_sketch1}")
+            print(f"Final angle 2: {final_angle_sketch2}")
+
+            path_increments = [0.1, 0.5, 0.9]
+            for val in path_increments:
+                show_object(segment.path ^ val, name=f"Spline - {val:.2f}")
+            show_object(segment.path)   
+
+            path_increments = [0.01, 0.5, 0.95]
+            for val in path_increments:
+                show_object(help_path ^ val, name=f"Help path - {val:.2f}")
+            show_object(help_path.path)   
+
+            show_object(location_end_previous_segment, name="location_end_previous_segment")
+            show_object(location_start_current_segment, name="location_start_current_segment")
 
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
@@ -635,3 +654,13 @@ def sweep_single_profile(segment, profile, transition_type, sweep_label="Path"):
             f"{segment.main_index}.{segment.secondary_index}: {e}"
         )
         return None
+    
+def round_to_nearest_90(value):
+    if value not in [-180, -90, 0, 90, 180]:
+        rounded_value = round(value / 90) * 90
+        print(f"Warning: {value} was rounded to {rounded_value}")
+    else:
+        rounded_value = value
+    
+    return rounded_value
+
