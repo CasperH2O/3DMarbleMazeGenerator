@@ -6,6 +6,7 @@ import random
 from config import *
 from cad.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel
+from numpy import linspace
 
 class PathBuilder:
     """
@@ -146,7 +147,6 @@ class PathBuilder:
 
         return segment
 
-
     def create_spline_segment(self, previous_segment, segment):
         """
         Creates a spline segment. 
@@ -209,50 +209,71 @@ class PathBuilder:
             segment.path = Spline(spline_points, tangents=[help_path%0, help_path%1])
 
             # Debug statement indicating sweep attempt
-            print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
+            #print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
             # Start with -90 angle to orientate the profile sketch "right way up"
             angle_path_line = -90
 
             # Determine the rotation angle between the path line of the current segment and the previous segment
             loc1 = previous_segment.path^1
-            loc2 = segment.path^0
+            loc2 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
             angle_path_line += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            print(f"\nAngle path line: {angle_path_line}")
+            #print(f"\nAngle path line previous segment: {angle_path_line}")      
 
             # Determine the angle where profile matches  the previous segment
             angle_profile_rotation_match = self.determine_path_profile_angle(previous_segment, segment, angle_path_line)
-            print(f"Angle profile math: {angle_profile_rotation_match}\n")
+            #print(f"Angle profile match: {angle_profile_rotation_match}\n")
 
             # Determine delta between start of help path and end of help path
             loc1 = help_path^0
             loc2 = help_path^1
             angle_helper_path_start_end = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            print(f"Angle helper path start end delta: {angle_helper_path_start_end}")
+            #print(f"Angle helper path start end delta: {angle_helper_path_start_end}")
 
             # Determine spline path end angle for additional end of path profile rotation due to help path tangent
             loc1 = help_path^1
-            loc2 = segment.path^1
+            loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
             angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            print(f"Angle profile end of path : {angle_profile_end_of_path}")
+            #print(f"Angle profile end of path : {angle_profile_end_of_path}")
 
             # Determine the twist angle of the spline
-            loc1 = segment.path^0
-            loc2 = segment.path^1
+            loc1 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
+            loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
             angle_spline_twist = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            print(f"Angle spline twist: {angle_spline_twist}")
+            #print(f"Angle spline twist: {angle_spline_twist}")
 
-            angle_sketch_1_final = angle_path_line + angle_profile_rotation_match
-            angle_sketch_2_final = angle_path_line + angle_profile_rotation_match - (360 - angle_spline_twist) + angle_profile_end_of_path + 5
-            #profile_angle + angle_helper_path_start_end + angle_profile_end_of_path - angle_spline_twist
+            # Compute twist_offset based on the profile rotation match.
+            # This offset aligns the computed base angle with the desired end-of-path orientation.
+            # TODO, need to determine this also for items not yet in arrays
+            if angle_profile_rotation_match in [0, 90]:
+                twist_offset = -90
+            elif angle_profile_rotation_match in [270]:
+                twist_offset = 90
+            else:
+                print(f"Twist offset fell back to unknown angle, double check and add to array")
+                twist_offset = -90  # default if the value isn't one of the above
+            #print(f"Twist offset: {twist_offset}")
 
-            print(f"\nFinal angle 1: {angle_sketch_1_final}")
-            print(f"Final angle 2: {angle_sketch_2_final}")
+            # Base angle is the sum of the previous segment angle and the profile rotation match.
+            base_angle = angle_path_line + angle_profile_rotation_match
 
-            path_increments = [0.1, 0.5, 0.9]
+            # Compute the adjustment so that:
+            #     base_angle + adjustment + twist_offset == angle_profile_end_of_path
+            computed_adjustment = (angle_profile_end_of_path + twist_offset) - base_angle
+            #print(f"Computed adjustment: {computed_adjustment}")
+
+            # Final sketch angles:
+            angle_sketch_1_final = base_angle
+            angle_sketch_2_final = base_angle + computed_adjustment
+
+            #print(f"\nFinal angle 1: {angle_sketch_1_final}")
+            #print(f"Final angle 2: {angle_sketch_2_final}")
+
+            '''
+            path_increments = linspace(0, 1, 10)
             for val in path_increments:
-                show_object(segment.path ^ val, name=f"Spline - {val:.2f}")
-            show_object(segment.path)   
+                show_object(segment.path.location_at(val, frame_method=FrameMethod.CORRECTED), name=f"Spline - {val:.2f}")
+            #show_object(segment.path)   
 
             path_increments = [0.01, 0.5, 0.95]
             for val in path_increments:
@@ -261,6 +282,7 @@ class PathBuilder:
 
             show_object(loc1, name="location_end_previous_segment")
             show_object(loc2, name="location_start_current_segment")
+            '''
 
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
@@ -271,15 +293,15 @@ class PathBuilder:
             path_profile_end = path_profile_function(**path_parameters, rotation_angle=angle_sketch_2_final)
 
             try:
-                print(f"\nSweeping for segment {segment.main_index}.{segment.secondary_index}")
+                #print(f"Sweeping for segment {segment.main_index}.{segment.secondary_index}")
 
                 # Sweep for the main path body
                 with BuildPart() as segment.path_body:
                     with BuildLine() as l:
                         add(segment.path)      
-                    with BuildSketch(segment.path^0) as s1:
+                    with BuildSketch(segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)) as s1:
                         add(segment.path_profile)
-                    with BuildSketch(segment.path^1) as s2:
+                    with BuildSketch(segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)) as s2:
                         add(path_profile_end)    
                     sweep(sections=[s1.sketch,s2.sketch],path=l.line,multisection=True)
 
@@ -302,9 +324,9 @@ class PathBuilder:
                     with BuildPart() as segment.accent_body:
                         with BuildLine() as l:
                             add(segment.path)      
-                        with BuildSketch(segment.path^0) as s1:
+                        with BuildSketch(segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)) as s1:
                             add(segment.accent_profile)
-                        with BuildSketch(segment.path^1) as s2:
+                        with BuildSketch(segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)) as s2:
                             add(path_profile_end)                        
                         sweep([s1.sketch,s2.sketch],l.line,multisection=True)   
 
@@ -323,9 +345,9 @@ class PathBuilder:
                     with BuildPart() as segment.support_body:
                         with BuildLine() as l:
                             add(segment.path)
-                        with BuildSketch(segment.path^0) as s1:
+                        with BuildSketch(segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)) as s1:
                             add(segment.support_profile)
-                        with BuildSketch(segment.path^1) as s2:
+                        with BuildSketch(segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)) as s2:
                             add(path_profile_end)                        
                         sweep([s1.sketch,s2.sketch],l.line,multisection=True)
 
