@@ -1,12 +1,13 @@
 # cad/path_builder.py
 
-from ocp_vscode import *
 import random
 
 from config import *
 from cad.path_profile_type_shapes import *
 from config import PathProfileType, PathCurveModel
 from numpy import linspace
+from ocp_vscode import show_object
+from build123d import BuildPart, BuildLine, BuildSketch, Circle, loft, sweep, FrameMethod, Plane, Polyline, Bezier, Spline, Vector, add, extrude, Line
 
 class PathBuilder:
     """
@@ -250,7 +251,7 @@ class PathBuilder:
             elif angle_profile_rotation_match in [270]:
                 twist_offset = 90
             else:
-                print(f"Twist offset fell back to unknown angle, double check and add to array")
+                print("Twist offset fell back to unknown angle, double check and add to array")
                 twist_offset = -90  # default if the value isn't one of the above
             #print(f"Twist offset: {twist_offset}")
 

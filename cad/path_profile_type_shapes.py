@@ -1,7 +1,7 @@
 # cad/path_profile_type_shapes.py
 
 import config
-from build123d import *
+from build123d import BuildSketch, BuildLine, Rot, Polyline, Plane, make_face, Circle, RegularPolygon, Mode
 
 def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
     """

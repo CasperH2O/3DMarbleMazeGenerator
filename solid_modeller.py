@@ -1,11 +1,12 @@
 # solid_modeller.py
 
-from ocp_vscode import *
+import os
 
 from config import Config
 from config import CaseShape
 from puzzle.puzzle import Puzzle
-from cad.path_profile_type_shapes import *
+from ocp_vscode import show_object, status, set_viewer_config, set_defaults, Camera
+from build123d import BuildPart, Pos, Sphere, BuildLine, Polyline, BuildSketch, Circle, sweep, Transition
 from cad.path_builder import PathBuilder
 from cad.case_sphere import CaseSphere
 from cad.case_box import CaseBox
