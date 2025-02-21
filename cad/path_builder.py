@@ -170,11 +170,11 @@ class PathBuilder:
 
         def option2():
             """
-            Option 2: Use the first node, every second node in between, and the last node.
+            Option 2: Use the first node, every third node in between, and the last node.
             This reduces the number of intermediate points to simplify the spline.
             """
             if len(sub_path_points) >= 2:
-                return [sub_path_points[0]] + sub_path_points[1:-1:2] + [sub_path_points[-1]]
+                return [sub_path_points[0]] + sub_path_points[1:-2:3] + [sub_path_points[-1]]
             else:
                 return None
 
@@ -210,80 +210,59 @@ class PathBuilder:
             segment.path = Spline(spline_points, tangents=[help_path%0, help_path%1])
 
             # Debug statement indicating sweep attempt
-            #print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
+            print(f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
             # Start with -90 angle to orientate the profile sketch "right way up"
-            angle_path_line = -90
+            angle_path_line_previous = -90
 
             # Determine the rotation angle between the path line of the current segment and the previous segment
             loc1 = previous_segment.path^1
             loc2 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
-            angle_path_line += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"\nAngle path line previous segment: {angle_path_line}")      
+            angle_path_line_previous += loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)     
 
             # Determine the angle where profile matches  the previous segment
-            angle_profile_rotation_match = self.determine_path_profile_angle(previous_segment, segment, angle_path_line)
-            #print(f"Angle profile match: {angle_profile_rotation_match}\n")
-
-            # Determine delta between start of help path and end of help path
-            loc1 = help_path^0
-            loc2 = help_path^1
-            angle_helper_path_start_end = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Angle helper path start end delta: {angle_helper_path_start_end}")
+            angle_profile_rotation_match = self.determine_path_profile_angle(previous_segment, segment, angle_path_line_previous)
 
             # Determine spline path end angle for additional end of path profile rotation due to help path tangent
             loc1 = help_path^1
             loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
             angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Angle profile end of path : {angle_profile_end_of_path}")
 
-            # Determine the twist angle of the spline
-            loc1 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
-            loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
-            angle_spline_twist = loc2.y_axis.direction.get_signed_angle(loc1.y_axis.direction, loc2.z_axis.direction)
-            #print(f"Angle spline twist: {angle_spline_twist}")
+            # Compute base angle (the sum of the previous segment angle and the profile match)
+            base_angle = angle_path_line_previous + angle_profile_rotation_match
 
-            # Compute twist_offset based on the profile rotation match.
-            # This offset aligns the computed base angle with the desired end-of-path orientation.
-            # TODO, need to determine this also for items not yet in arrays
-            if angle_profile_rotation_match in [0, 90]:
+            # Compute the difference between the desired end-of-path angle and the base angle,
+            # normalized to the range (-180, 180)
+            angle_diff = normalize_angle(angle_profile_end_of_path - base_angle)
+
+            # Choose twist_offset based on the sign of angle_diff.
+            # (This rule gives:
+            #   - twist_offset = 0 if the desired end-of-path aligns with the base angle,
+            #   - twist_offset = -90 if the difference is positive,
+            #   - twist_offset =  90 if the difference is negative.)
+            if abs(angle_diff) < 1e-6:
+                twist_offset = 0
+            elif angle_diff > 0:
                 twist_offset = -90
-            elif angle_profile_rotation_match in [270]:
-                twist_offset = 90
             else:
-                print("Twist offset fell back to unknown angle, double check and add to array")
-                twist_offset = -90  # default if the value isn't one of the above
-            #print(f"Twist offset: {twist_offset}")
+                twist_offset = 90
 
-            # Base angle is the sum of the previous segment angle and the profile rotation match.
-            base_angle = angle_path_line + angle_profile_rotation_match
-
-            # Compute the adjustment so that:
-            #     base_angle + adjustment + twist_offset == angle_profile_end_of_path
-            computed_adjustment = (angle_profile_end_of_path + twist_offset) - base_angle
-            #print(f"Computed adjustment: {computed_adjustment}")
+            # Compute the adjustment.
+            # The final sketch angle corrected by the twist offset to match the end-of-path angle.
+            # That is, if twist_offset is -90, we require:
+            #       final_angle2 + 90 == angle_profile_end_of_path,
+            # and if twist_offset is 90:
+            #       final_angle2 - 90 == angle_profile_end_of_path.
+            if twist_offset == -90:
+                computed_adjustment = (angle_profile_end_of_path - 90) - base_angle
+            elif twist_offset == 90:
+                computed_adjustment = (angle_profile_end_of_path + 90) - base_angle
+            else:  # twist_offset == 0
+                computed_adjustment = angle_profile_end_of_path - base_angle
 
             # Final sketch angles:
             angle_sketch_1_final = base_angle
             angle_sketch_2_final = base_angle + computed_adjustment
-
-            #print(f"\nFinal angle 1: {angle_sketch_1_final}")
-            #print(f"Final angle 2: {angle_sketch_2_final}")
-
-            '''
-            path_increments = linspace(0, 1, 10)
-            for val in path_increments:
-                show_object(segment.path.location_at(val, frame_method=FrameMethod.CORRECTED), name=f"Spline - {val:.2f}")
-            #show_object(segment.path)   
-
-            path_increments = [0.01, 0.5, 0.95]
-            for val in path_increments:
-                show_object(help_path ^ val, name=f"Help path - {val:.2f}")
-            show_object(help_path.path)   
-
-            show_object(loc1, name="location_end_previous_segment")
-            show_object(loc2, name="location_start_current_segment")
-            '''
 
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
@@ -308,7 +287,7 @@ class PathBuilder:
 
                 # Check if bodies are valid
                 if not segment.path_body.part.is_valid():
-                    print(f"Segment {segment.main_index}.{segment.secondary_index} has an invalid path body")
+                    print(f"Check segment {segment.main_index}.{segment.secondary_index} has an invalid path body?")
 
                 # Create the accent profile if the segment has an accent profile type
                 if segment.accent_profile_type is not None:
@@ -353,7 +332,6 @@ class PathBuilder:
                         sweep([s1.sketch,s2.sketch],l.line,multisection=True)
 
                 # If we reach this point, the sweep succeeded, return segment
-                #print(f"Option {opt_idx}: Successfully created a valid path and profile for segment {segment.main_index}.{segment.secondary_index}")
 
                 '''        
                 show_object(l, f"Spline Line - segment {segment.main_index}.{segment.secondary_index}")
@@ -689,3 +667,10 @@ def round_to_nearest_90(value):
     
     return rounded_value
 
+def normalize_angle(angle):
+    """Normalize angle to the range (-180, 180]."""
+    while angle <= -180:
+        angle += 360
+    while angle > 180:
+        angle -= 360
+    return angle
