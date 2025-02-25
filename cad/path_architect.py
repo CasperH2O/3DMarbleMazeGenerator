@@ -4,8 +4,7 @@ import random
 from typing import List
 from build123d import *
 
-from cad.path_profile_type_shapes import SUPPORT_REGISTRY
-from cad.path_profile_type_shapes import ACCENT_REGISTRY
+from cad.path_profile_type_shapes import SUPPORT_REGISTRY, ACCENT_REGISTRY, PathProfileType
 import config
 from puzzle.node import Node
 from config import *

@@ -27,22 +27,6 @@ class PathCurveType(Enum):
     S_CURVE = 's_curve'
     DEGREE_90_SINGLE_PLANE = '90_degree_single_plane'
 
-class PathProfileType(Enum):
-    """
-    Enumeration representing the different types of path profiles.
-    """
-    L_SHAPE = 'l_shape'
-    L_SHAPE_ADJUSTED_HEIGHT = 'l_shape_adjusted_height'
-    O_SHAPE = 'o_shape'
-    O_SHAPE_SUPPORT = 'o_shape_support'
-    U_SHAPE = 'u_shape'
-    U_SHAPE_PATH_COLOR = 'u_shape_path_color'
-    U_SHAPE_ADJUSTED_HEIGHT = 'u_shape_adjusted_height'
-    U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR = 'u_shape_adjusted_height_path_color'
-    V_SHAPE = 'v_shape'
-    V_SHAPE_PATH_COLOR = 'v_shape_path_color'
-    RECTANGLE_SHAPE = 'rectangle_shape'
-
 class CaseManufacturer(Enum):
     GENERIC = 'generic'
     SPHERE_PLAYTASTIC_120_MM = 'sphere_playtastic_120_mm'
