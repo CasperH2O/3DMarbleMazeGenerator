@@ -1,9 +1,8 @@
-# cad/case_box.py
+# cad/cases/case_box.py
 
-from .case_base import CaseBase
-from build123d import *
+from .case_base import CaseBase, CasePart
+from build123d import BuildPart, Box, offset, Mode, BuildSketch, Rectangle, extrude
 from config import Config
-
 
 class CaseBox(CaseBase):
     def __init__(self):
@@ -17,25 +16,21 @@ class CaseBox(CaseBase):
         self.cut_shape = self.create_cut_shape()
 
     def create_casing(self):
-        # Create the outer box
         with BuildPart() as casing:
             # Create the outer box
             Box(self.width, self.length, self.height)
             # Hollow out the box
             offset(amount=-Config.Box.PANEL_THICKNESS, mode=Mode.SUBTRACT)
-    
         return casing
 
-    def get_cad_objects(self):
+    def get_parts(self):
         return {
-            "Casing": (self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
+            "Casing": CasePart("Casing", self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
         }
 
     def create_cut_shape(self):
         # Create a box to ensure it cuts the path body properly
-
-        # Add small distance for tolerances
-        flush_distance_tolerance = 0.4
+        flush_distance_tolerance = 0.4  # Add small distance for tolerances
 
         # Create the inner box to hollow out the outer box
         inner_width = self.width - 2 * self.panel_thickness - 2 * flush_distance_tolerance
@@ -49,6 +44,5 @@ class CaseBox(CaseBase):
                 # Size to cut the box
                 Rectangle(inner_width, inner_length)
             # Hollow out the box
-            extrude(amount=inner_height / 2, both=True, mode=Mode.SUBTRACT)    
-
+            extrude(amount=inner_height / 2, both=True, mode=Mode.SUBTRACT)
         return cut_shape
