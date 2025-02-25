@@ -24,6 +24,7 @@ class Puzzle:
 class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
+    EXPORT_STL = False
 
 # Sphere case configuration
 class Sphere:

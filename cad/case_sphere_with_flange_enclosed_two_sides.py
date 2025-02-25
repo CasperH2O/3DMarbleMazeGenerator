@@ -1,7 +1,7 @@
 # cad/case_sphere_with_flange_enclosed_two_sides.py
 
 from .case_base import CaseBase
-from build123d import *
+from build123d import Axis, BuildPart, Cylinder, Keep, Plane, Mode, PolarLocations, Box, Locations, Rectangle, fillet, Text, Circle, extrude, mirror, revolve, make_face, Line, ThreePointArc, BuildSketch, BuildLine, Align, chamfer, SortBy, split
 import math
 from ocp_vscode import show_all
 from copy import copy

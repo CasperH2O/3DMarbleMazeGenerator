@@ -40,7 +40,7 @@ def main() -> None:
     display_objects(case_objects, standard_path, support_path, coloring_path, mounting_ring, ball, ball_path)
 
     # Set viewer configuration
-    #set_viewer()
+    set_viewer()
 
     # Retrieve dome parts if they exist
     dome_top = case_objects.get("Dome Top", None)
@@ -226,6 +226,10 @@ def export(ball, mounting_ring, dome_top, dome_bottom, path_body):
     Export puzzle components for manufacturing.
     """
 
+    # Check if we want to export STL files
+    if not Config.Manufacturing.EXPORT_STL:
+        return
+
     # Construct folder name and path
     folder_name = f"Case-{Config.Puzzle.CASE_SHAPE}-Seed-{Config.Puzzle.SEED}"
     export_path = os.path.join("..", "CAD", "STEP", folder_name)
@@ -256,8 +260,8 @@ def export(ball, mounting_ring, dome_top, dome_bottom, path_body):
     for name, obj in objects_to_export.items():
         stl_file_path = os.path.join(export_path, f"{name}.stl")
         step_file_path = os.path.join(export_path, f"{name}.step")
-        #obj.val().exportStl(stl_file_path)
-        #obj.val().exportStep(step_file_path)
+        obj.val().exportStl(stl_file_path)
+        obj.val().exportStep(step_file_path)
         
 
 if __name__ == "__main__":
