@@ -267,6 +267,52 @@ def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: f
     return u_shape_adjusted_sketch
 
 
+def create_u_shape_adjusted_height_path_color(work_plane: Plane = Plane.XY, 
+                                              height: float = 9.9999, 
+                                              width: float = 9.9999, 
+                                              wall_thickness: float = 2.0, 
+                                              factor: float = 1.0, 
+                                              rotation_angle: float = -90):
+    """
+    Creates a single layer path for within a U-shaped adjusted height cross-section to apply a color on top.
+
+    Parameters:
+    - work_plane: The plane on which to create the shape. Defaults to Plane.XY.
+    - height: The total height of the U-shape (along the Y-axis).
+    - width: The total width of the U-shape (along the X-axis).
+    - wall_thickness: The thickness of the walls of the U-shape.
+    - factor: Scaling factor applied only to the width.
+    - rotation_angle: The rotation angle around Z-axis (in degrees), defaults to -90.
+
+    Returns:
+    - A face object representing the created single layer path for the U-shape.
+    """
+    adjusted_width = width * factor
+    adjusted_height = height
+    
+    half_width = adjusted_width / 2
+    half_height = adjusted_height / 2
+    inner_half_width = half_width - wall_thickness
+    inner_half_height = half_height - wall_thickness
+
+    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+
+    u_shape_path_color_points = [
+        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-inner_half_width, -inner_half_height),                    # 2
+        ( inner_half_width, -inner_half_height),                    # 3
+        ( inner_half_width, -inner_half_height + nozzle_diameter),  # 4
+        (-inner_half_width, -inner_half_height + nozzle_diameter)   # close
+    ]
+
+    with BuildSketch(work_plane) as u_shape_adjusted_height_path_color_sketch:
+        with BuildLine(Rot(Z=rotation_angle)):
+            Polyline(u_shape_path_color_points)
+        make_face()
+
+    return u_shape_adjusted_height_path_color_sketch
+
+
 def create_v_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
     """
     Creates a V-shaped cross-section centered at the origin or on the given work plane.
@@ -373,6 +419,7 @@ PROFILE_TYPE_FUNCTIONS = {
     PathProfileType.U_SHAPE: create_u_shape,
     PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
     PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
+    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR: create_u_shape_adjusted_height_path_color,    
     PathProfileType.V_SHAPE: create_v_shape,
     PathProfileType.V_SHAPE_PATH_COLOR: create_v_shape_path_color,
     PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
@@ -381,6 +428,7 @@ PROFILE_TYPE_FUNCTIONS = {
 # Accent registry, map a path profile to its accent color profile
 ACCENT_REGISTRY = {
     PathProfileType.U_SHAPE: PathProfileType.U_SHAPE_PATH_COLOR,
+    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: PathProfileType.U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR,
     PathProfileType.V_SHAPE: PathProfileType.V_SHAPE_PATH_COLOR,
 }
 

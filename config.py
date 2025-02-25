@@ -107,6 +107,11 @@ class Path:
             'wall_thickness': 1.2,
             'lower_distance': 3.5
         },
+        'u_shape_adjusted_height_path_color': {
+            'height': 10.0 - sweep_tolerance,
+            'width': 10.0 - sweep_tolerance,
+            'wall_thickness': 1.2,
+        },    
         'v_shape': {
             'height_width': 10.0 - sweep_tolerance,
             'wall_thickness': 1.2,
