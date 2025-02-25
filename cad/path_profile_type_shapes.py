@@ -2,6 +2,7 @@
 
 import config
 from build123d import BuildSketch, BuildLine, Rot, Polyline, Plane, make_face, Circle, RegularPolygon, Mode
+from puzzle.utils.enums import PathProfileType
 
 def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
     """
@@ -361,3 +362,30 @@ def create_rectangle_shape(work_plane: Plane = Plane.XY, height_width: float = 9
         make_face()
 
     return rectangle_sketch
+
+
+# Central registry mapping for all shape creation functions
+PROFILE_TYPE_FUNCTIONS = {
+    PathProfileType.L_SHAPE: create_l_shape,
+    PathProfileType.L_SHAPE_ADJUSTED_HEIGHT: create_l_shape_adjusted_height,
+    PathProfileType.O_SHAPE: create_o_shape,
+    PathProfileType.O_SHAPE_SUPPORT: create_o_shape_support,
+    PathProfileType.U_SHAPE: create_u_shape,
+    PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
+    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
+    PathProfileType.V_SHAPE: create_v_shape,
+    PathProfileType.V_SHAPE_PATH_COLOR: create_v_shape_path_color,
+    PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
+}
+
+# Accent registry, map a path profile to its accent color profile
+ACCENT_REGISTRY = {
+    PathProfileType.U_SHAPE: PathProfileType.U_SHAPE_PATH_COLOR,
+    PathProfileType.V_SHAPE: PathProfileType.V_SHAPE_PATH_COLOR,
+}
+
+# Support registry, map a path profile to its support profile
+SUPPORT_REGISTRY = {
+    PathProfileType.O_SHAPE: PathProfileType.O_SHAPE_SUPPORT,
+}
+

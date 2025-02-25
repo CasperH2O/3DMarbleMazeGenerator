@@ -1,9 +1,7 @@
-# cad/path_builder.py
-
 import random
 
 from config import *
-from cad.path_profile_type_shapes import *
+from cad.path_profile_type_shapes import PROFILE_TYPE_FUNCTIONS, create_u_shape, create_u_shape_path_color
 from config import PathProfileType, PathCurveModel
 from numpy import linspace
 from ocp_vscode import show_object
@@ -21,21 +19,7 @@ class PathBuilder:
         self.path_architect = puzzle.path_architect
         self.total_path = puzzle.total_path
         self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
-
         self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
-        self.path_profile_type_functions = {
-            PathProfileType.L_SHAPE: create_l_shape,
-            PathProfileType.L_SHAPE_ADJUSTED_HEIGHT: create_l_shape_adjusted_height,
-            PathProfileType.O_SHAPE: create_o_shape,
-            PathProfileType.O_SHAPE_SUPPORT: create_o_shape_support,
-            PathProfileType.U_SHAPE: create_u_shape,
-            PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
-            PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
-            PathProfileType.V_SHAPE: create_v_shape,
-            PathProfileType.V_SHAPE_PATH_COLOR: create_v_shape_path_color,
-            PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
-        }
-
         self.seed = Config.Puzzle.SEED
         random.seed(self.seed)  # Set the random seed for reproducibility
 
@@ -113,8 +97,8 @@ class PathBuilder:
         # Get parameters for the path profile type
         path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
-        # Store path profile sketch
-        path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
+        # Store path profile sketch based on path profile registry
+        path_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.path_profile_type, create_u_shape)
         segment.path_profile = path_profile_function(**path_parameters, rotation_angle=path_line_angle + profile_angle)
 
         # Sweep for the main path body
@@ -126,8 +110,8 @@ class PathBuilder:
             # Get parameters for the accent profile type
             accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
 
-            # Store accent color profile sketch
-            accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
+            # Store accent color profile sketch based on path profile registry
+            accent_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.accent_profile_type, create_u_shape)
             segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
             # Sweep for the accent body
@@ -139,8 +123,8 @@ class PathBuilder:
             # Get parameters for the support profile type
             support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
 
-            # Store support profile sketch
-            support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
+            # Store support profile sketch based on path profile registry
+            support_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.support_profile_type, create_u_shape)
             segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=path_line_angle + profile_angle)
 
             # Sweep for the support body
@@ -267,8 +251,8 @@ class PathBuilder:
             # Get parameters for the path profile type
             path_parameters = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
 
-            # Store path profile sketch
-            path_profile_function = self.path_profile_type_functions.get(segment.path_profile_type, create_u_shape)
+            # Store path profile sketch based on path profile registry
+            path_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.path_profile_type, create_u_shape)
             segment.path_profile = path_profile_function(**path_parameters, rotation_angle=angle_sketch_1_final)
             path_profile_end = path_profile_function(**path_parameters, rotation_angle=angle_sketch_2_final)
 
@@ -295,8 +279,8 @@ class PathBuilder:
                     # Get parameters for the accent profile type
                     accent_path_parameters = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
 
-                    # Store accent color profile sketch
-                    accent_profile_function = self.path_profile_type_functions.get(segment.accent_profile_type, create_u_shape)
+                    # Store accent color profile sketch based on path profile registry
+                    accent_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.accent_profile_type, create_u_shape)
                     segment.accent_profile = accent_profile_function(**accent_path_parameters, rotation_angle=angle_sketch_1_final)
                     path_profile_end = accent_profile_function(**accent_path_parameters, rotation_angle=angle_sketch_2_final)
 
@@ -316,8 +300,8 @@ class PathBuilder:
                     # Get parameters for the support profile type
                     support_path_parameters = self.path_profile_type_parameters.get(segment.support_profile_type.value, {})
 
-                    # Store support profile sketch
-                    support_profile_function = self.path_profile_type_functions.get(segment.support_profile_type, create_u_shape)
+                    # Store support profile sketch based on path profile registry
+                    support_profile_function = PROFILE_TYPE_FUNCTIONS.get(segment.support_profile_type, create_u_shape)
                     segment.support_profile = support_profile_function(**support_path_parameters, rotation_angle=angle_sketch_1_final)
                     path_profile_end = support_profile_function(**support_path_parameters, rotation_angle=angle_sketch_2_final)
 
@@ -434,6 +418,7 @@ class PathBuilder:
                 add(create_u_shape(**u_shape_params))
             loft() 
     
+
         # Create the coloring path start area funnel
         with BuildPart() as start_area_coloring:
 
@@ -499,7 +484,7 @@ class PathBuilder:
             if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
                 continue  # Skip this segment
 
-            hole_size = config.Puzzle.BALL_DIAMETER + 1
+            hole_size = Config.Puzzle.BALL_DIAMETER + 1
             total_nodes = len(segment.nodes)
 
             if total_nodes <= 2:
@@ -553,8 +538,8 @@ class PathBuilder:
 
         # Get parameters for the path profile type
         path_parameters = self.path_profile_type_parameters.get(previous_segment.path_profile_type.value, {})
-        # Apply the path profile function
-        path_profile_function = self.path_profile_type_functions.get(previous_segment.path_profile_type, create_u_shape)
+        # Apply the path profile function based on path profile registry
+        path_profile_function = PROFILE_TYPE_FUNCTIONS.get(previous_segment.path_profile_type, create_u_shape)
 
         # Create previous segment profile type at the start of the current segment path with 90-degree angle increments
         for angle in range(0, 360, 90):
@@ -668,7 +653,7 @@ def round_to_nearest_90(value):
     return rounded_value
 
 def normalize_angle(angle):
-    """Normalize angle to the range (-180, 180]."""
+    """Normalize angle to the range (-180, 180)"""
     while angle <= -180:
         angle += 360
     while angle > 180:

@@ -4,6 +4,8 @@ import random
 from typing import List
 from build123d import *
 
+from cad.path_profile_type_shapes import SUPPORT_REGISTRY
+from cad.path_profile_type_shapes import ACCENT_REGISTRY
 import config
 from puzzle.node import Node
 from config import *
@@ -470,18 +472,14 @@ class PathArchitect:
             secondary_index_counter += 1
 
     def accent_color_paths(self):
-        # Set the appropriate profile type for the accent color path body
+        # Set the appropriate profile type for the accent color path body using the path profile accent registry
         for segment in self.segments:          
-            if segment.path_profile_type == PathProfileType.U_SHAPE:
-                segment.accent_profile_type = PathProfileType.U_SHAPE_PATH_COLOR
-            elif segment.path_profile_type == PathProfileType.V_SHAPE:
-                segment.accent_profile_type = PathProfileType.V_SHAPE_PATH_COLOR
+            segment.accent_profile_type = ACCENT_REGISTRY.get(segment.path_profile_type)
 
     def create_support_materials(self):
-        # Set path profile appropriate support profile types
+        # Set path profile appropriate support profile types using the path profile support registry
         for segment in self.segments:
-            if segment.path_profile_type == PathProfileType.O_SHAPE:
-                segment.support_profile_type = PathProfileType.O_SHAPE_SUPPORT
+            segment.support_profile_type = SUPPORT_REGISTRY.get(segment.path_profile_type)
 
     def _split_spline_segment(self, segment):
         new_segments = []
@@ -538,4 +536,3 @@ class PathArchitect:
         self.secondary_index_counters[main_index] = secondary_index_counter
         
         return new_segments
-
