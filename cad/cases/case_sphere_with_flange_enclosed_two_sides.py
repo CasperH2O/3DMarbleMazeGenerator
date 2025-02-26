@@ -45,7 +45,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         with BuildPart() as mounting_ring_bottom:
             # Create the outer ring
             Cylinder(radius=self.sphere_flange_radius, height=self.mounting_ring_thickness)
-            Cylinder(radius=self.sphere_flange_inner_radius, height=self.mounting_ring_thickness, mode=Mode.SUBTRACT)
+            Cylinder(radius=self.sphere_outer_radius, height=self.mounting_ring_thickness, mode=Mode.SUBTRACT)
             Cylinder(radius=self.sphere_flange_radius - self.mounting_ring_edge, height=self.mounting_ring_inner_height, mode=Mode.SUBTRACT)
             
             # Split and keep one side, which is later copied, and rotated (twice)
@@ -125,7 +125,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         # Add mounting bridges with an outer bridge that connects to 
         # the mounting ring and an inner bridge that connects to the path
         # Skip the first location as that is the start area
-        num_points = self.number_of_mounting_points
+        num_points = 4 #self.number_of_mounting_points # TODO Hardcoded, bad
         start_angle = 360 / num_points + 180
         count = num_points - 1
         angle_range = 360 - 360 / num_points
@@ -136,7 +136,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         with BuildPart() as bridge_ring:
             tolerance = 0.2
             Cylinder(radius=self.sphere_flange_radius - self.mounting_ring_edge - tolerance, height=self.mounting_bridge_height - tolerance)
-            Cylinder(radius=self.sphere_flange_inner_radius, height=self.mounting_bridge_height - tolerance, mode=Mode.SUBTRACT)
+            Cylinder(radius=self.sphere_flange_inner_radius - 0.5, height=self.mounting_bridge_height - tolerance, mode=Mode.SUBTRACT)
         
         with BuildPart() as external_bridges:
             with PolarLocations(radius=self.mounting_distance/2, 
@@ -145,7 +145,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                                 angular_range=angle_range):
                 Box(
                     width=self.node_size,
-                    length=self.node_size * 2,
+                    length=self.node_size * 2 - 2.1, # TODO Hardcoded, bad
                     height=self.mounting_bridge_height - tolerance
                 )
 
@@ -167,7 +167,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                                 angular_range=angle_range):
                 Box(
                     width=self.node_size - 4 * printing_nozzle_diameter,
-                    length=self.node_size * 2 + 4 * printing_nozzle_diameter,
+                    length=self.node_size * 2 + 4 * printing_nozzle_diameter - 1.3,
                     height=self.mounting_bridge_height - printing_layer_thickness * 8
                 )
 
@@ -186,8 +186,8 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         bridge_ring.part = bridge_ring.part - peg_holes.part - internal_path_bridges.part
 
         # Build the mounting ring clips and cut out the tolerance
-        mounting_ring_clips = self.create_mounting_ring_clips(0.0)
-        mounting_ring_clips_tolerance_cut_out = self.create_mounting_ring_clips(0.2)
+        mounting_ring_clips = self.create_mounting_ring_clips(False)
+        mounting_ring_clips_tolerance_cut_out = self.create_mounting_ring_clips(True)
         
         # Cut out the mounting ring clip toleranced part from both the top and bottom mounting rings
         mounting_ring_bottom.part = mounting_ring_bottom.part - mounting_ring_clips_tolerance_cut_out.part
@@ -195,7 +195,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
 
         return mounting_ring_clips, bridge_ring, internal_path_bridges, start_indicator, mounting_ring_top, mounting_ring_bottom
 
-    def create_mounting_ring_clips(self, tolerance):
+    def create_mounting_ring_clips(self, tolerance : bool):
         """
         Create mounting ring clips for both the physical parts and the cut-out pattern,
         applying an additional clearance tolerance where needed.
@@ -207,6 +207,13 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             BuildPart: The constructed mounting ring clips.
         """
         
+        # Set tolerance to 0.1 mm, if tolerance is requested, 
+        # get's multiplied for proper distance where applicable
+        if tolerance:
+            tolerance = 0.1
+        else:
+            tolerance = 0.0
+
         mounting_clip_radius = (self.sphere_flange_inner_radius + self.sphere_flange_radius) / 2
         mounting_clip_height = self.mounting_ring_thickness + 2 * self.mounting_ring_clips_thickness
         
@@ -215,7 +222,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             with BuildSketch():
                 with PolarLocations(radius=mounting_clip_radius, count=self.number_of_mounting_points):
                     # Add tolerance to the clip length if required
-                    Rectangle(self.mounting_ring_clips_width, self.mounting_ring_clips_length + tolerance)
+                    Rectangle(self.mounting_ring_clips_width, self.mounting_ring_clips_length + 4 * tolerance)
             extrude(amount=mounting_clip_height / 2, both=True)
             
             # Remove the outer curved shape from the blocks
@@ -226,9 +233,9 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             
             # Cut out the inner area to create a U-shape with chamfered edges
             with BuildSketch(Plane.XZ) as sketch_inner_cut:
-                Rectangle(self.sphere_flange_radius, mounting_clip_height - 2 * self.mounting_ring_clips_thickness, 
+                Rectangle(self.sphere_flange_radius, mounting_clip_height - 2 * self.mounting_ring_clips_thickness - 4 * tolerance + 0.4, 
                           align=(Align.MIN, Align.CENTER))
-                chamfer(sketch_inner_cut.vertices(), 1.5 + tolerance)
+                chamfer(sketch_inner_cut.vertices(), 1.5 + 2 * tolerance)
             revolve(mode=Mode.SUBTRACT)
             
             # Cut the side of the clip that touch with the domes
@@ -237,10 +244,10 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             revolve(mode=Mode.SUBTRACT)
             
             # Create internal ridges on both sides
-            with BuildSketch(Plane.XY.offset(-1 * (mounting_clip_height / 2) + self.mounting_ring_clips_thickness)):
-                with PolarLocations(radius=tolerance + (self.sphere_flange_inner_radius + mounting_clip_radius) / 2, 
+            with BuildSketch(Plane.XY.offset(-1 * (mounting_clip_height / 2)+ self.mounting_ring_clips_thickness - 0.4 )):
+                with PolarLocations(radius=2 * tolerance + (self.sphere_flange_inner_radius + mounting_clip_radius) / 2, 
                                     count=self.number_of_mounting_points):
-                    Rectangle(2 + tolerance, 7 + tolerance)
+                    Rectangle(2 + 2 * tolerance, 7 + 2 * tolerance)
             extrude(amount=5, taper=45)
             mirror(about=Plane.XY)
         
@@ -270,13 +277,13 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             revolve()
             
             # Create partial holes in two sets of patterned locations
-            with PolarLocations(radius=(self.sphere_outer_radius + self.sphere_flange_radius) / 2 + 1,
+            with PolarLocations(radius=(self.sphere_outer_radius + self.sphere_flange_radius) / 2 - 0.5,
                                 count=self.mounting_hole_amount,
                                 start_angle=self.sphere_flange_slot_angle,
                                 angular_range=360):
                 Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2, mode=Mode.SUBTRACT)
             
-            with PolarLocations(radius=(self.sphere_outer_radius + self.sphere_flange_radius) / 2 + 1,
+            with PolarLocations(radius=(self.sphere_outer_radius + self.sphere_flange_radius) / 2 - 0.5,
                                 count=self.mounting_hole_amount,
                                 start_angle=-self.sphere_flange_slot_angle,
                                 angular_range=360):
@@ -303,9 +310,9 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         }
     
     def create_cut_shape(self):
-        flush_distance_tolerance = 0.0
+        flush_distance_tolerance = 0.5
         radius_outer = self.sphere_flange_diameter
-        radius_inner = self.sphere_inner_radius - flush_distance_tolerance
+        radius_inner = self.sphere_flange_inner_radius - flush_distance_tolerance
         mid_outer_x = radius_outer / math.sqrt(2)
         mid_outer_y = radius_outer / math.sqrt(2)
         mid_inner_x = radius_inner / math.sqrt(2)
@@ -320,7 +327,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
                     Line((0, radius_inner), (0, radius_outer))
                 make_face()
             revolve()
-            translation_z = (0.5 * self.mounting_ring_thickness) - 0.33333 * self.mounting_ring_thickness
+            translation_z = (0.5 * self.mounting_bridge_height) - 0.33333 * self.mounting_bridge_height
             cut_shape.part.position = (0, 0, -translation_z)
             mirror(about=Plane.XY)
         
