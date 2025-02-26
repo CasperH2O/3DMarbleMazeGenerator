@@ -27,7 +27,7 @@ def main() -> None:
     )
 
     # Create the case and retrieve its parts and the cut shape
-    case, case_parts, cut_shape = puzzle_casing()
+    case_parts, cut_shape = puzzle_casing()
 
     # Build paths associated with the puzzle and cut them from the case
     standard_path, support_path, coloring_path = path(puzzle, cut_shape)
@@ -45,8 +45,13 @@ def main() -> None:
     # Set viewer configuration
     set_viewer()
 
-    # Export all parts
-    export_all(case_parts)
+    # Export all parts along with additional objects (paths)
+    additional_objs = {
+        "Path": standard_path,
+        "Support Path": support_path,
+        "Coloring Path": coloring_path,
+    }
+    export_all(case_parts, additional_objs)
 
 def puzzle_casing():
     """
@@ -73,7 +78,7 @@ def puzzle_casing():
     # Obtain the shape used to cut paths from the case
     cut_shape = case.cut_shape
 
-    return case, case_parts, cut_shape
+    return case_parts, cut_shape
 
 def path(puzzle, cut_shape):
     """
@@ -172,7 +177,7 @@ def set_viewer():
 
     set_viewer_config(states=new_config)
 
-def export_all(case_parts):
+def export_all(case_parts, additional_objects=None):
     """
     Export all case parts as STLs for 3D print manufacturing.
     """
@@ -189,6 +194,12 @@ def export_all(case_parts):
     for case_part in case_parts.values():
         stl_file_path = os.path.join(export_path, f"{case_part.name}.stl")
         export_stl(to_export = case_part.obj.part, file_path = stl_file_path)
+
+    # Export additional objects, if any
+    if additional_objects:
+        for name, obj in additional_objects.items():
+            stl_file_path = os.path.join(export_path, f"{name}.stl")
+            export_stl(to_export = obj, file_path = stl_file_path)
 
 if __name__ == "__main__":
     main()
