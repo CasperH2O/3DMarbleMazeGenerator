@@ -1,8 +1,9 @@
 # cad/cases/case_sphere_with_flange_enclosed_two_sides.py
 
 from .case_base import CaseBase, CasePart
-from build123d import Axis, BuildPart, Cylinder, Keep, Plane, Part, Mode, PolarLocations, Box, Locations, Rectangle, fillet, Text, Circle, extrude, mirror, revolve, make_face, Line, ThreePointArc, BuildSketch, BuildLine, Align, chamfer, SortBy, split
+from build123d import Axis, BuildPart, Cylinder, Keep, Plane, Part, Mode, PolarLocations, Box, Locations, Rectangle, fillet, Circle, extrude, mirror, revolve, make_face, Line, ThreePointArc, BuildSketch, BuildLine, Align, chamfer, SortBy, split, RegularPolygon
 import math
+from ocp_vscode import show_all
 from copy import copy
 from config import Config
 
@@ -114,14 +115,6 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         mounting_ring_top.part = mounting_ring_top.part.rotate(Axis((0, 0, 0), (0, 1, 0)), 180)
         mounting_ring_top.part = mounting_ring_top.part.rotate(Axis((0, 0, 0), (0, 0, 1)), 360 / self.number_of_mounting_points)
 
-        # Start indicator TODO improve design, perhaps put in mounting clip instead, make triangle? 
-        with BuildPart() as start_indicator:
-            with BuildSketch():
-                text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
-                text_path = Circle(text_radius, mode=Mode.PRIVATE).edge().rotate(Axis((0, 0, 0), (0, 0, 1)), 180)
-                Text(txt="^", font_size=8, path=text_path)
-            extrude(amount=-1)
-
         # Add mounting bridges with an outer bridge that connects to 
         # the mounting ring and an inner bridge that connects to the path
         # Skip the first location as that is the start area
@@ -185,11 +178,20 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         # Cut out the peg holes
         bridge_ring.part = bridge_ring.part - peg_holes.part - internal_path_bridges.part
 
-        # Build the mounting ring clips and cut out the tolerance
+        # Start indicator, combine with mounting ring clip at start of puzzle
+        with BuildPart() as start_indicator:
+            with BuildSketch(Plane.YZ.offset(-self.sphere_flange_radius)):
+                with Locations((0, -0.9)):
+                    RegularPolygon(radius=3.5, side_count=3, rotation=90)
+            extrude(amount=3,both=True)
+
+        # Build the mounting ring clips
         mounting_ring_clips = self.create_mounting_ring_clips(False)
-        mounting_ring_clips_tolerance_cut_out = self.create_mounting_ring_clips(True)
+        start_indicator.part = start_indicator.part & mounting_ring_clips.part
+        mounting_ring_clips.part = mounting_ring_clips.part - start_indicator.part
         
         # Cut out the mounting ring clip toleranced part from both the top and bottom mounting rings
+        mounting_ring_clips_tolerance_cut_out = self.create_mounting_ring_clips(True)
         mounting_ring_bottom.part = mounting_ring_bottom.part - mounting_ring_clips_tolerance_cut_out.part
         mounting_ring_top.part = mounting_ring_top.part - mounting_ring_clips_tolerance_cut_out.part
 
@@ -298,14 +300,28 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         return dome_top, dome_bottom
 
     def get_parts(self):
+
+        # Prepare the mounting ring clips as separate parts for manufacturing
+        mounting_ring_clip_start = copy(self.mounting_ring_clips)
+        mounting_ring_clip_single = copy(self.mounting_ring_clips)
+
+        # Get the clip with the lowest volume, as that one has the start indicator hole in it
+        mounting_ring_clip_start.part = Part(self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[0:1])
+        # Create a single clip for printing usage from the rest
+        mounting_ring_clip_single.part = Part(self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[-1:])
+        # Remove the start clip from mounting clip and the last clip which was used as single clip
+        self.mounting_ring_clips.part = Part(self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[1:-1])
+
         return {
             "Dome Top":             CasePart("Dome Top", self.dome_top, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Dome Bottom":          CasePart("Dome Bottom", self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
             "Mounting Ring":        CasePart("Mounting Ring", self.mounting_ring, {"color": Config.Puzzle.MOUNTING_RING_COLOR}),
             "Mounting Ring Top":    CasePart("Mounting Ring Top", self.mounting_ring_top, {"color": Config.Puzzle.MOUNTING_RING_COLOR}),
             "Mounting Ring Bottom": CasePart("Mounting Ring Bottom", self.mounting_ring_bottom, {"color": Config.Puzzle.MOUNTING_RING_COLOR}),
+            "Mounting Clip Start":  CasePart("Mounting Clip Start", mounting_ring_clip_start, {"color": Config.Puzzle.PATH_ACCENT_COLOR}),
             "Mounting Clips":       CasePart("Mounting Clips", self.mounting_ring_clips, {"color": Config.Puzzle.PATH_ACCENT_COLOR}),
-            "Start Indicator":      CasePart("Start Indicator", self.start_indicator, {"color": Config.Puzzle.TEXT_COLOR}),
+            "Mounting Clip Single": CasePart("Mounting Clip Single", mounting_ring_clip_single, {"color": Config.Puzzle.PATH_ACCENT_COLOR}),
+            "Start Indicator":      CasePart("Start Indicator", self.start_indicator, {"color": Config.Puzzle.MOUNTING_RING_COLOR}),
             "Path Bridges":         CasePart("Path Bridges", self.internal_path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
         }
     
