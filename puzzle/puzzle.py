@@ -4,9 +4,9 @@ import random
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import math
 
 from config import CaseShape, Config
-from .path_interpolator import PathInterpolator
 from .path_finder import AStarPathFinder
 from cad.path_architect import PathArchitect
 from .node import Node
@@ -83,6 +83,9 @@ class Puzzle:
         
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
+
+        # Add circular nodes (evenly distributed and mark grid intersections)
+        self.add_circular_nodes()
 
     def get_neighbors(self, node: Node) -> List[Node]:
         """
@@ -181,6 +184,99 @@ class Puzzle:
             else:
                 print("No suitable candidate found for waypoint selection.")
 
+    def add_circular_nodes(self) -> None:
+        """
+        Adds circular nodes on the XY plane (Z=0). It does two things:
+        1. Creates evenly distributed nodes along a circle of configured diameter.
+        2. Creates nodes at the intersections of the node grid and the circle.
+        """
+        # Use existing configuration values
+        circular_even_count = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
+        circular_diameter = Config.Sphere.SPHERE_DIAMETER - 2 * Config.Sphere.SHELL_THICKNESS - 2 * Config.Puzzle.NODE_SIZE
+        circular_radius = circular_diameter / 2.0
+        tolerance = self.node_size * 0.1  # tolerance for matching positions
+
+        # 1. Create evenly distributed circular nodes
+        for i in range(circular_even_count):
+            angle = 2 * math.pi * i / circular_even_count
+            x = circular_radius * math.cos(angle)
+            y = circular_radius * math.sin(angle)
+            z = 0.0
+            exists = False
+            for node in self.nodes:
+                if abs(node.x - x) < tolerance and abs(node.y - y) < tolerance and abs(node.z - z) < tolerance:
+                    if "circular" not in node.grid_type:
+                        node.grid_type.append("circular")
+                    exists = True
+                    break
+            if not exists:
+                new_node = Node(x, y, z)
+                new_node.grid_type.append("circular")
+                self.nodes.append(new_node)
+                self.node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
+
+        # 2. Create nodes at the crossing of the node grid and the circle.
+        # These are found where a vertical or horizontal grid line (spaced by node_size)
+        # intersects the circle (x^2 + y^2 = circular_radius^2).
+        grid_step = self.node_size
+        max_steps = int(circular_radius // grid_step)
+
+        # For vertical grid lines (constant x)
+        for k in range(max_steps + 1):
+            # Consider both positive and negative x, except when k==0
+            for sign in ([1] if k == 0 else [1, -1]):
+                x_val = k * grid_step * sign
+                remainder = circular_radius**2 - x_val**2
+                if remainder < 0:
+                    continue
+                y_val = math.sqrt(remainder)
+                # Add node for y positive and negative (if not zero)
+                for y_candidate in ([y_val] if abs(y_val) < tolerance else [y_val, -y_val]):
+                    candidate_x = x_val
+                    candidate_y = y_candidate
+                    candidate_z = 0.0
+                    exists = False
+                    for node in self.nodes:
+                        if (abs(node.x - candidate_x) < tolerance and
+                            abs(node.y - candidate_y) < tolerance and
+                            abs(node.z - candidate_z) < tolerance):
+                            if "circular" not in node.grid_type:
+                                node.grid_type.append("circular")
+                            exists = True
+                            break
+                    if not exists:
+                        new_node = Node(candidate_x, candidate_y, candidate_z)
+                        new_node.grid_type.append("circular")
+                        self.nodes.append(new_node)
+                        self.node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
+
+        # For horizontal grid lines (constant y)
+        for k in range(max_steps + 1):
+            for sign in ([1] if k == 0 else [1, -1]):
+                y_val = k * grid_step * sign
+                remainder = circular_radius**2 - y_val**2
+                if remainder < 0:
+                    continue
+                x_val = math.sqrt(remainder)
+                for x_candidate in ([x_val] if abs(x_val) < tolerance else [x_val, -x_val]):
+                    candidate_x = x_candidate
+                    candidate_y = y_val
+                    candidate_z = 0.0
+                    exists = False
+                    for node in self.nodes:
+                        if (abs(node.x - candidate_x) < tolerance and
+                            abs(node.y - candidate_y) < tolerance and
+                            abs(node.z - candidate_z) < tolerance):
+                            if "circular" not in node.grid_type:
+                                node.grid_type.append("circular")
+                            exists = True
+                            break
+                    if not exists:
+                        new_node = Node(candidate_x, candidate_y, candidate_z)
+                        new_node.grid_type.append("circular")
+                        self.nodes.append(new_node)
+                        self.node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
+
     def print_puzzle_info(self) -> None:
         """
         Prints detailed information about the puzzle, including segment statistics and usage of profile and curve types.
@@ -196,7 +292,7 @@ class Puzzle:
             if segment.curve_type is None
         )
         curved_segments = len(self.path_architect.segments) - straight_segments
-        print(f"\n=== Segment Statistics ===")
+        print("\n=== Segment Statistics ===")
         print(f"Straight segments: {straight_segments}")
         print(f"Curved segments: {curved_segments}")
         print(

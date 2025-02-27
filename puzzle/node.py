@@ -34,10 +34,12 @@ class Node:
         self.segment_start: bool = False  # Indicates the start node of a segment
         self.segment_end: bool = False    # Indicates the end node of a segment
 
-        self.parent: Optional['Node'] = None  # For path reconstruction
-        self.g: float = float('inf')       # Cost from start to this node
-        self.h: float = 0.0                # Heuristic cost to goal
-        self.f: float = float('inf')       # Total cost
+        self.parent: Optional['Node'] = None    # For path reconstruction
+        self.g: float = float('inf')            # Cost from start to this node
+        self.h: float = 0.0                     # Heuristic cost to goal
+        self.f: float = float('inf')            # Total cost
+
+        self.grid_type = []  # List of grid types (e.g., "rectangular", "circular")
 
     def __lt__(self, other):
         return self.f < other.f  # For priority queue (heapq)

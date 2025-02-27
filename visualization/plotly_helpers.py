@@ -4,22 +4,23 @@ from puzzle.casing import SphereCasing, BoxCasing
 import numpy as np
 import plotly.graph_objects as go
 
-
 def plot_nodes_plotly(nodes):
     """
     Plots the nodes in a 3D scatter plot with different colors and sizes for different node types.
-    Adds legends for start, end, waypoint, and other node types.
+    Adds legends for start, end, waypoint, mounting, and circular nodes.
     """
 
-    # Segregate nodes based on their properties
+    # Segregate nodes based on their types
     start_nodes = [node for node in nodes if node.puzzle_start]
     end_nodes = [node for node in nodes if node.puzzle_end]
-    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.puzzle_end]  # Exclude mounting waypoints
+    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.puzzle_end]
     mounting_nodes = [node for node in nodes if node.mounting and not node.puzzle_start]
-    occupied_nodes = [node for node in nodes if node.occupied and not node.waypoint and not node.mounting]  # Exclude occupied waypoints and mountings
-    regular_nodes = [node for node in nodes if not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
+    occupied_nodes = [node for node in nodes if node.occupied and not node.waypoint and not node.mounting]
+    # Separate nodes that are flagged as circular (and not already marked as start/end/waypoint/mounting/occupied)
+    circular_nodes = [node for node in nodes if "circular" in node.grid_type and not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
+    # The remaining nodes are regular (only rectangular)
+    regular_nodes = [node for node in nodes if "circular" not in node.grid_type and not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
 
-    # Create scatter traces for each node type with corresponding legends
     scatter_start = go.Scatter3d(
         x=[node.x for node in start_nodes],
         y=[node.y for node in start_nodes],
@@ -80,9 +81,17 @@ def plot_nodes_plotly(nodes):
         legendgroup="Regular"
     )
 
-    # Combine all scatter traces
-    return [scatter_start, scatter_end, scatter_waypoint, scatter_mounting, scatter_occupied, scatter_regular]
+    scatter_circular = go.Scatter3d(
+        x=[node.x for node in circular_nodes],
+        y=[node.y for node in circular_nodes],
+        z=[node.z for node in circular_nodes],
+        mode='markers',
+        marker=dict(color='orange', size=3),
+        name="Circular Node",
+        legendgroup="Circular"
+    )
 
+    return [scatter_start, scatter_end, scatter_waypoint, scatter_mounting, scatter_occupied, scatter_regular, scatter_circular]
 
 def plot_casing_plotly(casing):
     if isinstance(casing, SphereCasing):
