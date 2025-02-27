@@ -1,11 +1,11 @@
 import random
 
-from config import *
+from config import Config, PathCurveType
 from cad.path_profile_type_shapes import PROFILE_TYPE_FUNCTIONS, PathProfileType, create_u_shape, create_u_shape_path_color
 from config import PathCurveModel
-from numpy import linspace
-from ocp_vscode import show_object
 from build123d import BuildPart, BuildLine, BuildSketch, Circle, loft, sweep, FrameMethod, Plane, Polyline, Bezier, Spline, Vector, add, extrude, Line
+
+from ocp_vscode import show_object
 
 class PathBuilder:
     """

@@ -249,7 +249,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
             with BuildSketch(Plane.XY.offset(-1 * (mounting_clip_height / 2)+ self.mounting_ring_clips_thickness - 0.4 )):
                 with PolarLocations(radius=2 * tolerance + (self.sphere_flange_inner_radius + mounting_clip_radius) / 2, 
                                     count=self.number_of_mounting_points):
-                    Rectangle(2 + 2 * tolerance, 7 + 2 * tolerance)
+                    Rectangle(2 + 4 * tolerance, 7 + 4 * tolerance)
             extrude(amount=5, taper=45)
             mirror(about=Plane.XY)
         
