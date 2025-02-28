@@ -62,11 +62,9 @@ class PathFinder(ABC):
 
 
 class AStarPathFinder(PathFinder):
-    def find_path(
-        self, start_node: Node, goal_node: Node, puzzle: Any
-    ) -> Optional[List[Node]]:
+    def find_path(self, start_node: Node, goal_node: Node, puzzle: Any) -> Optional[List[Node]]:
         """
-        Implements the A* pathfinding algorithm to find the shortest path between two nodes.
+        Implements the A* pathfinding algorithm to find the cheapest path between two nodes.
 
         Parameters:
             start_node (Node): The starting node.
@@ -74,7 +72,7 @@ class AStarPathFinder(PathFinder):
             puzzle (Any): The puzzle containing nodes and configurations.
 
         Returns:
-            Optional[List[Node]]: The shortest path as a list of nodes, or None if no path is found.
+            Optional[List[Node]]: The cheapest path as a list of nodes, or None if no path is found.
         """
         open_set: List[Tuple[float, Node]] = []
         heapq.heappush(open_set, (start_node.f, start_node))
@@ -86,29 +84,37 @@ class AStarPathFinder(PathFinder):
 
         while open_set:
             current_f, current_node = heapq.heappop(open_set)
+            #print(f"[DEBUG] Visiting node: {current_node} with f = {current_f}")
+
             if current_node == goal_node:
+                #print("[DEBUG] Goal reached!")
                 return self.reconstruct_path(current_node)
 
             closed_set.add(current_node)
 
-            for neighbor in puzzle.get_neighbors(current_node):
+            for neighbor, move_cost in puzzle.get_neighbors(current_node):
                 if neighbor in closed_set or neighbor.occupied:
+                    #print(f"[DEBUG] Skipping neighbor {neighbor} (closed or occupied)")
                     continue
 
-                tentative_g = current_node.g + puzzle.node_size
+                tentative_g = current_node.g + move_cost
+                #print(f"[DEBUG] Evaluating neighbor {neighbor}: tentative_g = {tentative_g}")
 
                 if tentative_g < neighbor.g:
+                    #print(f"[DEBUG] Updating neighbor {neighbor}: new g = {tentative_g}")
                     neighbor.parent = current_node
                     neighbor.g = tentative_g
                     neighbor.h = manhattan_distance(neighbor, goal_node)
                     neighbor.f = neighbor.g + neighbor.h
+                    #print(f"[DEBUG] Neighbor {neighbor}: h = {neighbor.h}, f = {neighbor.f}")
 
-                    # Check if neighbor is already in open_set
-                    in_open_set = any(neighbor == item[1] for item in open_set)
-                    if not in_open_set:
+                    if not any(neighbor == item[1] for item in open_set):
                         heapq.heappush(open_set, (neighbor.f, neighbor))
+                        #print(f"[DEBUG] Neighbor {neighbor} added to open set with f = {neighbor.f}")
 
-        return None  # Path not found
+        #print("[DEBUG] No path found.")
+        return None  # No path found
+
 
     def reconstruct_path(self, current_node: Node) -> List[Node]:
         """
@@ -138,6 +144,7 @@ class AStarPathFinder(PathFinder):
             List[Node]: The total path connecting all waypoints.
         """
         waypoints: List[Node] = [node for node in puzzle.nodes if node.waypoint]
+
         if not waypoints:
             print("No waypoints to connect.")
             return []
