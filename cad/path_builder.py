@@ -3,7 +3,7 @@ import random
 from config import Config, PathCurveType
 from cad.path_profile_type_shapes import PROFILE_TYPE_FUNCTIONS, PathProfileType, create_u_shape, create_u_shape_path_color
 from config import PathCurveModel
-from build123d import BuildPart, BuildLine, BuildSketch, Circle, loft, sweep, FrameMethod, Plane, Polyline, Bezier, Spline, Vector, add, extrude, Line
+from build123d import BuildPart, BuildLine, BuildSketch, Circle, Sketch, loft, sweep, FrameMethod, Plane, Polyline, Bezier, Spline, Vector, add, extrude, Line
 
 from ocp_vscode import show_object
 
@@ -595,7 +595,7 @@ def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) ->
     return (diff / avg) <= tolerance
 
 
-def are_equal_faces(face1, face2, tolerance=0.01):
+def are_equal_faces(face1, face2, tolerance: float = 0.01) -> bool:
     """
     Check if two faces have 'approximately' the same area within a given tolerance (default 1%).
 
@@ -603,11 +603,11 @@ def are_equal_faces(face1, face2, tolerance=0.01):
     areas in face2 not in face1) and compare it against the average area.
     """
     # Calculate the 'difference area' - area that doesn't overlap
-    difference_area = (face1 - face2).area + (face2 - face1).area
-    
+    difference_area = (Sketch() + (face1 - face2)).area + (Sketch() + (face2 - face1)).area
+
     # Use the average of the two face areas as the reference
     avg_area = (face1.area + face2.area) / 2
-    
+
     # Guard against division by zero if either face has zero area
     if avg_area == 0:
         return difference_area == 0
