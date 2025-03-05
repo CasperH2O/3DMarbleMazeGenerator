@@ -136,58 +136,188 @@ class AStarPathFinder(PathFinder):
     def connect_waypoints(self, puzzle: Any) -> List[Node]:
         """
         Connects all waypoints in the puzzle using the A* pathfinding algorithm and returns the total path.
-
+        This version forces an even distribution of mounting and non mounting waypoints.
+        It uses a fixed ideal gap calculated from the initial counts:
+          - If the start node is mounting, then let remaining mounting = (total mounting waypoints - 1)
+            and remaining non-mounting = total non-mounting waypoints.
+          - We reserve exactly one non-mounting node for the final gap.
+          - The remaining non-mounting nodes should be evenly distributed between the mounting nodes.
+        
         Parameters:
             puzzle (Any): The puzzle containing nodes and waypoints.
-
+        
         Returns:
             List[Node]: The total path connecting all waypoints.
         """
-        waypoints: List[Node] = [node for node in puzzle.nodes if node.waypoint]
+        # Separate waypoints into mounting and non mounting lists
+        mounting_waypoints: List[Node] = [node for node in puzzle.nodes if node.waypoint and node.mounting]
+        non_mounting_waypoints: List[Node] = [node for node in puzzle.nodes if node.waypoint and not node.mounting]
 
-        if not waypoints:
+        #print(f"Initial mounting waypoints count: {len(mounting_waypoints)}")
+        #print(f"Initial non-mounting waypoints count: {len(non_mounting_waypoints)}")
+
+        if not (mounting_waypoints or non_mounting_waypoints):
             print("No waypoints to connect.")
             return []
 
-        # Ensure the start node is the first node in the route
-        start_node: Optional[Node] = next(
-            (node for node in puzzle.nodes if node.puzzle_start), None
-        )
+        # start node
+        start_node: Optional[Node] = next((node for node in puzzle.nodes if node.puzzle_start), None)
         if start_node:
             current_node = start_node
-            if start_node in waypoints:
-                waypoints.remove(start_node)
+            # Remove start node from waypoint lists if it is marked as one
+            if start_node in mounting_waypoints:
+                mounting_waypoints.remove(start_node)
+            if start_node in non_mounting_waypoints:
+                non_mounting_waypoints.remove(start_node)
         else:
-            # If no start node is set, use the first waypoint
-            current_node = waypoints.pop(0)
+            if non_mounting_waypoints:
+                current_node = non_mounting_waypoints.pop(0)
+            elif mounting_waypoints:
+                current_node = mounting_waypoints.pop(0)
+            else:
+                return []
+
+        #print(f"Start node type: {'Mounting' if current_node.mounting else 'Non-Mounting'}")
 
         total_path: List[Node] = []
-        first_iteration: bool = True  # Flag to handle the first path differently
+        first_iteration: bool = True  # To handle the first segment
 
-        while waypoints:
-            next_waypoint, path = self.find_nearest_waypoint(
-                current_node, waypoints, puzzle
-            )
-            if next_waypoint and path:
-                self.occupy_path(path, puzzle.nodes)
-                if first_iteration:
-                    total_path.extend(path)
-                    first_iteration = False
+        # Calculate the ideal gap based on the initial counts after the start node is removed.
+        # If the start is mounting, then:
+        #   remaining_mount = len(mounting_waypoints)
+        #   remaining_non_mount = len(non_mounting_waypoints)
+        # We want exactly 1 non-mounting after the last mounting; so the other gaps should use:
+        #   ideal_gap = (remaining_non_mount - 1) / remaining_mount    (if remaining_mount > 0)
+        if mounting_waypoints:
+            ideal_gap = (len(non_mounting_waypoints) - 1) / len(mounting_waypoints)
+        else:
+            ideal_gap = 0
+        #print(f"Ideal gap between mounting nodes (non-mounting nodes per gap): {ideal_gap:.2f}")
+
+        # --- Distribution control variable ---
+        # Count of consecutive non-mounting nodes inserted since the last mounting node.
+        non_mounting_since_last: float = 0.0
+        # Track the type of the last inserted waypoint
+        last_type: str = 'mounting' if current_node.mounting else 'non_mounting'
+
+        # interleave waypoints until mounting waypoints are exhausted
+        while mounting_waypoints or non_mounting_waypoints:
+            #print(f"\nLoop start -- Remaining mounting: {len(mounting_waypoints)}, Remaining non-mounting: {len(non_mounting_waypoints)}")
+            #print(f"Current node: {'Mounting' if current_node.mounting else 'Non-Mounting'}; non_mounting_since_last: {non_mounting_since_last:.2f}")
+
+            # If mounting nodes remain, use the ideal gap to decide.
+            if mounting_waypoints:
+                if last_type == 'mounting':
+                    # Always start a gap after a mounting node.
+                    required_type = 'non_mounting'
                 else:
-                    # Skip the first node to prevent duplication
-                    total_path.extend(path[1:])
-                waypoints.remove(next_waypoint)
-                current_node = next_waypoint
+                    # If current node is non mounting, check if we still need more non mounting nodes
+                    # in this gap before inserting the next mounting.
+                    if non_mounting_since_last < ideal_gap:
+                        required_type = 'non_mounting'
+                    else:
+                        required_type = 'mounting'
             else:
-                print("No more reachable waypoints.")
+                # No mounting nodes remain.
+                # Per requirement, if available, append exactly one non mounting node after the last mounting.
+                required_type = 'non_mounting'
+                # And if we've already appended one in the final gap, break.
+                if non_mounting_since_last >= 1:
+                    #print("Final gap already has one non-mounting node; terminating loop.")
+                    break
+
+            print(f"Required next waypoint type: {required_type}")
+
+            # Choose candidate(s) from the appropriate list.
+            if required_type == 'mounting':
+                candidates = mounting_waypoints.copy()
+            else:
+                candidates = non_mounting_waypoints.copy()
+
+            # Sort candidates by Euclidean distance from current_node.
+            candidates.sort(key=lambda node: euclidean_distance(current_node, node))
+
+            chosen = None
+            chosen_path = None
+            for candidate in candidates:
+                self.reset_nodes(puzzle.nodes)
+                path = self.find_path(current_node, candidate, puzzle)
+                if path:
+                    chosen = candidate
+                    chosen_path = path
+                    break
+
+            if not chosen:
+                #print("No reachable candidate for required type; breaking loop.")
                 break
 
-        # Set the last node in the path as the end node
+            #print(f"Chosen next waypoint: {'Mounting' if chosen.mounting else 'Non-Mounting'}")
+
+            # Occupy and add the found path segment
+            self.occupy_path(chosen_path, puzzle.nodes)
+            if first_iteration:
+                total_path.extend(chosen_path)
+                first_iteration = False
+            else:
+                total_path.extend(chosen_path[1:])  # avoid duplication
+
+            # Remove the chosen waypoint from its list.
+            if chosen.mounting:
+                if chosen in mounting_waypoints:
+                    mounting_waypoints.remove(chosen)
+            else:
+                if chosen in non_mounting_waypoints:
+                    non_mounting_waypoints.remove(chosen)
+
+            # Update current node and our control variables.
+            current_node = chosen
+            if chosen.mounting:
+                last_type = 'mounting'
+                non_mounting_since_last = 0.0
+            else:
+                last_type = 'non_mounting'
+                non_mounting_since_last += 1
+
+        # If mounting nodes are exhausted but the last inserted node is not non mounting,
+        # and if a non mounting candidate is available, append one final non mounting node.
+        if mounting_waypoints == [] and non_mounting_waypoints:
+            if last_type == 'mounting' and non_mounting_since_last < 1:
+                #print("Appending final non-mounting waypoint after last mounting node.")
+                candidates = non_mounting_waypoints.copy()
+                candidates.sort(key=lambda node: euclidean_distance(current_node, node))
+                chosen = None
+                chosen_path = None
+                for candidate in candidates:
+                    self.reset_nodes(puzzle.nodes)
+                    path = self.find_path(current_node, candidate, puzzle)
+                    if path:
+                        chosen = candidate
+                        chosen_path = path
+                        break
+                if chosen and chosen_path:
+                    self.occupy_path(chosen_path, puzzle.nodes)
+                    total_path.extend(chosen_path[1:])
+            elif last_type == 'non_mounting':
+                # Already ended with non mounting.
+                pass
+
+        # Print final order of waypoint nodes
+        final_waypoints = []
+        for node in total_path:
+            if node.waypoint:
+                if not final_waypoints or final_waypoints[-1] is not node:
+                    final_waypoints.append(node)
+        if final_waypoints:
+            #print("\nFinal waypoint distribution order:")
+            for idx, node in enumerate(final_waypoints):
+                #print(f"{idx+1}: {'Mounting' if node.mounting else 'Non-Mounting'}")
+                pass
+
         if total_path:
-            end_node = total_path[-1]
-            end_node.puzzle_end = True
+            total_path[-1].puzzle_end = True
 
         return total_path
+
 
     def find_nearest_waypoint(
         self, current_node: Node, unvisited_waypoints: List[Node], puzzle: Any
