@@ -191,19 +191,20 @@ class SphereGridNodeCreator(NodeCreator):
     def get_neighbors(self, node: Node, node_dict: Dict[Coordinate, Node], node_size: float) -> List[Tuple[Node, float]]:
         """
         Get neighboring nodes for a given node in the spherical grid.
-        Cardinal moves (6 directions) are always allowed.
-        Additionally, a diagonal move (with differences in exactly two axes) is allowed if at least one
-        of the nodes (source or candidate) is marked as circular.
-        Diagonal moves are accepted only if their Euclidean distance is less than or equal to 1 * node_size plus tolerance.
-        Returns a list of tuples: (neighbor, cost).
+        
+        - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
+        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed
+        if the Euclidean distance is <= (node_size + tolerance).
+        - Diagonal moves (exactly two axes differ) are allowed only if both nodes are circular and
+        the Euclidean distance is <= (node_size + tolerance).
+        
+        Each neighbor is returned as a tuple: (neighbor, cost), with non-cardinal moves costing (distance * 2/3).
         """
         neighbors: List[Tuple[Node, float]] = []
         tol = node_size * 0.1  # tolerance to decide if coordinates are "the same"
         max_diag_distance = node_size + tol
 
-        print(f"[DEBUG] Finding neighbors for node at ({node.x}, {node.y}, {node.z}) with grid types: {node.grid_type}")
-
-        # Cardinal moves (exactly one axis differs)
+        # Cardinal moves (exactly one axis differs, using exact grid offsets)
         cardinal_offsets: List[Coordinate] = [
             (node_size, 0, 0),
             (-node_size, 0, 0),
@@ -219,7 +220,7 @@ class SphereGridNodeCreator(NodeCreator):
                 neighbors.append((candidate, node_size))
                 #print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
 
-        # Diagonal moves: check every candidate in the grid
+        # Examine all nodes for near-cardinal and diagonal connections.
         for candidate in node_dict.values():
             if candidate == node or candidate.occupied:
                 continue
@@ -227,22 +228,30 @@ class SphereGridNodeCreator(NodeCreator):
             dx = abs(candidate.x - node.x)
             dy = abs(candidate.y - node.y)
             dz = abs(candidate.z - node.z)
+            distance = (dx**2 + dy**2 + dz**2) ** 0.5
 
             # Count how many coordinates differ significantly (beyond tolerance)
             diff_count = sum(1 for d in (dx, dy, dz) if d > tol)
-            
-            # We allow a diagonal move if exactly 2 axes differ.
-            if diff_count == 2:
-                # Only allow if at least one of the nodes is circular.
-                if ("circular" in node.grid_type) or ("circular" in candidate.grid_type):
-                    distance = (dx**2 + dy**2 + dz**2) ** 0.5
+
+            # Near-cardinal move: exactly one axis differs,
+            # and allowed only if one node is circular and the other is not.
+            if diff_count == 1 and (("circular" in node.grid_type) ^ ("circular" in candidate.grid_type)):
+                if distance <= max_diag_distance:
+                    cost = distance * (2/3)
+                    neighbors.append((candidate, cost))
+                    #print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+
+            # Diagonal move: exactly two axes differ, allowed only if both nodes are circular.
+            elif diff_count == 2:
+                if "circular" in node.grid_type and "circular" in candidate.grid_type:
                     if distance <= max_diag_distance:
-                        cost = node_size * (2/3)
+                        cost = distance * (2/3)
                         neighbors.append((candidate, cost))
-                        #print(f"[DEBUG] Diagonal neighbor found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
-        
+                        #print(f"[DEBUG] Diagonal neighbor (both circular) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+
         #print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
         return neighbors
+
 
 class BoxGridNodeCreator(NodeCreator):
     def create_nodes(
