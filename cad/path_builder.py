@@ -533,6 +533,11 @@ class PathBuilder:
                 returns 0 if no matching angle is found
         """
 
+        # If none type, print warning and return 0 degrees
+        if previous_segment.path_body is None:
+            print(f"Segment {previous_segment.main_index}.{previous_segment.secondary_index} has no path body")
+            return 0
+        
         # Obtain faces from the swept shape
         swept_path_faces = previous_segment.path_body.part.faces()
 
