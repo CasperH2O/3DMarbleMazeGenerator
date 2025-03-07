@@ -112,19 +112,6 @@ class SphereGridNodeCreator(NodeCreator):
 
         node_dict: Dict[Coordinate, Node] = {(node.x, node.y, node.z): node for node in nodes}
 
-        # Define the start node by extending the x-axis in the negative direction
-        x_axis_nodes: List[Node] = [node for node in nodes if node.y == 0 and node.z == 0]
-        min_x: float = min(node.x for node in x_axis_nodes) if x_axis_nodes else 0
-        x1: float = min_x - node_size
-        x2: float = x1 - node_size
-        node1 = Node(x1, 0, 0)
-        node2 = Node(x2, 0, 0)
-        nodes.extend([node1, node2])
-        node_dict[(node1.x, node1.y, node1.z)] = node1
-        node_dict[(node2.x, node2.y, node2.z)] = node2
-        node2.puzzle_start = True  # furthest in -x becomes start
-        start_node: Node = node2
-
         # Add circular placed nodes along the sphere's circumference
         circular_even_count = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
         circular_diameter = Config.Sphere.SPHERE_DIAMETER - 2 * Config.Sphere.SHELL_THICKNESS - 2 * Config.Puzzle.NODE_SIZE
@@ -186,7 +173,43 @@ class SphereGridNodeCreator(NodeCreator):
                         nodes.append(new_node)
                         node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
 
+        
+        # Remove rectangular grid nodes at z == 0 (non-circular) that are closer than 0.5 * node_size to any circular node.
+        circular_nodes = [node for node in nodes if "circular" in node.grid_type]
+        nodes_to_remove = []
+        for node in nodes:
+            # Only consider nodes at z == 0 that are not circular
+            if node.z != 0 or "circular" in node.grid_type:
+                continue
+            for circ_node in circular_nodes:
+                dx = node.x - circ_node.x
+                dy = node.y - circ_node.y
+                dz = node.z - circ_node.z
+                distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+                if distance < node_size * 0.5:
+                    nodes_to_remove.append(node)
+                    break  # No need to check further circular nodes.
+        for node in nodes_to_remove:
+            nodes.remove(node)
+            key = (node.x, node.y, node.z)
+            if key in node_dict:
+                del node_dict[key]
+        
+        # Define the start node by extending the x-axis in the negative direction
+        x_axis_nodes: List[Node] = [node for node in nodes if node.y == 0 and node.z == 0]
+        min_x: float = min(node.x for node in x_axis_nodes) if x_axis_nodes else 0
+        x1: float = min_x - node_size
+        x2: float = x1 - node_size
+        node1 = Node(x1, 0, 0)
+        node2 = Node(x2, 0, 0)
+        nodes.extend([node1, node2])
+        node_dict[(node1.x, node1.y, node1.z)] = node1
+        node_dict[(node2.x, node2.y, node2.z)] = node2
+        node2.puzzle_start = True  # furthest in -x becomes start
+        start_node: Node = node2
+        
         return nodes, node_dict, start_node
+
 
     def get_neighbors(self, node: Node, node_dict: Dict[Coordinate, Node], node_size: float) -> List[Tuple[Node, float]]:
         """
