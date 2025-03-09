@@ -118,7 +118,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         # Add mounting bridges with an outer bridge that connects to 
         # the mounting ring and an inner bridge that connects to the path
         # Skip the first location as that is the start area
-        num_points = 4 #self.number_of_mounting_points # TODO Hardcoded, bad
+        num_points = self.number_of_mounting_points
         start_angle = 360 / num_points + 180
         count = num_points - 1
         angle_range = 360 - 360 / num_points
