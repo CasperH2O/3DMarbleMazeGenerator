@@ -86,7 +86,7 @@ def plot_nodes_plotly(nodes):
         y=[node.y for node in circular_nodes],
         z=[node.z for node in circular_nodes],
         mode='markers',
-        marker=dict(color='orange', size=3),
+        marker=dict(color='orange', size=1),
         name="Circular Node",
         legendgroup="Circular"
     )

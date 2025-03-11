@@ -259,7 +259,7 @@ class SphereGridNodeCreator(NodeCreator):
             # and allowed only if one node is circular and the other is not.
             if diff_count == 1 and (("circular" in node.grid_type) ^ ("circular" in candidate.grid_type)):
                 if distance <= 2 * max_diag_distance:
-                    cost = distance * (2/3)
+                    cost = distance
                     neighbors.append((candidate, cost))
                     #print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
 
@@ -267,7 +267,7 @@ class SphereGridNodeCreator(NodeCreator):
             elif diff_count == 2:
                 if "circular" in node.grid_type and "circular" in candidate.grid_type:
                     if distance <= 2 * max_diag_distance:
-                        cost = distance * (2/3)
+                        cost = distance
                         neighbors.append((candidate, cost))
                         #print(f"[DEBUG] Diagonal neighbor (both circular) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
 
