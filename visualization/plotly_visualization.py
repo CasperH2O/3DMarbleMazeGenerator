@@ -1,5 +1,7 @@
 # visualization/plotly_visualization.py
 
+import math
+
 import numpy as np
 import plotly.graph_objects as go
 from geomdl import BSpline, utilities
@@ -275,19 +277,17 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
 
 
 def visualize_path_architect(nodes, segments, casing):
-    import math  # for atan2, hypot, etc.
+    """
+    Visualizes the nodes and path segments as defined by path architect.
+    """
 
-    import plotly.graph_objects as go
-
-    # Combine original nodes with any segment nodes that have segment_start or segment_end flags.
-    all_nodes = list(nodes)  # start with the provided nodes
+    # Combine provided nodes with any segment nodes flagged as segment_start or segment_end
+    all_nodes = list(nodes)
     for segment in segments:
         for node in segment.nodes:
             if getattr(node, "segment_start", False) or getattr(
                 node, "segment_end", False
             ):
-                # Check by coordinate and legend label to avoid duplicates, 
-                # mostly start and end segment nodes from one segment to the next
                 if not any(
                     abs(n.x - node.x) < 1e-6
                     and abs(n.y - node.y) < 1e-6
@@ -298,12 +298,11 @@ def visualize_path_architect(nodes, segments, casing):
 
     fig = go.Figure()
 
-    # Plot all nodes using the combined list so that segment start/end nodes are styled correctly.
-    node_traces = plot_nodes_plotly(all_nodes)
-    for trace in node_traces:
+    # Plot all nodes with shared styling.
+    for trace in plot_nodes_plotly(all_nodes):
         fig.add_trace(trace)
 
-    # Set up unique colors for each segment.
+    # Set up unique colors for segments.
     colors = [
         "blue",
         "green",
@@ -330,7 +329,7 @@ def visualize_path_architect(nodes, segments, casing):
     color_index = 0
 
     for segment in segments:
-        # Assign a unique color for each (main_index, secondary_index) combination.
+        # Assign a unique color based on (main_index, secondary_index)
         segment_key = (segment.main_index, segment.secondary_index)
         if segment_key not in segment_colors:
             segment_colors[segment_key] = colors[color_index % len(colors)]
@@ -345,50 +344,121 @@ def visualize_path_architect(nodes, segments, casing):
             f"Path Profile Type: {segment.path_profile_type}"
         )
 
-        # Build the segment connection using a pairwise approach.
-        x_vals, y_vals, z_vals = [], [], []
-        for i in range(len(segment.nodes) - 1):
-            start_node = segment.nodes[i]
-            end_node = segment.nodes[i + 1]
-            # If both nodes are from a circular grid, generate an arc.
-            if ("circular" in start_node.grid_type) and (
-                "circular" in end_node.grid_type
-            ):
-                theta1 = math.atan2(start_node.y, start_node.x)
-                theta2 = math.atan2(end_node.y, end_node.x)
-                dtheta = theta2 - theta1
-                if dtheta > math.pi:
-                    dtheta -= 2 * math.pi
-                elif dtheta < -math.pi:
-                    dtheta += 2 * math.pi
-
-                num_points = 20  # Adjust for smoother or coarser arcs.
-                theta_values = np.linspace(theta1, theta1 + dtheta, num_points)
-                r1 = math.hypot(start_node.x, start_node.y)
-                r2 = math.hypot(end_node.x, end_node.y)
-                r_values = np.linspace(r1, r2, num_points)
-                x_segment = r_values * np.cos(theta_values)
-                y_segment = r_values * np.sin(theta_values)
-                z_segment = np.linspace(start_node.z, end_node.z, num_points)
-                if i > 0:
-                    x_vals.extend(x_segment[1:])
-                    y_vals.extend(y_segment[1:])
-                    z_vals.extend(z_segment[1:])
+        # Determine the method to generate the segment curve.
+        if segment.curve_model == PathCurveModel.POLYLINE:
+            # Use Bézier (B-Spline) if the curve type is S_CURVE or DEGREE_90_SINGLE_PLANE.
+            if segment.curve_type in [
+                PathCurveType.S_CURVE,
+                PathCurveType.DEGREE_90_SINGLE_PLANE,
+            ]:
+                control_points = [[node.x, node.y, node.z] for node in segment.nodes]
+                num_control_points = len(control_points)
+                if num_control_points < 2:
+                    x_vals = [node.x for node in segment.nodes]
+                    y_vals = [node.y for node in segment.nodes]
+                    z_vals = [node.z for node in segment.nodes]
                 else:
-                    x_vals.extend(x_segment)
-                    y_vals.extend(y_segment)
-                    z_vals.extend(z_segment)
+                    curve_degree = num_control_points - 1
+                    curve = BSpline.Curve()
+                    curve.degree = curve_degree
+                    curve.ctrlpts = control_points
+                    curve.knotvector = utilities.generate_knot_vector(
+                        curve.degree, num_control_points
+                    )
+                    curve.delta = 0.001  # High resolution for smoother curves
+                    curve.evaluate()
+                    curve_points = np.array(curve.evalpts)
+                    x_vals = curve_points[:, 0]
+                    y_vals = curve_points[:, 1]
+                    z_vals = curve_points[:, 2]
             else:
-                # Otherwise, draw a straight line.
-                if i == 0:
-                    x_vals.append(start_node.x)
-                    y_vals.append(start_node.y)
-                    z_vals.append(start_node.z)
-                x_vals.append(end_node.x)
-                y_vals.append(end_node.y)
-                z_vals.append(end_node.z)
+                # For standard polylines, build the segment using a pairwise approach.
+                x_vals, y_vals, z_vals = [], [], []
+                for i in range(len(segment.nodes) - 1):
+                    start_node = segment.nodes[i]
+                    end_node = segment.nodes[i + 1]
+                    # If both nodes are from a circular grid, generate an arc.
+                    if ("circular" in start_node.grid_type) and (
+                        "circular" in end_node.grid_type
+                    ):
+                        theta1 = math.atan2(start_node.y, start_node.x)
+                        theta2 = math.atan2(end_node.y, end_node.x)
+                        dtheta = theta2 - theta1
+                        if dtheta > math.pi:
+                            dtheta -= 2 * math.pi
+                        elif dtheta < -math.pi:
+                            dtheta += 2 * math.pi
+                        num_points = 20  # Adjust for smoother or coarser arcs.
+                        theta_values = np.linspace(theta1, theta1 + dtheta, num_points)
+                        r1 = math.hypot(start_node.x, start_node.y)
+                        r2 = math.hypot(end_node.x, end_node.y)
+                        r_values = np.linspace(r1, r2, num_points)
+                        x_segment = r_values * np.cos(theta_values)
+                        y_segment = r_values * np.sin(theta_values)
+                        z_segment = np.linspace(start_node.z, end_node.z, num_points)
+                        if i > 0:
+                            x_vals.extend(x_segment[1:])
+                            y_vals.extend(y_segment[1:])
+                            z_vals.extend(z_segment[1:])
+                        else:
+                            x_vals.extend(x_segment)
+                            y_vals.extend(y_segment)
+                            z_vals.extend(z_segment)
+                    else:
+                        # Otherwise, draw a straight line between the nodes.
+                        if i == 0:
+                            x_vals.append(start_node.x)
+                            y_vals.append(start_node.y)
+                            z_vals.append(start_node.z)
+                        x_vals.append(end_node.x)
+                        y_vals.append(end_node.y)
+                        z_vals.append(end_node.z)
+        elif segment.curve_model == PathCurveModel.SPLINE:
+            # For SPLINE curve model, perform spline interpolation.
+            total_nodes = segment.nodes
+            spline_nodes = []
+            if len(total_nodes) >= 2:
+                spline_nodes.extend(total_nodes[:2])
+                for node in total_nodes[2:-2]:
+                    if node.waypoint and node not in spline_nodes:
+                        spline_nodes.append(node)
+                for node in total_nodes[-2:]:
+                    if node not in spline_nodes:
+                        spline_nodes.append(node)
+            else:
+                spline_nodes = total_nodes
 
-        # Plot the segment line using the computed points.
+            # Preserve the original order.
+            spline_nodes = sorted(spline_nodes, key=lambda n: total_nodes.index(n))
+            xs = [node.x for node in spline_nodes]
+            ys = [node.y for node in spline_nodes]
+            zs = [node.z for node in spline_nodes]
+
+            # Use chord-length parameterization.
+            xyz = np.vstack([xs, ys, zs]).T
+            u_nodes = np.cumsum(np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)])
+
+            if len(u_nodes) < 2:
+                x_vals, y_vals, z_vals = xs, ys, zs
+            else:
+                try:
+                    sx = interpolate.InterpolatedUnivariateSpline(u_nodes, xs)
+                    sy = interpolate.InterpolatedUnivariateSpline(u_nodes, ys)
+                    sz = interpolate.InterpolatedUnivariateSpline(u_nodes, zs)
+                except Exception:
+                    x_vals, y_vals, z_vals = xs, ys, zs
+                else:
+                    uu = np.linspace(u_nodes[0], u_nodes[-1], 1000)
+                    x_vals = sx(uu)
+                    y_vals = sy(uu)
+                    z_vals = sz(uu)
+        else:
+            # For any other curve model, fall back to drawing straight lines.
+            x_vals = [node.x for node in segment.nodes]
+            y_vals = [node.y for node in segment.nodes]
+            z_vals = [node.z for node in segment.nodes]
+
+        # Plot the computed segment curve.
         fig.add_trace(
             go.Scatter3d(
                 x=x_vals,
@@ -404,8 +474,7 @@ def visualize_path_architect(nodes, segments, casing):
         )
 
     # Add casing traces.
-    casing_traces = plot_casing_plotly(casing)
-    for trace in casing_traces:
+    for trace in plot_casing_plotly(casing):
         fig.add_trace(trace)
 
     fig.update_layout(
