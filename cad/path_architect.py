@@ -2,15 +2,22 @@
 
 import random
 from typing import List
+
+import build123d as b3d
 from build123d import *
 
-from cad.path_profile_type_shapes import SUPPORT_REGISTRY, ACCENT_REGISTRY, PathProfileType
 import config
-from puzzle.node import Node
-from config import *
+from cad.path_profile_type_shapes import (
+    ACCENT_REGISTRY,
+    SUPPORT_REGISTRY,
+    PathProfileType,
+)
 from cad.path_segment import PathSegment
+from config import *
+from puzzle.node import Node
+
 from . import curve_detection
-import build123d as b3d
+
 
 class PathArchitect:
     def __init__(self, nodes: List[Node]):
@@ -57,10 +64,7 @@ class PathArchitect:
         if nodes_length >= 2:
             # Create a segment with the first two nodes
             first_two_nodes = self.nodes[:2]
-            segment = PathSegment(
-                first_two_nodes,
-                main_index=self.main_index_counter
-            )
+            segment = PathSegment(first_two_nodes, main_index=self.main_index_counter)
             self.segments.append(segment)
             self.main_index_counter += 1
             # Start processing from the third node
@@ -77,13 +81,17 @@ class PathArchitect:
                 waypoint_counter += 1
                 if waypoint_counter % self.waypoint_change_interval == 0:
                     # Create a segment with collected nodes
-                    self._create_segment(current_segment_nodes, main_index=self.main_index_counter)
+                    self._create_segment(
+                        current_segment_nodes, main_index=self.main_index_counter
+                    )
                     self.main_index_counter += 1
                     current_segment_nodes = []
 
         if current_segment_nodes:
             # Create a segment with any remaining nodes
-            self._create_segment(current_segment_nodes, main_index=self.main_index_counter)
+            self._create_segment(
+                current_segment_nodes, main_index=self.main_index_counter
+            )
             self.main_index_counter += 1
 
     def _create_segment(self, nodes: List[Node], main_index: int):
@@ -91,7 +99,6 @@ class PathArchitect:
         self.segments.append(segment)
 
     def assign_path_properties(self):
-        
         # Randomly assign path profile types and path curve models to segments
         previous_profile_type = None
         previous_curve_model = None
@@ -101,7 +108,11 @@ class PathArchitect:
             has_mounting_node = any(node.mounting for node in segment.nodes)
             if has_mounting_node:
                 # For mounting segments, only select specific types, ensures linking with bridge
-                available_profile_types = [PathProfileType.O_SHAPE, PathProfileType.U_SHAPE, PathProfileType.U_SHAPE_ADJUSTED_HEIGHT]
+                available_profile_types = [
+                    PathProfileType.O_SHAPE,
+                    PathProfileType.U_SHAPE,
+                    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
+                ]
                 available_curve_models = [PathCurveModel.POLYLINE]
             else:
                 # For other segments, use all available types
@@ -110,11 +121,17 @@ class PathArchitect:
 
             # Exclude previous types if possible
             # For path profile type
-            if previous_profile_type in available_profile_types and len(available_profile_types) > 1:
+            if (
+                previous_profile_type in available_profile_types
+                and len(available_profile_types) > 1
+            ):
                 available_profile_types.remove(previous_profile_type)
 
             # For path curve model
-            if previous_curve_model in available_curve_models and len(available_curve_models) > 1:
+            if (
+                previous_curve_model in available_curve_models
+                and len(available_curve_models) > 1
+            ):
                 available_curve_models.remove(previous_curve_model)
 
             # Select random types from the available lists
@@ -126,19 +143,20 @@ class PathArchitect:
             previous_curve_model = segment.curve_model
 
     def assign_path_transition_types(self):
-
         # Initialize the transition tracker
         next_transition = Transition.ROUND  # Starting with 'round'
 
-        for segment in self.segments:        
-
+        for segment in self.segments:
             # Check if segment already has a transition type, skip if so
             # Todo, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
             if segment.transition_type is not None:
                 continue
 
             # Determine the transition type for the segment
-            if segment.path_profile_type in [PathProfileType.V_SHAPE, PathProfileType.O_SHAPE]:
+            if segment.path_profile_type in [
+                PathProfileType.V_SHAPE,
+                PathProfileType.O_SHAPE,
+            ]:
                 segment.transition_type = Transition.ROUND
             elif any(node.mounting for node in segment.nodes):
                 segment.transition_type = Transition.RIGHT
@@ -146,7 +164,11 @@ class PathArchitect:
                 # Alternately choose between 'right' and 'round'
                 segment.transition_type = next_transition
                 # Flip the next_transition for the subsequent else case
-                next_transition = Transition.ROUND if next_transition == Transition.RIGHT else Transition.RIGHT
+                next_transition = (
+                    Transition.ROUND
+                    if next_transition == Transition.RIGHT
+                    else Transition.RIGHT
+                )
 
     def detect_curves_and_adjust_segments(self):
         i = 0
@@ -160,24 +182,29 @@ class PathArchitect:
                 for sub_segment in sub_segments:
                     if len(sub_segment.nodes) > 1:
                         # Pass the curve_id_counter to detect_curves
-                        curve_id_counter = curve_detection.detect_curves(sub_segment.nodes, curve_id_counter)
-                        split_segments = self._split_segment_by_detected_curves(sub_segment.nodes, sub_segment)
+                        curve_id_counter = curve_detection.detect_curves(
+                            sub_segment.nodes, curve_id_counter
+                        )
+                        split_segments = self._split_segment_by_detected_curves(
+                            sub_segment.nodes, sub_segment
+                        )
                         new_split_segments.extend(split_segments)
                     else:
                         new_split_segments.append(sub_segment)
                 # Replace the original segment with new_split_segments
-                self.segments[i:i+1] = new_split_segments
+                self.segments[i : i + 1] = new_split_segments
                 i += len(new_split_segments)
             elif segment.curve_model == PathCurveModel.SPLINE:
                 # Split the spline segment into parts
                 new_segments = self._split_spline_segment(segment)
-                self.segments[i:i+1] = new_segments
+                self.segments[i : i + 1] = new_segments
                 i += len(new_segments)
             else:
                 i += 1
 
-
-    def _split_around_mounting_nodes(self, nodes: List[Node], original_segment) -> List[PathSegment]:
+    def _split_around_mounting_nodes(
+        self, nodes: List[Node], original_segment
+    ) -> List[PathSegment]:
         sub_segments = []
         current_segment_nodes = []
 
@@ -192,7 +219,7 @@ class PathArchitect:
                     segment = PathSegment(
                         current_segment_nodes,
                         main_index=main_index,
-                        secondary_index=secondary_index_counter
+                        secondary_index=secondary_index_counter,
                     )
                     secondary_index_counter += 1
                     # Copy attributes
@@ -205,7 +232,7 @@ class PathArchitect:
                 mounting_segment = PathSegment(
                     [node],
                     main_index=main_index,
-                    secondary_index=secondary_index_counter
+                    secondary_index=secondary_index_counter,
                 )
                 secondary_index_counter += 1
                 mounting_segment.path_profile_type = original_segment.path_profile_type
@@ -219,9 +246,11 @@ class PathArchitect:
             segment = PathSegment(
                 current_segment_nodes,
                 main_index=main_index,
-                secondary_index=secondary_index_counter
+                secondary_index=secondary_index_counter,
             )
-            secondary_index_counter += 1  # Increment the counter after creating the segment
+            secondary_index_counter += (
+                1  # Increment the counter after creating the segment
+            )
             # Copy attributes
             segment.path_profile_type = original_segment.path_profile_type
             segment.curve_model = original_segment.curve_model
@@ -233,8 +262,9 @@ class PathArchitect:
 
         return sub_segments
 
-
-    def _split_segment_by_detected_curves(self, nodes: List[Node], original_segment) -> List[PathSegment]:
+    def _split_segment_by_detected_curves(
+        self, nodes: List[Node], original_segment
+    ) -> List[PathSegment]:
         """
         Splits a given path segment into multiple segments based on detected curves and ensures continuity
         between adjacent curves by creating connecting segments when necessary.
@@ -260,16 +290,20 @@ class PathArchitect:
         secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
 
         for idx, node in enumerate(nodes):
-            node_curve_id = getattr(node, 'curve_id', None)  # Get curve ID, default to None if not present
+            node_curve_id = getattr(
+                node, "curve_id", None
+            )  # Get curve ID, default to None if not present
 
             # Check if we need to start a new segment due to a change in curve type or curve ID
-            if (node.path_curve_type != current_curve_type) or (node_curve_id != current_curve_id):
+            if (node.path_curve_type != current_curve_type) or (
+                node_curve_id != current_curve_id
+            ):
                 if current_segment_nodes:
                     # Finish the current segment and add it to the list of split segments
                     segment = PathSegment(
                         current_segment_nodes,
                         main_index=main_index,
-                        secondary_index=secondary_index_counter
+                        secondary_index=secondary_index_counter,
                     )
                     secondary_index_counter += 1
                     # Copy attributes from the original segment to maintain consistency
@@ -280,7 +314,11 @@ class PathArchitect:
                     split_segments.append(segment)
 
                     # Create a connecting segment only when transitioning between different curves
-                    if current_curve_id is not None and node_curve_id is not None and current_curve_id != node_curve_id:
+                    if (
+                        current_curve_id is not None
+                        and node_curve_id is not None
+                        and current_curve_id != node_curve_id
+                    ):
                         # Use the last node of the previous segment and the current node to create the connecting segment
                         start_node = current_segment_nodes[-1]
                         end_node = node
@@ -288,14 +326,20 @@ class PathArchitect:
                         connecting_segment = PathSegment(
                             connecting_nodes,
                             main_index=main_index,
-                            secondary_index=secondary_index_counter
+                            secondary_index=secondary_index_counter,
                         )
                         secondary_index_counter += 1
                         # Set attributes for the connecting segment
-                        connecting_segment.path_profile_type = original_segment.path_profile_type
-                        connecting_segment.curve_model = PathCurveModel.POLYLINE  # Assuming a straight line
+                        connecting_segment.path_profile_type = (
+                            original_segment.path_profile_type
+                        )
+                        connecting_segment.curve_model = (
+                            PathCurveModel.POLYLINE
+                        )  # Assuming a straight line
                         connecting_segment.curve_type = None  # No specific curve type
-                        connecting_segment.transition_type = original_segment.transition_type
+                        connecting_segment.transition_type = (
+                            original_segment.transition_type
+                        )
                         split_segments.append(connecting_segment)
 
                     # Reset current_segment_nodes for the next segment
@@ -314,7 +358,7 @@ class PathArchitect:
             segment = PathSegment(
                 current_segment_nodes,
                 main_index=main_index,
-                secondary_index=secondary_index_counter
+                secondary_index=secondary_index_counter,
             )
             secondary_index_counter += 1
             # Copy attributes from the original segment
@@ -329,30 +373,28 @@ class PathArchitect:
 
         return split_segments
 
-
     def adjust_segments(self):
         # Adjust start and end points of segments as needed
         previous_end_point = None
         previous_curve_type = None
         for i, segment in enumerate(self.segments):
-            next_start_point = None
+            next_start_node = None
             next_curve_type = None
             if i + 1 < len(self.segments):
                 next_segment = self.segments[i + 1]
-                next_node = next_segment.nodes[0]
-                next_start_point = b3d.Vector(next_node.x, next_node.y, next_node.z)
+                next_start_node = next_segment.nodes[0]
                 next_curve_type = next_segment.curve_type
             segment.adjust_start_and_endpoints(
                 self.node_size,
                 previous_end_point,
-                next_start_point,
+                next_start_node,
                 previous_curve_type,
-                next_curve_type
+                next_curve_type,
             )
             # Update previous_end_point and previous_curve_type
             if segment.nodes:
                 last_node = segment.nodes[-1]
-                previous_end_point = b3d.Vector(last_node.x, last_node.y, last_node.z)
+                previous_end_point = last_node
                 previous_curve_type = segment.curve_type
             else:
                 previous_end_point = None
@@ -403,7 +445,9 @@ class PathArchitect:
 
             # Compute the vector from second last node to last node
             vec_last = b3d.Vector(last_node.x, last_node.y, last_node.z)
-            vec_second_last = b3d.Vector(second_last_node.x, second_last_node.y, second_last_node.z)
+            vec_second_last = b3d.Vector(
+                second_last_node.x, second_last_node.y, second_last_node.z
+            )
             direction_vector = (vec_last - vec_second_last).normalized()
 
             # Compute opposite direction
@@ -424,7 +468,7 @@ class PathArchitect:
             new_segment = PathSegment(
                 nodes=new_segment_nodes,
                 main_index=self.main_index_counter,
-                secondary_index=0
+                secondary_index=0,
             )
 
             # Set the profile type to rectangle shape for the closing shape
@@ -472,13 +516,15 @@ class PathArchitect:
 
     def accent_color_paths(self):
         # Set the appropriate profile type for the accent color path body using the path profile accent registry
-        for segment in self.segments:          
+        for segment in self.segments:
             segment.accent_profile_type = ACCENT_REGISTRY.get(segment.path_profile_type)
 
     def create_support_materials(self):
         # Set path profile appropriate support profile types using the path profile support registry
         for segment in self.segments:
-            segment.support_profile_type = SUPPORT_REGISTRY.get(segment.path_profile_type)
+            segment.support_profile_type = SUPPORT_REGISTRY.get(
+                segment.path_profile_type
+            )
 
     def _split_spline_segment(self, segment):
         new_segments = []
@@ -491,7 +537,7 @@ class PathArchitect:
             first_node_segment = PathSegment(
                 [nodes[0]],
                 main_index=main_index,
-                secondary_index=secondary_index_counter
+                secondary_index=secondary_index_counter,
             )
             first_node_segment.copy_attributes_from(segment)
             first_node_segment.curve_model = PathCurveModel.POLYLINE
@@ -502,7 +548,7 @@ class PathArchitect:
             middle_nodes_segment = PathSegment(
                 nodes[1:-1],
                 main_index=main_index,
-                secondary_index=secondary_index_counter
+                secondary_index=secondary_index_counter,
             )
             middle_nodes_segment.copy_attributes_from(segment)
             middle_nodes_segment.curve_model = PathCurveModel.SPLINE
@@ -513,7 +559,7 @@ class PathArchitect:
             last_node_segment = PathSegment(
                 [nodes[-1]],
                 main_index=main_index,
-                secondary_index=secondary_index_counter
+                secondary_index=secondary_index_counter,
             )
             last_node_segment.copy_attributes_from(segment)
             last_node_segment.curve_model = PathCurveModel.POLYLINE
@@ -525,7 +571,7 @@ class PathArchitect:
                 single_node_segment = PathSegment(
                     [node],
                     main_index=main_index,
-                    secondary_index=secondary_index_counter
+                    secondary_index=secondary_index_counter,
                 )
                 single_node_segment.copy_attributes_from(segment)
                 single_node_segment.curve_model = PathCurveModel.POLYLINE
@@ -533,5 +579,5 @@ class PathArchitect:
                 secondary_index_counter += 1
 
         self.secondary_index_counters[main_index] = secondary_index_counter
-        
+
         return new_segments
