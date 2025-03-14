@@ -1,97 +1,126 @@
 # plotly_helpers.py
 
-from puzzle.casing import SphereCasing, BoxCasing
 import numpy as np
 import plotly.graph_objects as go
 
+from puzzle.casing import BoxCasing, SphereCasing
+
+
 def plot_nodes_plotly(nodes):
     """
-    Plots the nodes in a 3D scatter plot with different colors and sizes for different node types.
-    Adds legends for start, end, waypoint, mounting, and circular nodes.
+    Groups nodes by their primary property so that the legend only displays the primary label,
+    while the hover text for each marker shows all applicable flags on separate lines.
     """
+    # Define the priority order for determining the primary flag.
+    priority_flags = [
+        ("puzzle_start", "Puzzle Start"),
+        ("puzzle_end", "Puzzle End"),
+        ("mounting", "Mounting"),
+        ("waypoint", "Waypoint"),
+        ("segment_start", "Segment Start"),
+        ("segment_end", "Segment End"),
+        ("occupied", "Occupied"),
+        ("circular", "Circular"),
+    ]
 
-    # Segregate nodes based on their types
-    start_nodes = [node for node in nodes if node.puzzle_start]
-    end_nodes = [node for node in nodes if node.puzzle_end]
-    waypoint_nodes = [node for node in nodes if node.waypoint and not node.mounting and not node.puzzle_end]
-    mounting_nodes = [node for node in nodes if node.mounting and not node.puzzle_start]
-    occupied_nodes = [node for node in nodes if node.occupied and not node.waypoint and not node.mounting]
-    # Separate nodes that are flagged as circular (and not already marked as start/end/waypoint/mounting/occupied)
-    circular_nodes = [node for node in nodes if "circular" in node.grid_type and not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
-    # The remaining nodes are regular (only rectangular)
-    regular_nodes = [node for node in nodes if "circular" not in node.grid_type and not (node.puzzle_start or node.puzzle_end or node.waypoint or node.mounting or node.occupied)]
+    groups = {}  # key: primary flag; value: dict with x, y, z lists and hover texts
+    seen = set()  # To avoid duplicate nodes based on coordinates only
 
-    scatter_start = go.Scatter3d(
-        x=[node.x for node in start_nodes],
-        y=[node.y for node in start_nodes],
-        z=[node.z for node in start_nodes],
-        mode='markers',
-        marker=dict(color='yellow', size=5),
-        name="Start Node",
-        legendgroup="Start"
-    )
+    for node in nodes:
+        labels = []
+        if node.puzzle_start:
+            labels.append("Puzzle Start")
+        if node.puzzle_end:
+            labels.append("Puzzle End")
+        if node.mounting:
+            labels.append("Mounting")
+        if node.waypoint:
+            labels.append("Waypoint")
+        if node.segment_start:
+            labels.append("Segment Start")
+        if node.segment_end:
+            labels.append("Segment End")
+        if node.occupied:
+            labels.append("Occupied")
+        if "circular" in node.grid_type:
+            labels.append("Circular")
+        if not labels:
+            labels.append("Regular")
 
-    scatter_end = go.Scatter3d(
-        x=[node.x for node in end_nodes],
-        y=[node.y for node in end_nodes],
-        z=[node.z for node in end_nodes],
-        mode='markers',
-        marker=dict(color='magenta', size=5),
-        name="End Node",
-        legendgroup="End"
-    )
+        # Determine the primary flag (for the legend) based on the defined priority.
+        primary = None
+        for flag, label in priority_flags:
+            if flag == "circular":
+                if "circular" in node.grid_type:
+                    primary = label
+                    break
+            else:
+                if getattr(node, flag, False):
+                    primary = label
+                    break
+        if primary is None:
+            primary = "Regular"
 
-    scatter_waypoint = go.Scatter3d(
-        x=[node.x for node in waypoint_nodes],
-        y=[node.y for node in waypoint_nodes],
-        z=[node.z for node in waypoint_nodes],
-        mode='markers',
-        marker=dict(color='blue', size=3),
-        name="Waypoint",
-        legendgroup="Waypoint"
-    )
+        # Construct the hover text by joining all applicable flags with line breaks.
+        hover_text = "<br>".join(labels)
 
-    scatter_mounting = go.Scatter3d(
-        x=[node.x for node in mounting_nodes],
-        y=[node.y for node in mounting_nodes],
-        z=[node.z for node in mounting_nodes],
-        mode='markers',
-        marker=dict(color='purple', size=4),
-        name="Mounting",
-        legendgroup="Mounting"
-    )
+        # Use only the coordinates (rounded) for duplicate filtering.
+        coord_key = (round(node.x, 6), round(node.y, 6), round(node.z, 6))
+        if coord_key in seen:
+            continue
+        seen.add(coord_key)
 
-    scatter_occupied = go.Scatter3d(
-        x=[node.x for node in occupied_nodes],
-        y=[node.y for node in occupied_nodes],
-        z=[node.z for node in occupied_nodes],
-        mode='markers',
-        marker=dict(color='red', size=3),
-        name="Occupied",
-        legendgroup="Occupied"
-    )
+        # Group nodes by their primary flag.
+        if primary not in groups:
+            groups[primary] = {"x": [], "y": [], "z": [], "hover": []}
+        groups[primary]["x"].append(node.x)
+        groups[primary]["y"].append(node.y)
+        groups[primary]["z"].append(node.z)
+        groups[primary]["hover"].append(hover_text)
 
-    scatter_regular = go.Scatter3d(
-        x=[node.x for node in regular_nodes],
-        y=[node.y for node in regular_nodes],
-        z=[node.z for node in regular_nodes],
-        mode='markers',
-        marker=dict(color='green', size=1),
-        name="Regular Node",
-        legendgroup="Regular"
-    )
+    # Map primary flags to colors and sizes.
+    color_map = {
+        "Puzzle Start": "yellow",
+        "Puzzle End": "magenta",
+        "Mounting": "purple",
+        "Waypoint": "blue",
+        "Segment Start": "cyan",
+        "Segment End": "white",
+        "Occupied": "red",
+        "Circular": "orange",
+        "Regular": "green",
+    }
+    size_map = {
+        "Puzzle Start": 5,
+        "Puzzle End": 5,
+        "Mounting": 4,
+        "Waypoint": 3,
+        "Segment Start": 4,
+        "Segment End": 4,
+        "Occupied": 3,
+        "Circular": 1,
+        "Regular": 1,
+    }
 
-    scatter_circular = go.Scatter3d(
-        x=[node.x for node in circular_nodes],
-        y=[node.y for node in circular_nodes],
-        z=[node.z for node in circular_nodes],
-        mode='markers',
-        marker=dict(color='orange', size=1),
-        name="Circular Node",
-        legendgroup="Circular"
-    )
+    traces = []
+    # Create a trace for each group using the primary flag as the legend label.
+    for primary, coords in groups.items():
+        trace = go.Scatter3d(
+            x=coords["x"],
+            y=coords["y"],
+            z=coords["z"],
+            mode="markers",
+            marker=dict(
+                color=color_map.get(primary, "green"), size=size_map.get(primary, 1)
+            ),
+            name=primary,  # Legend shows only the primary flag.
+            legendgroup=primary,
+            text=coords["hover"],  # Custom detailed info (all flags, with line breaks).
+            hovertemplate="X: %{x}<br>Y: %{y}<br>Z: %{z}<br>%{text}<extra></extra>",
+        )
+        traces.append(trace)
+    return traces
 
-    return [scatter_start, scatter_end, scatter_waypoint, scatter_mounting, scatter_occupied, scatter_regular, scatter_circular]
 
 def plot_casing_plotly(casing):
     if isinstance(casing, SphereCasing):
@@ -100,6 +129,7 @@ def plot_casing_plotly(casing):
         return plot_box_casing_plotly(casing)
     else:
         raise ValueError(f"Unsupported casing type: {type(casing)}")
+
 
 def plot_sphere_casing_plotly(casing):
     theta = np.linspace(0, 2 * np.pi, 100)
@@ -115,9 +145,9 @@ def plot_sphere_casing_plotly(casing):
         x=x_circle_xy,
         y=y_circle_xy,
         z=z_circle_xy,
-        mode='lines',
-        line=dict(color='gray', width=2),
-        showlegend=False
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
     )
     casing_traces.append(circle_trace_xy)
 
@@ -129,9 +159,9 @@ def plot_sphere_casing_plotly(casing):
         x=x_circle_xz,
         y=y_circle_xz,
         z=z_circle_xz,
-        mode='lines',
-        line=dict(color='gray', width=2),
-        showlegend=False
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
     )
     casing_traces.append(circle_trace_xz)
 
@@ -143,13 +173,14 @@ def plot_sphere_casing_plotly(casing):
         x=x_circle_yz,
         y=y_circle_yz,
         z=z_circle_yz,
-        mode='lines',
-        line=dict(color='gray', width=2),
-        showlegend=False
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
     )
     casing_traces.append(circle_trace_yz)
 
     return casing_traces
+
 
 def plot_box_casing_plotly(casing):
     hw = casing.half_width
@@ -157,22 +188,33 @@ def plot_box_casing_plotly(casing):
     hl = casing.half_height
 
     # Define the 8 corners of the box
-    corners = np.array([
-        [-hw, -hh, -hl],
-        [hw, -hh, -hl],
-        [hw, hh, -hl],
-        [-hw, hh, -hl],
-        [-hw, -hh, hl],
-        [hw, -hh, hl],
-        [hw, hh, hl],
-        [-hw, hh, hl]
-    ])
+    corners = np.array(
+        [
+            [-hw, -hh, -hl],
+            [hw, -hh, -hl],
+            [hw, hh, -hl],
+            [-hw, hh, -hl],
+            [-hw, -hh, hl],
+            [hw, -hh, hl],
+            [hw, hh, hl],
+            [-hw, hh, hl],
+        ]
+    )
 
     # Define the edges as pairs of indices into the corners array
     edges = [
-        (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face
-        (4, 5), (5, 6), (6, 7), (7, 4),  # Top face
-        (0, 4), (1, 5), (2, 6), (3, 7)  # Vertical edges
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 0),  # Bottom face
+        (4, 5),
+        (5, 6),
+        (6, 7),
+        (7, 4),  # Top face
+        (0, 4),
+        (1, 5),
+        (2, 6),
+        (3, 7),  # Vertical edges
     ]
 
     # Create lists for edge coordinates
@@ -193,10 +235,9 @@ def plot_box_casing_plotly(casing):
         x=x_lines,
         y=y_lines,
         z=z_lines,
-        mode='lines',
-        line=dict(color='gray', width=1),
-        showlegend=False
+        mode="lines",
+        line=dict(color="gray", width=1),
+        showlegend=False,
     )
 
     return [box_trace]
-
