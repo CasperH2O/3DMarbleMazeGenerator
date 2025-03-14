@@ -3,8 +3,7 @@
 import random
 from typing import List
 
-import build123d as b3d
-from build123d import *
+from build123d import Transition, Vector
 
 import config
 from cad.path_profile_type_shapes import (
@@ -13,7 +12,7 @@ from cad.path_profile_type_shapes import (
     PathProfileType,
 )
 from cad.path_segment import PathSegment
-from config import *
+from config import Config, PathCurveModel, PathCurveType
 from puzzle.node import Node
 
 from . import curve_detection
@@ -444,8 +443,8 @@ class PathArchitect:
             second_last_node = end_segment.nodes[end_node_index - 1]
 
             # Compute the vector from second last node to last node
-            vec_last = b3d.Vector(last_node.x, last_node.y, last_node.z)
-            vec_second_last = b3d.Vector(
+            vec_last = Vector(last_node.x, last_node.y, last_node.z)
+            vec_second_last = Vector(
                 second_last_node.x, second_last_node.y, second_last_node.z
             )
             direction_vector = (vec_last - vec_second_last).normalized()

@@ -283,6 +283,7 @@ def visualize_path_architect(nodes, segments, casing):
 
     # Combine provided nodes with any segment nodes flagged as segment_start or segment_end
     all_nodes = list(nodes)
+
     for segment in segments:
         for node in segment.nodes:
             if getattr(node, "segment_start", False) or getattr(

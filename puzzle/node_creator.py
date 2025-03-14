@@ -1,7 +1,7 @@
 # puzzle/node_creator.py
 
-from abc import ABC, abstractmethod
 import math
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 
 from config import Config
@@ -24,7 +24,9 @@ def frange(start: float, stop: float, step: float) -> List[float]:
     """
     values: List[float] = []
     while start <= stop + step / 2:
-        values.append(round(start, 10))  # Rounding to avoid floating-point arithmetic issues
+        values.append(
+            round(start, 10)
+        )  # Rounding to avoid floating-point arithmetic issues
         start += step
     return values
 
@@ -65,7 +67,9 @@ class NodeCreator(ABC):
 
 
 class SphereGridNodeCreator(NodeCreator):
-    def create_nodes(self, puzzle: Any) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
+    def create_nodes(
+        self, puzzle: Any
+    ) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
         """
         Create nodes for a spherical grid based on the provided puzzle configuration.
 
@@ -93,28 +97,36 @@ class SphereGridNodeCreator(NodeCreator):
 
         start_pos: float = -(num_cubes_along_axis // 2) * node_size
 
-        x_values: List[float] = [start_pos + i * node_size for i in range(num_cubes_along_axis)]
+        x_values: List[float] = [
+            start_pos + i * node_size for i in range(num_cubes_along_axis)
+        ]
         y_values: List[float] = x_values
         z_values: List[float] = x_values
 
-        effective_radius_squared: float = effective_radius ** 2
+        effective_radius_squared: float = effective_radius**2
 
         # Create grid (rectangular) nodes inside the sphere
         for x in x_values:
             for y in y_values:
                 for z in z_values:
-                    if (x ** 2 + y ** 2 + z ** 2) <= effective_radius_squared:
+                    if (x**2 + y**2 + z**2) <= effective_radius_squared:
                         node = Node(x, y, z)
                         nodes.append(node)
 
         if not nodes:
             raise ValueError("No nodes were created inside the spherical casing.")
 
-        node_dict: Dict[Coordinate, Node] = {(node.x, node.y, node.z): node for node in nodes}
+        node_dict: Dict[Coordinate, Node] = {
+            (node.x, node.y, node.z): node for node in nodes
+        }
 
         # Prepare for circular placed nodes along the sphere's circumference
         circular_even_count = Config.Sphere.NUMBER_OF_MOUNTING_POINTS
-        circular_diameter = Config.Sphere.SPHERE_DIAMETER - 2 * Config.Sphere.SHELL_THICKNESS - 2 * Config.Puzzle.NODE_SIZE
+        circular_diameter = (
+            Config.Sphere.SPHERE_DIAMETER
+            - 2 * Config.Sphere.SHELL_THICKNESS
+            - 2 * Config.Puzzle.NODE_SIZE
+        )
         circular_radius = circular_diameter / 2.0
         tolerance = node_size * 0.1
 
@@ -134,39 +146,49 @@ class SphereGridNodeCreator(NodeCreator):
         grid_step = node_size
         max_steps = int(circular_radius // grid_step)
         tolerance = node_size
-        
+
         # Generate candidate coordinates from both vertical and horizontal grid lines.
         candidate_coords = []
         for k in range(max_steps + 1):
-            for sign in ([1] if k == 0 else [1, -1]):
+            for sign in [1] if k == 0 else [1, -1]:
                 # Vertical candidate (constant x)
                 x_val = k * grid_step * sign
                 remainder = circular_radius**2 - x_val**2
                 if remainder >= 0:
                     y_val = math.sqrt(remainder)
-                    for y_candidate in ([y_val] if abs(y_val) < tolerance else [y_val, -y_val]):
+                    for y_candidate in (
+                        [y_val] if abs(y_val) < tolerance else [y_val, -y_val]
+                    ):
                         candidate_coords.append((x_val, y_candidate, 0.0))
                 # Horizontal candidate (constant y)
                 y_val = k * grid_step * sign
                 remainder = circular_radius**2 - y_val**2
                 if remainder >= 0:
                     x_val = math.sqrt(remainder)
-                    for x_candidate in ([x_val] if abs(x_val) < tolerance else [x_val, -x_val]):
+                    for x_candidate in (
+                        [x_val] if abs(x_val) < tolerance else [x_val, -x_val]
+                    ):
                         candidate_coords.append((x_candidate, y_val, 0.0))
 
         # Deduplicate candidates: if two coordinates are closer than tolerance, keep one.
         unique_candidates = []
         for coord in candidate_coords:
-            if any(math.sqrt((coord[0] - uc[0])**2 + (coord[1] - uc[1])**2) < tolerance
-                   for uc in unique_candidates):
+            if any(
+                math.sqrt((coord[0] - uc[0]) ** 2 + (coord[1] - uc[1]) ** 2) < tolerance
+                for uc in unique_candidates
+            ):
                 continue
             unique_candidates.append(coord)
 
         # Add these unique candidate nodes (but do not add if they conflict with mounting nodes)
         for candidate in unique_candidates:
             # Ensure we don't add a candidate too close to any preexisting mounting node.
-            if not any(math.sqrt((candidate[0] - n.x)**2 + (candidate[1] - n.y)**2) < tolerance
-                       for n in nodes if n.z == 0 and "circular" in n.grid_type):
+            if not any(
+                math.sqrt((candidate[0] - n.x) ** 2 + (candidate[1] - n.y) ** 2)
+                < tolerance
+                for n in nodes
+                if n.z == 0 and "circular" in n.grid_type
+            ):
                 new_node = Node(candidate[0], candidate[1], candidate[2])
                 new_node.grid_type.append("circular")
                 nodes.append(new_node)
@@ -175,7 +197,6 @@ class SphereGridNodeCreator(NodeCreator):
         # Remove rectangular grid nodes at z == 0 that are closer than node_size to any circular node
         circular_nodes = [node for node in nodes if "circular" in node.grid_type]
         nodes_to_remove = []
-        tolerance = node_size * 0.1
         for node in nodes:
             # Only consider nodes at z == 0 that are not circular
             if node.z != 0 or "circular" in node.grid_type:
@@ -193,9 +214,11 @@ class SphereGridNodeCreator(NodeCreator):
             key = (node.x, node.y, node.z)
             if key in node_dict:
                 del node_dict[key]
-        
+
         # Define the start node by extending the x-axis in the negative direction
-        x_axis_nodes: List[Node] = [node for node in nodes if node.y == 0 and node.z == 0]
+        x_axis_nodes: List[Node] = [
+            node for node in nodes if abs(node.y) < 1e-3 and node.z == 0
+        ]
         min_x: float = min(node.x for node in x_axis_nodes) if x_axis_nodes else 0
         x1: float = min_x - node_size
         x2: float = x1 - node_size
@@ -206,25 +229,25 @@ class SphereGridNodeCreator(NodeCreator):
         node_dict[(node2.x, node2.y, node2.z)] = node2
         node2.puzzle_start = True  # furthest in -x becomes start
         start_node: Node = node2
-        
+
         return nodes, node_dict, start_node
 
-
-    def get_neighbors(self, node: Node, node_dict: Dict[Coordinate, Node], node_size: float) -> List[Tuple[Node, float]]:
+    def get_neighbors(
+        self, node: Node, node_dict: Dict[Coordinate, Node], node_size: float
+    ) -> List[Tuple[Node, float]]:
         """
         Get neighboring nodes for a given node in the spherical grid.
-        
+
         - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
         - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed
         if the Euclidean distance is <= (node_size + tolerance).
         - Diagonal moves (exactly two axes differ) are allowed only if both nodes are circular and
         the Euclidean distance is <= (node_size + tolerance).
-        
+
         Each neighbor is returned as a tuple: (neighbor, cost), with non-cardinal moves costing (distance * 2/3).
         """
         neighbors: List[Tuple[Node, float]] = []
         tolerance = node_size * 0.1  # tolerance to decide if coordinates are "the same"
-        max_diag_distance = node_size + tolerance
 
         # Cardinal moves (exactly one axis differs, using exact grid offsets)
         cardinal_offsets: List[Coordinate] = [
@@ -240,7 +263,7 @@ class SphereGridNodeCreator(NodeCreator):
             candidate = node_dict.get(coord)
             if candidate and not candidate.occupied:
                 neighbors.append((candidate, node_size))
-                #print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
+                # print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
 
         # Examine all nodes for near-cardinal and diagonal connections.
         for candidate in node_dict.values():
@@ -257,21 +280,23 @@ class SphereGridNodeCreator(NodeCreator):
 
             # Near-cardinal move: exactly one axis differs,
             # and allowed only if one node is circular and the other is not.
-            if diff_count == 1 and (("circular" in node.grid_type) ^ ("circular" in candidate.grid_type)):
-                if distance <= 2 * max_diag_distance:
+            if diff_count == 1 and (
+                ("circular" in node.grid_type) ^ ("circular" in candidate.grid_type)
+            ):
+                if distance <= 2 * node_size - tolerance:
                     cost = distance
                     neighbors.append((candidate, cost))
-                    #print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+                    # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
 
             # Diagonal move: exactly two axes differ, allowed only if both nodes are circular.
             elif diff_count == 2:
                 if "circular" in node.grid_type and "circular" in candidate.grid_type:
-                    if distance <= 2 * max_diag_distance:
+                    if distance <= 2 * node_size + tolerance:
                         cost = distance
                         neighbors.append((candidate, cost))
-                        #print(f"[DEBUG] Diagonal neighbor (both circular) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+                        # print(f"[DEBUG] Diagonal neighbor (both circular) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
 
-        #print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
+        # print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
         return neighbors
 
 
@@ -327,7 +352,9 @@ class BoxGridNodeCreator(NodeCreator):
         # Find the minimum x among existing nodes
         min_x: float = min(node.x for node in nodes)
         min_y: float = min(node.y for node in nodes if node.x == min_x)
-        min_z: float = min(node.z for node in nodes if node.x == min_x and node.y == min_y)
+        min_z: float = min(
+            node.z for node in nodes if node.x == min_x and node.y == min_y
+        )
 
         # Extend along the negative x-direction
         x1: float = min_x - node_size
@@ -343,7 +370,9 @@ class BoxGridNodeCreator(NodeCreator):
         node_dict[(node2.x, node2.y, node2.z)] = node2
 
         # Mark the furthest node as the start node
-        node2.puzzle_start = True  # node2 is the start node since it's furthest along -x
+        node2.puzzle_start = (
+            True  # node2 is the start node since it's furthest along -x
+        )
         start_node: Node = node2
 
         return nodes, node_dict, start_node
