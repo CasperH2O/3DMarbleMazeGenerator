@@ -1,7 +1,6 @@
 # cad/cases/case_base.py
 
 from abc import ABC, abstractmethod
-from .case_parts import CasePart
 
 
 class CaseBase(ABC):

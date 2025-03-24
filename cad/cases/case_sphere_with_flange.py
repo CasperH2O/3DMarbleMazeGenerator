@@ -1,10 +1,32 @@
 # cad/cases/case_sphere_with_flange.py
 
-from .case_base import CaseBase, CasePart
-from build123d import BuildPart, Cylinder, extrude, Mode, BuildSketch, Circle, Text, PolarLocations, Box, Plane, BuildLine, Line, ThreePointArc, make_face, revolve, mirror, Axis
 import math
 from copy import copy
+
+from build123d import (
+    Axis,
+    Box,
+    BuildLine,
+    BuildPart,
+    BuildSketch,
+    Circle,
+    Cylinder,
+    Line,
+    Mode,
+    Plane,
+    PolarLocations,
+    Text,
+    ThreePointArc,
+    extrude,
+    make_face,
+    mirror,
+    revolve,
+)
+
 from config import Config
+
+from .case_base import CaseBase
+
 
 class CaseSphereWithFlange(CaseBase):
     def __init__(self):
@@ -20,12 +42,16 @@ class CaseSphereWithFlange(CaseBase):
         self.mounting_distance = Config.Sphere.SPHERE_DIAMETER - Config.Puzzle.NODE_SIZE
 
         # Derived variables
-        self.sphere_inner_diameter = self.sphere_outer_diameter - (2 * self.sphere_thickness)
+        self.sphere_inner_diameter = self.sphere_outer_diameter - (
+            2 * self.sphere_thickness
+        )
         self.sphere_outer_radius = self.sphere_outer_diameter / 2
         self.sphere_inner_radius = self.sphere_inner_diameter / 2
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
-        self.mounting_ring, self.path_bridges, self.start_text = self.create_mounting_ring()
+        self.mounting_ring, self.path_bridges, self.start_text = (
+            self.create_mounting_ring()
+        )
         self.dome_top, self.dome_bottom = self.create_domes()
         self.cut_shape = self.create_cut_shape()
         self.cut_mounting_holes()
@@ -34,23 +60,31 @@ class CaseSphereWithFlange(CaseBase):
         # Create mounting ring
         with BuildPart() as mounting_ring:
             Cylinder(self.sphere_flange_radius, self.mounting_ring_thickness)
-            Cylinder(self.sphere_inner_radius, self.mounting_ring_thickness, mode=Mode.SUBTRACT)
-        
+            Cylinder(
+                self.sphere_inner_radius,
+                self.mounting_ring_thickness,
+                mode=Mode.SUBTRACT,
+            )
+
         # Add start text
         with BuildPart() as start_text:
             with BuildSketch():
                 text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
-                text_path = Circle(text_radius, mode=Mode.PRIVATE).edge().rotate(Axis((0, 0, 0), (0, 0, 1)), 180)
+                text_path = (
+                    Circle(text_radius, mode=Mode.PRIVATE)
+                    .edge()
+                    .rotate(Axis((0, 0, 0), (0, 0, 1)), 180)
+                )
                 Text(txt="START", font_size=8, path=text_path)
             extrude(amount=-1)
-        
+
         # Position the text at the top surface of the mounting ring
         start_text.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
-        
+
         # Subtract the text from the mounting ring
         mounting_ring.part = mounting_ring.part - start_text.part
 
-        # Add mounting bridges with an outer bridge that connects to 
+        # Add mounting bridges with an outer bridge that connects to
         # the mounting ring and an inner bridge that connects to the path
         # Skip the first location as that is the start area
         num_points = self.number_of_mounting_points
@@ -62,29 +96,35 @@ class CaseSphereWithFlange(CaseBase):
         printing_nozzle_diameter = Config.Manufacturing.NOZZLE_DIAMETER
 
         with BuildPart() as mounting_ring_bridges:
-            with PolarLocations(radius=self.mounting_distance/2, 
-                                count=count, 
-                                start_angle=start_angle, 
-                                angular_range=angle_range):
+            with PolarLocations(
+                radius=self.mounting_distance / 2,
+                count=count,
+                start_angle=start_angle,
+                angular_range=angle_range,
+            ):
                 Box(
                     width=self.node_size,
                     length=self.node_size * 2,
-                    height=self.mounting_ring_thickness
+                    height=self.mounting_ring_thickness,
                 )
 
         with BuildPart() as path_bridges:
-            with PolarLocations(radius=self.mounting_distance/2, 
-                                count=count, 
-                                start_angle=start_angle, 
-                                angular_range=angle_range):
+            with PolarLocations(
+                radius=self.mounting_distance / 2,
+                count=count,
+                start_angle=start_angle,
+                angular_range=angle_range,
+            ):
                 Box(
                     width=self.node_size - 4 * printing_nozzle_diameter,
                     length=self.node_size * 2 + 4 * printing_nozzle_diameter,
-                    height=self.mounting_ring_thickness - printing_layer_thickness * 8
+                    height=self.mounting_ring_thickness - printing_layer_thickness * 8,
                 )
 
         path_bridges.part = path_bridges.part - mounting_ring.part
-        mounting_ring.part = mounting_ring.part + (mounting_ring_bridges.part - path_bridges.part)
+        mounting_ring.part = mounting_ring.part + (
+            mounting_ring_bridges.part - path_bridges.part
+        )
 
         return mounting_ring, path_bridges, start_text
 
@@ -94,14 +134,16 @@ class CaseSphereWithFlange(CaseBase):
 
         # Intermediate points for the inner arc
         x_mid_inner = self.sphere_inner_radius * math.cos(angle_45)
-        
+
         # Calculate the adjusted start point for the outer arc
-        x_start_outer = math.sqrt(self.sphere_outer_radius**2 - self.sphere_thickness**2)
-        
+        x_start_outer = math.sqrt(
+            self.sphere_outer_radius**2 - self.sphere_thickness**2
+        )
+
         # Calculate angle for adjusted starting point
         y_start_outer = self.sphere_thickness
         theta_start = math.asin(y_start_outer / self.sphere_outer_radius)
-        
+
         # Calculate intermediate point for the outer arc
         theta_mid_outer = (theta_start + math.pi / 2) / 2
         x_mid_outer = self.sphere_outer_radius * math.cos(theta_mid_outer)
@@ -112,11 +154,25 @@ class CaseSphereWithFlange(CaseBase):
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
                     Line((0, self.sphere_outer_radius), (0, self.sphere_inner_radius))
-                    ThreePointArc((0, self.sphere_inner_radius),(x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)), (self.sphere_inner_radius, 0))
+                    ThreePointArc(
+                        (0, self.sphere_inner_radius),
+                        (x_mid_inner, self.sphere_inner_radius * math.sin(angle_45)),
+                        (self.sphere_inner_radius, 0),
+                    )
                     Line((self.sphere_inner_radius, 0), (self.sphere_flange_radius, 0))
-                    Line((self.sphere_flange_radius, 0), (self.sphere_flange_radius, self.sphere_thickness))
-                    Line((self.sphere_flange_radius, self.sphere_thickness), (x_start_outer, y_start_outer))
-                    ThreePointArc((x_start_outer, y_start_outer), (x_mid_outer, y_mid_outer), (0, self.sphere_outer_radius))
+                    Line(
+                        (self.sphere_flange_radius, 0),
+                        (self.sphere_flange_radius, self.sphere_thickness),
+                    )
+                    Line(
+                        (self.sphere_flange_radius, self.sphere_thickness),
+                        (x_start_outer, y_start_outer),
+                    )
+                    ThreePointArc(
+                        (x_start_outer, y_start_outer),
+                        (x_mid_outer, y_mid_outer),
+                        (0, self.sphere_outer_radius),
+                    )
                 make_face()
             revolve()
 
@@ -124,32 +180,53 @@ class CaseSphereWithFlange(CaseBase):
         dome_top.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
         dome_bottom = copy(dome_top)
         dome_bottom.part = dome_bottom.part.mirror(Plane.XY)
-        
+
         return dome_top, dome_bottom
 
     def cut_mounting_holes(self):
         hole_pattern_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
-        
+
         # Create the holes to cut in a circulat pattern
         with BuildPart() as holes:
-            with PolarLocations(radius=hole_pattern_radius,
-                                count=self.mounting_hole_amount,
-                                start_angle=45,
-                                angular_range=360):
-                Cylinder(radius=self.mounting_hole_diameter / 2, height=self.sphere_thickness * 2 + self.mounting_ring_thickness)
-        
+            with PolarLocations(
+                radius=hole_pattern_radius,
+                count=self.mounting_hole_amount,
+                start_angle=45,
+                angular_range=360,
+            ):
+                Cylinder(
+                    radius=self.mounting_hole_diameter / 2,
+                    height=self.sphere_thickness * 2 + self.mounting_ring_thickness,
+                )
+
         # Subtract the holes from the parts
         self.mounting_ring.part = self.mounting_ring.part - holes.part
         self.dome_top.part = self.dome_top.part - holes.part
         self.dome_bottom.part = self.dome_bottom.part - holes.part
 
     def get_parts(self):
+        # Assign names and colors to the parts
+        self.mounting_ring.part.name = "Mounting Ring"
+        self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
+
+        self.dome_top.part.name = "Dome Top"
+        self.dome_top.part.color = Config.Puzzle.DOME_COLOR
+
+        self.dome_bottom.part.name = "Dome Bottom"
+        self.dome_bottom.part.color = Config.Puzzle.DOME_COLOR
+
+        self.path_bridges.part.name = "Path Bridge"
+        self.path_bridges.part.color = Config.Puzzle.PATH_COLOR
+
+        self.start_text.part.name = "Start Text"
+        self.start_text.part.color = Config.Puzzle.TEXT_COLOR
+
         return {
-            "Mounting Ring": CasePart("Mounting Ring", self.mounting_ring, {"color": Config.Puzzle.MOUNTING_RING_COLOR}),
-            "Dome Top":       CasePart("Dome Top", self.dome_top, {"alpha": 0.05, "color": (1, 1, 1)}),
-            "Dome Bottom":    CasePart("Dome Bottom", self.dome_bottom, {"alpha": 0.05, "color": (1, 1, 1)}),
-            "Path Bridge":    CasePart("Path Bridge", self.path_bridges, {"color": Config.Puzzle.PATH_COLOR}),
-            "Start Text":     CasePart("Start Text", self.start_text, {"color": Config.Puzzle.TEXT_COLOR}),
+            "Mounting Ring": self.mounting_ring.part,
+            "Dome Top": self.dome_top.part,
+            "Dome Bottom": self.dome_bottom.part,
+            "Path Bridge": self.path_bridges.part,
+            "Start Text": self.start_text.part,
         }
 
     def create_cut_shape(self):
@@ -160,18 +237,25 @@ class CaseSphereWithFlange(CaseBase):
         mid_outer_y = radius_outer / math.sqrt(2)
         mid_inner_x = radius_inner / math.sqrt(2)
         mid_inner_y = radius_inner / math.sqrt(2)
-        
+
         with BuildPart() as cut_shape:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
-                    ThreePointArc((0, radius_outer), (mid_outer_x, mid_outer_y), (radius_outer, 0))
+                    ThreePointArc(
+                        (0, radius_outer), (mid_outer_x, mid_outer_y), (radius_outer, 0)
+                    )
                     Line((radius_outer, 0), (radius_inner, 0))
-                    ThreePointArc((radius_inner, 0), (mid_inner_x, mid_inner_y), (0, radius_inner))
+                    ThreePointArc(
+                        (radius_inner, 0), (mid_inner_x, mid_inner_y), (0, radius_inner)
+                    )
                     Line((0, radius_inner), (0, radius_outer))
                 make_face()
             revolve()
-            translation_z = 0.5 * self.mounting_ring_thickness - 0.33333 * self.mounting_ring_thickness
+            translation_z = (
+                0.5 * self.mounting_ring_thickness
+                - 0.33333 * self.mounting_ring_thickness
+            )
             cut_shape.part.position = (0, 0, -translation_z)
             mirror(about=Plane.XY)
-        
+
         return cut_shape

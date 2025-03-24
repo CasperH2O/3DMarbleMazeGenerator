@@ -2,38 +2,47 @@
 
 from enum import Enum
 
+
 class CaseShape(Enum):
     """
     Enumeration representing the different shapes of the puzzle casing.
     """
-    SPHERE = 'Sphere'
-    SPHERE_WITH_FLANGE = 'Sphere with flange'
-    SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES = 'Sphere with flange enclosed two sides'
-    BOX = 'Box'
+
+    SPHERE = "Sphere"
+    SPHERE_WITH_FLANGE = "Sphere with flange"
+    SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES = "Sphere with flange enclosed two sides"
+    BOX = "Box"
+
 
 class PathCurveModel(Enum):
     """
     Enumeration representing the different models for path curves.
     """
-    POLYLINE = 'polyline'
-    BEZIER = 'bezier'
-    SPLINE = 'spline'
+
+    POLYLINE = "polyline"
+    BEZIER = "bezier"
+    SPLINE = "spline"
+
 
 class PathCurveType(Enum):
     """
     Enumeration representing the different types of path curves.
     """
-    STRAIGHT = 'straight'
-    S_CURVE = 's_curve'
-    DEGREE_90_SINGLE_PLANE = '90_degree_single_plane'
+
+    STRAIGHT = "straight"
+    S_CURVE = "s_curve"
+    DEGREE_90_SINGLE_PLANE = "90_degree_single_plane"
+    ARC = "arc"
+
 
 class CaseManufacturer(Enum):
-    GENERIC = 'generic'
-    SPHERE_PLAYTASTIC_120_MM = 'sphere_playtastic_120_mm'
-    SPHERE_PLAYTASTIC_170_MM = 'sphere_playtastic_170_mm'
-    SPHERE_SAIDKOCC_100_MM = 'sphere_saidkocc_100_mm'
+    GENERIC = "generic"
+    SPHERE_PLAYTASTIC_120_MM = "sphere_playtastic_120_mm"
+    SPHERE_PLAYTASTIC_170_MM = "sphere_playtastic_170_mm"
+    SPHERE_SAIDKOCC_100_MM = "sphere_saidkocc_100_mm"
+
 
 class Theme(Enum):
-    GENERIC = 'generic'
-    MARBLE = 'marble'
-    GLOW_IN_THE_DARK = 'glow_in_the_dark'
+    GENERIC = "generic"
+    MARBLE = "marble"
+    GLOW_IN_THE_DARK = "glow_in_the_dark"

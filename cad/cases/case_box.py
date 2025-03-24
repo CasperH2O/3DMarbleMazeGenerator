@@ -1,8 +1,11 @@
 # cad/cases/case_box.py
 
-from .case_base import CaseBase, CasePart
-from build123d import BuildPart, Box, offset, Mode, BuildSketch, Rectangle, extrude
+from build123d import Box, BuildPart, BuildSketch, Mode, Rectangle, extrude, offset
+
 from config import Config
+
+from .case_base import CaseBase
+
 
 class CaseBox(CaseBase):
     def __init__(self):
@@ -24,8 +27,12 @@ class CaseBox(CaseBase):
         return casing
 
     def get_parts(self):
+        # Assign name and color to the part
+        self.casing.part.name = "Casing"
+        self.casing.part.color = "#FFFFFF0D"  # (1,1,1) with alpha 0.05
+
         return {
-            "Casing": CasePart("Casing", self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
+            "Casing": self.casing.part,
         }
 
     def create_cut_shape(self):
@@ -33,9 +40,15 @@ class CaseBox(CaseBase):
         flush_distance_tolerance = 0.4  # Add small distance for tolerances
 
         # Create the inner box to hollow out the outer box
-        inner_width = self.width - 2 * self.panel_thickness - 2 * flush_distance_tolerance
-        inner_length = self.length - 2 * self.panel_thickness - 2 * flush_distance_tolerance
-        inner_height = self.height - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+        inner_width = (
+            self.width - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+        )
+        inner_length = (
+            self.length - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+        )
+        inner_height = (
+            self.height - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+        )
 
         with BuildPart() as cut_shape:
             # Extend the outer box sizes to ensure it cuts the path body properly

@@ -1,8 +1,23 @@
 # cad/cases/case_sphere.py
 
-from build123d import BuildPart, BuildSketch, BuildLine, Sphere, offset, Mode, Plane, Line, ThreePointArc, make_face, revolve
-from .case_base import CaseBase, CasePart
+from build123d import (
+    BuildLine,
+    BuildPart,
+    BuildSketch,
+    Line,
+    Mode,
+    Plane,
+    Sphere,
+    ThreePointArc,
+    make_face,
+    offset,
+    revolve,
+)
+
 from config import Config
+
+from .case_base import CaseBase
+
 
 class CaseSphere(CaseBase):
     def __init__(self):
@@ -23,21 +38,41 @@ class CaseSphere(CaseBase):
         return casing
 
     def get_parts(self):
+        # Assign name and color to the casing part
+        self.casing.part.name = "Casing"
+        self.casing.part.color = "#FFFFFF0D"  # (1,1,1) with alpha 0.05
+
         return {
-            "Casing": CasePart("Casing", self.casing, {"alpha": 0.05, "color": (1, 1, 1)}),
+            "Casing": self.casing.part,
         }
 
     def create_cut_shape(self):
-        flush_distance_tolerance = 0.0 # Small distance to ensure the cut shape is flush with the casing
+        flush_distance_tolerance = (
+            0.0  # Small distance to ensure the cut shape is flush with the casing
+        )
         with BuildPart() as cut_shape:
             # Create the cross-sectional profile, shaped like a C
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
-                    Line((0, self.inner_radius + flush_distance_tolerance), (0, self.outer_radius * 2))
-                    ThreePointArc((0, self.outer_radius * 2), (-self.outer_radius * 2, 0), (0, -self.outer_radius * 2))
-                    Line((0, -self.outer_radius * 2), (0, -self.inner_radius + flush_distance_tolerance))
-                    ThreePointArc((0, -self.inner_radius + flush_distance_tolerance), (-self.inner_radius + flush_distance_tolerance, 0), (0, self.inner_radius - flush_distance_tolerance))
+                    Line(
+                        (0, self.inner_radius + flush_distance_tolerance),
+                        (0, self.outer_radius * 2),
+                    )
+                    ThreePointArc(
+                        (0, self.outer_radius * 2),
+                        (-self.outer_radius * 2, 0),
+                        (0, -self.outer_radius * 2),
+                    )
+                    Line(
+                        (0, -self.outer_radius * 2),
+                        (0, -self.inner_radius + flush_distance_tolerance),
+                    )
+                    ThreePointArc(
+                        (0, -self.inner_radius + flush_distance_tolerance),
+                        (-self.inner_radius + flush_distance_tolerance, 0),
+                        (0, self.inner_radius - flush_distance_tolerance),
+                    )
                 make_face()
             revolve()
-            
+
         return cut_shape

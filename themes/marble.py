@@ -1,11 +1,12 @@
 # themes/marble.py
 
+
 def apply_overrides(puzzle, sphere, box, path):
     """
-    Set marble theme specific configurations
+    Set wood, white marble, and brass theme specific configurations
     """
-    puzzle.BALL_COLOR = (1, 1, 1)
-    puzzle.PATH_COLOR = (212, 210, 209)
-    puzzle.PATH_ACCENT_COLOR = (244, 193, 49)
-    puzzle.TEXT_COLOR = (204, 134, 28)
-    puzzle.MOUNTING_RING_COLOR = (222, 198, 144)
+    puzzle.BALL_COLOR = "#FFFFFF"  # White (Marble)
+    puzzle.PATH_COLOR = "#D4D2D1"  # Light Grey (White Marble)
+    puzzle.PATH_ACCENT_COLOR = "#F4C131"  # Brass Gold
+    puzzle.TEXT_COLOR = "#CC861C"  # Darker Brass
+    puzzle.MOUNTING_RING_COLOR = "#DEC690"  # Wood Tone
