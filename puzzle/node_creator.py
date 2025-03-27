@@ -379,7 +379,7 @@ class BoxGridNodeCreator(NodeCreator):
 
     def get_neighbors(
         self, node: Node, node_dict: Dict[Coordinate, Node], node_size: float
-    ) -> List[Node]:
+    ) -> List[Tuple[Node, float]]:
         """
         Get neighboring nodes for a given node in the box grid.
 
@@ -389,9 +389,9 @@ class BoxGridNodeCreator(NodeCreator):
             node_size (float): The size of each node.
 
         Returns:
-            List[Node]: List of neighboring nodes that are not occupied.
+            List[Tuple[Node, float]]: List of tuples containing neighboring nodes and their associated cost.
         """
-        neighbors: List[Node] = []
+        neighbors: List[Tuple[Node, float]] = []
         directions: List[Coordinate] = [
             (node_size, 0, 0),
             (-node_size, 0, 0),
@@ -408,5 +408,5 @@ class BoxGridNodeCreator(NodeCreator):
             )
             neighbor = node_dict.get(neighbor_coordinates)
             if neighbor and not neighbor.occupied:
-                neighbors.append(neighbor)
+                neighbors.append((neighbor, node_size))
         return neighbors
