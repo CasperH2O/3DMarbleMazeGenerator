@@ -1,15 +1,18 @@
 # puzzle/casing.py
 
-from abc import ABC, abstractmethod
 import math
-from typing import List, Dict, Tuple, Optional
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Tuple
+
 from config import Config
 from puzzle.node import Node
+
 
 class Casing(ABC):
     """
     Abstract base class representing a generic casing.
     """
+
     @abstractmethod
     def contains_point(self, x: float, y: float, z: float) -> bool:
         """
@@ -38,10 +41,12 @@ class Casing(ABC):
         """
         pass
 
+
 class SphereCasing(Casing):
     """
     Class representing a spherical casing.
     """
+
     def __init__(self, diameter: float, shell_thickness: float):
         """
         Initialize a spherical casing.
@@ -66,8 +71,8 @@ class SphereCasing(Casing):
         Returns:
             bool: True if the point is inside the sphere, False otherwise.
         """
-        distance_squared = x ** 2 + y ** 2 + z ** 2
-        return distance_squared <= self.inner_radius ** 2
+        distance_squared = x**2 + y**2 + z**2
+        return distance_squared <= self.inner_radius**2
 
     def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
         """
@@ -92,7 +97,8 @@ class SphereCasing(Casing):
             y = radius * math.sin(angle)
 
             candidates = [
-                node for node in nodes
+                node
+                for node in nodes
                 if node.z == 0 and not node.occupied and node not in mounting_nodes
             ]
 
@@ -101,8 +107,7 @@ class SphereCasing(Casing):
                 continue
 
             nearest_node = min(
-                candidates,
-                key=lambda node: (node.x - x) ** 2 + (node.y - y) ** 2
+                candidates, key=lambda node: (node.x - x) ** 2 + (node.y - y) ** 2
             )
             nearest_node.mounting = True
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding
@@ -110,11 +115,15 @@ class SphereCasing(Casing):
 
         return mounting_nodes
 
+
 class BoxCasing(Casing):
     """
     Class representing a box-shaped casing.
     """
-    def __init__(self, width: float, height: float, length: float, panel_thickness: float):
+
+    def __init__(
+        self, width: float, height: float, length: float, panel_thickness: float
+    ):
         """
         Initialize a box casing.
 
@@ -144,11 +153,15 @@ class BoxCasing(Casing):
         Returns:
             bool: True if the point is inside the box, False otherwise.
         """
-        return (-self.half_width <= x <= self.half_width and
-                -self.half_length <= y <= self.half_length and
-                -self.half_height <= z <= self.half_height)
+        return (
+            -self.half_width <= x <= self.half_width
+            and -self.half_length <= y <= self.half_length
+            and -self.half_height <= z <= self.half_height
+        )
 
-    def get_start_node(self, node_dict: Dict[Tuple[float, float, float], Node]) -> Optional[Node]:
+    def get_start_node(
+        self, node_dict: Dict[Tuple[float, float, float], Node]
+    ) -> Optional[Node]:
         """
         Get the start node at one corner of the box.
 
@@ -182,12 +195,12 @@ class BoxCasing(Casing):
         """
         # Place mounting points in the center of every panel face
         face_centers = [
-            (0, 0, -self.half_length),    # Front face
-            (0, 0, self.half_length),     # Back face
-            (self.half_width, 0, 0),      # Right face
-            (-self.half_width, 0, 0),     # Left face
-            (0, self.half_height, 0),     # Top face
-            (0, -self.half_height, 0),    # Bottom face
+            (0, 0, -self.half_length),  # Front face
+            (0, 0, self.half_length),  # Back face
+            (self.half_width, 0, 0),  # Right face
+            (-self.half_width, 0, 0),  # Left face
+            (0, self.half_height, 0),  # Top face
+            (0, -self.half_height, 0),  # Bottom face
         ]
         mounting_nodes = []
 
@@ -200,7 +213,9 @@ class BoxCasing(Casing):
 
             nearest_node = min(
                 candidates,
-                key=lambda node: (node.x - x_face) ** 2 + (node.y - y_face) ** 2 + (node.z - z_face) ** 2
+                key=lambda node: (node.x - x_face) ** 2
+                + (node.y - y_face) ** 2
+                + (node.z - z_face) ** 2,
             )
             nearest_node.mounting = True
             nearest_node.waypoint = True  # Mark as a waypoint to include in pathfinding

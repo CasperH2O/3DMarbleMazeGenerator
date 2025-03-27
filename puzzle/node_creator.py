@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 
 from config import Config
-from puzzle.node import Node
+from puzzle.node import Node, NodeGridType
 
 Coordinate = Tuple[float, float, float]
 
@@ -138,7 +138,7 @@ class SphereGridNodeCreator(NodeCreator):
             z = 0.0
 
             new_node = Node(x, y, z)
-            new_node.grid_type.append("circular")
+            new_node.grid_type.append(NodeGridType.CIRCULAR.value)
             nodes.append(new_node)
             node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
 
@@ -187,19 +187,21 @@ class SphereGridNodeCreator(NodeCreator):
                 math.sqrt((candidate[0] - n.x) ** 2 + (candidate[1] - n.y) ** 2)
                 < tolerance
                 for n in nodes
-                if n.z == 0 and "circular" in n.grid_type
+                if n.z == 0 and NodeGridType.CIRCULAR.value in n.grid_type
             ):
                 new_node = Node(candidate[0], candidate[1], candidate[2])
-                new_node.grid_type.append("circular")
+                new_node.grid_type.append(NodeGridType.CIRCULAR.value)
                 nodes.append(new_node)
                 node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
 
         # Remove rectangular grid nodes at z == 0 that are closer than node_size to any circular node
-        circular_nodes = [node for node in nodes if "circular" in node.grid_type]
+        circular_nodes = [
+            node for node in nodes if NodeGridType.CIRCULAR.value in node.grid_type
+        ]
         nodes_to_remove = []
         for node in nodes:
             # Only consider nodes at z == 0 that are not circular
-            if node.z != 0 or "circular" in node.grid_type:
+            if node.z != 0 or NodeGridType.CIRCULAR.value in node.grid_type:
                 continue
             for circ_node in circular_nodes:
                 dx = node.x - circ_node.x
@@ -281,7 +283,8 @@ class SphereGridNodeCreator(NodeCreator):
             # Near-cardinal move: exactly one axis differs,
             # and allowed only if one node is circular and the other is not.
             if diff_count == 1 and (
-                ("circular" in node.grid_type) ^ ("circular" in candidate.grid_type)
+                (NodeGridType.CIRCULAR.value in node.grid_type)
+                ^ (NodeGridType.CIRCULAR.value in candidate.grid_type)
             ):
                 if distance <= 2 * node_size - tolerance:
                     cost = distance
@@ -290,7 +293,10 @@ class SphereGridNodeCreator(NodeCreator):
 
             # Diagonal move: exactly two axes differ, allowed only if both nodes are circular.
             elif diff_count == 2:
-                if "circular" in node.grid_type and "circular" in candidate.grid_type:
+                if (
+                    NodeGridType.CIRCULAR.value in node.grid_type
+                    and NodeGridType.CIRCULAR.value in candidate.grid_type
+                ):
                     if distance <= 2 * node_size + tolerance:
                         cost = distance
                         neighbors.append((candidate, cost))

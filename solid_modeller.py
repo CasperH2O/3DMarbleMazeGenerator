@@ -215,8 +215,9 @@ def set_viewer():
 
     # Do not draw lines on the following groups
     groups_to_reset = {
-        "/Group/Dome Top",
-        "/Group/Dome Bottom",
+        f"/Group/{CasePart.CASING.value}",
+        f"/Group/{CasePart.DOME_TOP.value}",
+        f"/Group/{CasePart.DOME_BOTTOM.value}",
         "/Group/Ball Path",
         "/Group/Ball",
     }

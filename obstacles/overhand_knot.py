@@ -1,8 +1,21 @@
 # obstacles/overhand_knot.py
 
-from build123d import *
-from math import sin, cos, pi
-from ocp_vscode import *
+from math import cos, pi, sin
+
+from build123d import (
+    BuildLine,
+    BuildPart,
+    BuildSketch,
+    Line,
+    Polyline,
+    Rot,
+    Spline,
+    Vector,
+    make_face,
+    sweep,
+)
+from ocp_vscode import show_object
+
 
 def points(t0, t1, samples):
     sa = 10
@@ -14,6 +27,7 @@ def points(t0, t1, samples):
         )
         for t in range(int(t0), int(t1 * samples))
     ]
+
 
 zz = points(pi / 3, 4 * pi / 3, 200)
 ibeam_hh = 5
@@ -32,13 +46,13 @@ with BuildPart() as p:
     inner_half_width = half_width - wall_thickness
 
     l_shape_points = [
-        (-half_width,  half_width),      # 1
-        (-inner_half_width,  half_width),# 2
-        (-inner_half_width, -inner_half_width), # 3
-        ( half_width, -inner_half_width),# 4
-        ( half_width, -half_width),      # 5
-        (-half_width, -half_width),      # 6
-        (-half_width,  half_width)       # close
+        (-half_width, half_width),  # 1
+        (-inner_half_width, half_width),  # 2
+        (-inner_half_width, -inner_half_width),  # 3
+        (half_width, -inner_half_width),  # 4
+        (half_width, -half_width),  # 5
+        (-half_width, -half_width),  # 6
+        (-half_width, half_width),  # close
     ]
 
     with BuildSketch(l.line ^ 0) as l_shape_sketch:

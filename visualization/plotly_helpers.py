@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 from puzzle.casing import BoxCasing, SphereCasing
+from puzzle.node import NodeGridType
 
 
 def plot_nodes_plotly(nodes):
@@ -42,7 +43,7 @@ def plot_nodes_plotly(nodes):
             labels.append("Segment End")
         if node.occupied:
             labels.append("Occupied")
-        if "circular" in node.grid_type:
+        if NodeGridType.CIRCULAR.value in node.grid_type:
             labels.append("Circular")
         if not labels:
             labels.append("Regular")

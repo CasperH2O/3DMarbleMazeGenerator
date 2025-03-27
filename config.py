@@ -12,11 +12,9 @@ from puzzle.utils.enums import (
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.MARBLE
-    CASE_SHAPE = (
-        CaseShape.SPHERE_WITH_FLANGE
-    )  # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
+    CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm

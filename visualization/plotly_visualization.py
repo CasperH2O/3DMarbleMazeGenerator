@@ -8,6 +8,7 @@ from geomdl import BSpline, utilities
 from scipy import interpolate
 
 from config import PathCurveModel, PathCurveType
+from puzzle.node import NodeGridType
 
 from .plotly_helpers import (  # Import shared helper functions
     plot_casing_plotly,
@@ -379,8 +380,8 @@ def visualize_path_architect(nodes, segments, casing):
                     start_node = segment.nodes[i]
                     end_node = segment.nodes[i + 1]
                     # If both nodes are from a circular grid, generate an arc.
-                    if ("circular" in start_node.grid_type) and (
-                        "circular" in end_node.grid_type
+                    if (NodeGridType.CIRCULAR.value in start_node.grid_type) and (
+                        NodeGridType.CIRCULAR.value in end_node.grid_type
                     ):
                         theta1 = math.atan2(start_node.y, start_node.x)
                         theta2 = math.atan2(end_node.y, end_node.x)
