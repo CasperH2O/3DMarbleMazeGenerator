@@ -1,9 +1,9 @@
 # generate.py
 
-from puzzle.puzzle import Puzzle
 from config import Config
-from visualization import visualize_interpolated_path_plotly
+from puzzle.puzzle import Puzzle
 from visualization.plotly_visualization import visualize_path_architect
+
 
 def main() -> None:
     """
@@ -23,20 +23,11 @@ def main() -> None:
     # Print puzzle information
     puzzle.print_puzzle_info()
 
-    # Visualize the interpolated path
-    '''
-    visualize_interpolated_path_plotly(
-        puzzle.nodes, 
-        puzzle.interpolated_segments, 
-        puzzle.casing
-    )
-    '''
     # Visualize the path architect
     visualize_path_architect(
-        puzzle.nodes, 
-        puzzle.path_architect.segments, 
-        puzzle.casing
+        puzzle.nodes, puzzle.path_architect.segments, puzzle.casing
     )
+
 
 if __name__ == "__main__":
     main()
