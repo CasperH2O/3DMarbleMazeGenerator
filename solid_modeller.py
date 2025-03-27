@@ -23,7 +23,7 @@ from cad.cases.case_sphere_with_flange import CaseSphereWithFlange
 from cad.cases.case_sphere_with_flange_enclosed_two_sides import (
     CaseSphereWithFlangeEnclosedTwoSides,
 )
-from cad.path_builder import PathBuilder
+from cad.path_builder import PathBuilder, PathTypes
 from config import CaseShape, Config
 from puzzle.puzzle import Puzzle
 
@@ -126,26 +126,26 @@ def path(puzzle, cut_shape):
     support_path = None
     coloring_path = None
 
-    if path_bodies["standard"]:
-        standard_path = path_bodies["standard"]
+    if path_bodies[PathTypes.STANDARD]:
+        standard_path = path_bodies[PathTypes.STANDARD]
         standard_path = standard_path + start_area[0].part  # combine with start area
         standard_path = standard_path - cut_shape.part  # subtract the cut shape
-        standard_path.label = "Standard Path"
+        standard_path.label = PathTypes.STANDARD.value
         standard_path.color = Config.Puzzle.PATH_COLOR
 
-    if path_bodies["support"]:
-        support_path = path_bodies["support"]
+    if path_bodies[PathTypes.SUPPORT]:
+        support_path = path_bodies[PathTypes.SUPPORT]
         support_path = support_path - cut_shape.part
-        support_path.label = "Support Path"
+        support_path.label = PathTypes.SUPPORT.value
         support_path.color = Config.Puzzle.SUPPORT_MATERIAL_COLOR
 
-    if path_bodies["coloring"]:
-        coloring_path = path_bodies["coloring"]
+    if path_bodies[PathTypes.ACCENT_COLOR]:
+        coloring_path = path_bodies[PathTypes.ACCENT_COLOR]
         coloring_path = (
             coloring_path + start_area[1].part
         )  # combine with second start area
         coloring_path = coloring_path - cut_shape.part
-        coloring_path.label = "Coloring Path"
+        coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
 
     return standard_path, support_path, coloring_path

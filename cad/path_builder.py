@@ -1,4 +1,5 @@
 import random
+from enum import Enum
 
 from build123d import (
     Bezier,
@@ -26,6 +27,16 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from config import Config, PathCurveModel, PathCurveType
+
+
+class PathTypes(Enum):
+    """
+    Enumeration representing the different types of path segments
+    """
+
+    STANDARD = "Standard Path"
+    SUPPORT = "Support Path"
+    ACCENT_COLOR = "Accent Color Path"
 
 
 class PathBuilder:
@@ -477,7 +488,7 @@ class PathBuilder:
         # Create two separate combined bodies
         standard_body = None
         support_body = None
-        coloring_body = None
+        accent_color_body = None
 
         for segment in self.path_architect.segments:
             # Skip segments that contain the start node
@@ -506,21 +517,21 @@ class PathBuilder:
 
             # Check if the segment has a (optional) color accent body
             if segment.accent_body is not None:
-                if coloring_body is None:
-                    coloring_body = segment.accent_body.part
+                if accent_color_body is None:
+                    accent_color_body = segment.accent_body.part
                 else:
-                    coloring_body = coloring_body + segment.accent_body.part
+                    accent_color_body = accent_color_body + segment.accent_body.part
 
         return {
-            "standard": standard_body,
-            "support": support_body,
-            "coloring": coloring_body,
+            PathTypes.STANDARD: standard_body,
+            PathTypes.SUPPORT: support_body,
+            PathTypes.ACCENT_COLOR: accent_color_body,
         }
 
     def create_start_area_funnel(self, segment):
         """
         Creates two lofted funnel shapes for the first segment of the puzzle
-        One using U-shaped profiles, and another using U-shaped path coloring.
+        One using U-shaped profiles, and another using U-shaped path accent coloring.
         """
 
         if len(segment.nodes) < 2:
@@ -551,7 +562,7 @@ class PathBuilder:
                 add(create_u_shape(**u_shape_params, rotation_angle=0))
             loft()
 
-        # Create the coloring path start area funnel
+        # Create the accent coloring path start area funnel
         with BuildPart() as start_area_coloring:
             u_shape_color_params = Config.Path.PATH_PROFILE_TYPE_PARAMETERS[
                 PathProfileType.U_SHAPE_PATH_COLOR.value
