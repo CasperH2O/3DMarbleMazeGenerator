@@ -16,6 +16,7 @@ from build123d import (
 )
 from ocp_vscode import Camera, set_defaults, set_viewer_config, show_object, status
 
+from cad.cases.case import CasePart
 from cad.cases.case_box import CaseBox
 from cad.cases.case_sphere import CaseSphere
 from cad.cases.case_sphere_with_flange import CaseSphereWithFlange
@@ -48,11 +49,19 @@ def main() -> None:
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
 
-    # If a mounting ring is one of the parts, adjust its geometry by subtracting the standard path.
-    if "Mounting Ring" in case_parts and standard_path:
-        case_parts["Mounting Ring"] = case_parts["Mounting Ring"] - standard_path
+    # If a mounting ring is one of the parts, subtract the standard path for physical bridge
+    if standard_path:
+        for idx, part in enumerate(case_parts):
+            if part.label == CasePart.MOUNTING_RING.value:
+                # TODO improve this, need all objects to be same type, then it should remember label and color
+                label = part.label
+                color = part.color
+                case_parts[idx] = part - standard_path
+                case_parts[idx].label = label
+                case_parts[idx].color = color
+                break
 
-    # Display all parts and additional objects
+    # Display all case, puzzle and additional parts
     display_parts(
         case_parts, standard_path, support_path, coloring_path, ball, ball_path
     )
@@ -60,13 +69,13 @@ def main() -> None:
     # Set viewer configuration
     set_viewer()
 
-    # Export all parts along with additional objects (paths)
-    additional_objs = {
-        "Path": standard_path,
-        "Support Path": support_path,
-        "Coloring Path": coloring_path,
-    }
-    export_all(case_parts, additional_objs)
+    # Export all case and additional parts
+    additional_parts = [
+        standard_path,
+        support_path,
+        coloring_path,
+    ]
+    export_all(case_parts, additional_parts)
 
 
 def puzzle_casing():
@@ -121,10 +130,14 @@ def path(puzzle, cut_shape):
         standard_path = path_bodies["standard"]
         standard_path = standard_path + start_area[0].part  # combine with start area
         standard_path = standard_path - cut_shape.part  # subtract the cut shape
+        standard_path.label = "Standard Path"
+        standard_path.color = Config.Puzzle.PATH_COLOR
 
     if path_bodies["support"]:
         support_path = path_bodies["support"]
         support_path = support_path - cut_shape.part
+        support_path.label = "Support Path"
+        support_path.color = Config.Puzzle.SUPPORT_MATERIAL_COLOR
 
     if path_bodies["coloring"]:
         coloring_path = path_bodies["coloring"]
@@ -132,6 +145,8 @@ def path(puzzle, cut_shape):
             coloring_path + start_area[1].part
         )  # combine with second start area
         coloring_path = coloring_path - cut_shape.part
+        coloring_path.label = "Coloring Path"
+        coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
 
     return standard_path, support_path, coloring_path
 
@@ -148,7 +163,7 @@ def ball_and_path_indicators(puzzle):
     with BuildPart(Pos(node_positions[1])) as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
 
-    ball.part.name = "Ball"
+    ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
 
     # Create a ball path indicator line
@@ -159,7 +174,7 @@ def ball_and_path_indicators(puzzle):
             Circle(Config.Puzzle.BALL_DIAMETER / 10)
         sweep(transition=Transition.RIGHT)
 
-    ball_path.part.name = "Ball Path"
+    ball_path.part.label = "Ball Path"
     ball_path.part.color = Config.Puzzle.BALL_COLOR
 
     return ball.part, ball_path.part
@@ -171,27 +186,21 @@ def display_parts(
     """
     Display all puzzle physical objects.
     """
-
     # Set the default camera position, to not adjust on new show
     set_defaults(reset_camera=Camera.KEEP)
 
     # Display each part from the case
-    for name, part in case_parts.items():
-        show_object(part, name=name)
+    for part in case_parts:
+        show_object(part)
 
+    # The paths already have labels and colors
     if standard_path:
-        standard_path.name = "Standard Path"
-        standard_path.color = Config.Puzzle.PATH_COLOR
         show_object(standard_path)
 
     if support_path:
-        support_path.name = "Support Path"
-        support_path.color = "#FFFFFF1A"  # (1, 1, 1) with alpha 0.1
         show_object(support_path)
 
     if coloring_path:
-        coloring_path.name = "Coloring Path"
-        coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
         show_object(coloring_path)
 
     # Display the ball and its path
@@ -222,7 +231,7 @@ def set_viewer():
     set_viewer_config(states=new_config)
 
 
-def export_all(case_parts, additional_objects=None):
+def export_all(case_parts, additional_parts=None):
     """
     Export all case parts as STLs for 3D print manufacturing.
     """
@@ -236,15 +245,15 @@ def export_all(case_parts, additional_objects=None):
         os.makedirs(export_path)
 
     # Export each case part to STL format
-    for case_part in case_parts.values():
-        stl_file_path = os.path.join(export_path, f"{case_part.name}.stl")
-        export_stl(to_export=case_part.obj.part, file_path=stl_file_path)
+    for case_part in case_parts:
+        stl_file_path = os.path.join(export_path, f"{case_part.label}.stl")
+        export_stl(to_export=case_part, file_path=stl_file_path)
 
     # Export additional objects, if any
-    if additional_objects:
-        for name, obj in additional_objects.items():
-            stl_file_path = os.path.join(export_path, f"{name}.stl")
-            export_stl(to_export=obj, file_path=stl_file_path)
+    if additional_parts:
+        for additiona_part in additional_parts:
+            stl_file_path = os.path.join(export_path, f"{additiona_part.label}.stl")
+            export_stl(to_export=additiona_part, file_path=stl_file_path)
 
 
 if __name__ == "__main__":

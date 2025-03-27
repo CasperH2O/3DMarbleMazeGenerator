@@ -9,4 +9,4 @@ def apply_overrides(puzzle, sphere, box, path):
     puzzle.PATH_COLOR = "#D4D2D1"  # Light Grey (White Marble)
     puzzle.PATH_ACCENT_COLOR = "#F4C131"  # Brass Gold
     puzzle.TEXT_COLOR = "#CC861C"  # Darker Brass
-    puzzle.MOUNTING_RING_COLOR = "#DEC690"  # Wood Tone
+    puzzle.MOUNTING_RING_COLOR = "#523429"  # Wood Tone

@@ -25,10 +25,10 @@ from build123d import (
 
 from config import Config
 
-from .case_base import CaseBase
+from .case import Case, CasePart
 
 
-class CaseSphereWithFlange(CaseBase):
+class CaseSphereWithFlange(Case):
     def __init__(self):
         self.sphere_outer_diameter = Config.Sphere.SPHERE_DIAMETER
         self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
@@ -206,28 +206,29 @@ class CaseSphereWithFlange(CaseBase):
 
     def get_parts(self):
         # Assign names and colors to the parts
-        self.mounting_ring.part.name = "Mounting Ring"
+        self.mounting_ring.part.label = CasePart.MOUNTING_RING.value
         self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        self.dome_top.part.name = "Dome Top"
-        self.dome_top.part.color = Config.Puzzle.DOME_COLOR
+        self.dome_top.part.label = CasePart.DOME_TOP.value
+        self.dome_top.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        self.dome_bottom.part.name = "Dome Bottom"
-        self.dome_bottom.part.color = Config.Puzzle.DOME_COLOR
+        self.dome_bottom.part.label = CasePart.DOME_BOTTOM.value
+        self.dome_bottom.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        self.path_bridges.part.name = "Path Bridge"
+        self.path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
         self.path_bridges.part.color = Config.Puzzle.PATH_COLOR
 
-        self.start_text.part.name = "Start Text"
+        self.start_text.part.label = CasePart.START_INDICATOR.value
         self.start_text.part.color = Config.Puzzle.TEXT_COLOR
 
-        return {
-            "Mounting Ring": self.mounting_ring.part,
-            "Dome Top": self.dome_top.part,
-            "Dome Bottom": self.dome_bottom.part,
-            "Path Bridge": self.path_bridges.part,
-            "Start Text": self.start_text.part,
-        }
+        # Return parts
+        return [
+            self.mounting_ring.part,
+            self.dome_top.part,
+            self.dome_bottom.part,
+            self.path_bridges.part,
+            self.start_text.part,
+        ]
 
     def create_cut_shape(self):
         flush_distance_tolerance = 0.0

@@ -4,10 +4,10 @@ from build123d import Box, BuildPart, BuildSketch, Mode, Rectangle, extrude, off
 
 from config import Config
 
-from .case_base import CaseBase
+from .case import Case, CasePart
 
 
-class CaseBox(CaseBase):
+class CaseBox(Case):
     def __init__(self):
         self.length = Config.Box.LENGTH
         self.width = Config.Box.WIDTH
@@ -28,12 +28,12 @@ class CaseBox(CaseBase):
 
     def get_parts(self):
         # Assign name and color to the part
-        self.casing.part.name = "Casing"
-        self.casing.part.color = "#FFFFFF0D"  # (1,1,1) with alpha 0.05
+        self.casing.part.label = CasePart.CASING.value
+        self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        return {
-            "Casing": self.casing.part,
-        }
+        return [
+            self.casing.part,
+        ]
 
     def create_cut_shape(self):
         # Create a box to ensure it cuts the path body properly

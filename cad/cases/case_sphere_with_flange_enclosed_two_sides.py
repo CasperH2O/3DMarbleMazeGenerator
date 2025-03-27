@@ -31,14 +31,13 @@ from build123d import (
     revolve,
     split,
 )
-from ocp_vscode import show_all
 
 from config import Config
 
-from .case_base import CaseBase
+from .case import Case, CasePart
 
 
-class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
+class CaseSphereWithFlangeEnclosedTwoSides(Case):
     def __init__(self):
         self.sphere_outer_diameter = Config.Sphere.SPHERE_DIAMETER
         self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
@@ -464,61 +463,62 @@ class CaseSphereWithFlangeEnclosedTwoSides(CaseBase):
         mounting_ring_clip_start = copy(self.mounting_ring_clips)
         mounting_ring_clip_single = copy(self.mounting_ring_clips)
 
-        # Get the clip with the lowest volume, as that one has the start indicator hole in it
+        # Get the clip with the lowest volume (start indicator hole)
         mounting_ring_clip_start.part = self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
         )[0:1]
-        mounting_ring_clip_start.part.name = "Mounting Clip Start"
-        mounting_ring_clip_start.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        mounting_ring_clip_start.part.label = CasePart.MOUNTING_RING_CLIP_START.value
+        mounting_ring_clip_start.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        # Create a single clip for printing usage from the rest
+        # Single clip for printing
         mounting_ring_clip_single.part = self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
         )[-1:]
-        mounting_ring_clip_single.part.name = "Mounting Clip Single"
-        mounting_ring_clip_single.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        mounting_ring_clip_single.part.label = CasePart.MOUNTING_RING_CLIP_SINGLE.value
+        mounting_ring_clip_single.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        # Remove the start clip from mounting clip and the last clip which was used as single clip
+        # Remaining clips after extracting first and last
         self.mounting_ring_clips.part = self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
         )[1:-1]
-        self.mounting_ring_clips.part.name = "Mounting Clips"
-        self.mounting_ring_clips.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        self.mounting_ring_clips.part.label = CasePart.MOUNTING_RING_CLIPS.value
+        self.mounting_ring_clips.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        # Assign names and colors to all parts
-        self.dome_top.part.name = "Dome Top"
-        self.dome_top.part.color = Config.Puzzle.DOME_COLOR
+        # Assign labels and colors to other parts
+        self.dome_top.part.label = CasePart.DOME_TOP.value
+        self.dome_top.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        self.dome_bottom.part.name = "Dome Bottom"
-        self.dome_bottom.part.color = Config.Puzzle.DOME_COLOR
+        self.dome_bottom.part.label = CasePart.DOME_BOTTOM.value
+        self.dome_bottom.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        self.mounting_ring.part.name = "Mounting Ring"
+        self.mounting_ring.part.label = CasePart.MOUNTING_RING.value
         self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        self.mounting_ring_top.part.name = "Mounting Ring Top"
+        self.mounting_ring_top.part.label = CasePart.MOUNTING_RING_TOP.value
         self.mounting_ring_top.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        self.mounting_ring_bottom.part.name = "Mounting Ring Bottom"
+        self.mounting_ring_bottom.part.label = CasePart.MOUNTING_RING_BOTTOM.value
         self.mounting_ring_bottom.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        self.start_indicator.part.name = "Start Indicator"
-        self.start_indicator.part.color = Config.Puzzle.MOUNTING_RING_COLOR
+        self.start_indicator.part.label = CasePart.START_INDICATOR.value
+        self.start_indicator.part.color = Config.Puzzle.PATH_ACCENT_COLOR
 
-        self.internal_path_bridges.part.name = "Path Bridges"
+        self.internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
         self.internal_path_bridges.part.color = Config.Puzzle.PATH_COLOR
 
-        return {
-            "Dome Top": self.dome_top.part,
-            "Dome Bottom": self.dome_bottom.part,
-            "Mounting Ring": self.mounting_ring.part,
-            "Mounting Ring Top": self.mounting_ring_top.part,
-            "Mounting Ring Bottom": self.mounting_ring_bottom.part,
-            "Mounting Clip Start": mounting_ring_clip_start.part,
-            "Mounting Clips": self.mounting_ring_clips.part,
-            "Mounting Clip Single": mounting_ring_clip_single.part,
-            "Start Indicator": self.start_indicator.part,
-            "Path Bridges": self.internal_path_bridges.part,
-        }
+        # Return parts
+        return [
+            self.dome_top.part,
+            self.dome_bottom.part,
+            self.mounting_ring.part,
+            self.mounting_ring_top.part,
+            self.mounting_ring_bottom.part,
+            mounting_ring_clip_start.part,
+            self.mounting_ring_clips.part,
+            mounting_ring_clip_single.part,
+            self.start_indicator.part,
+            self.internal_path_bridges.part,
+        ]
 
     def create_cut_shape(self):
         flush_distance_tolerance = 0.5

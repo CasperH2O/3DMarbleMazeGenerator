@@ -13,7 +13,7 @@ from puzzle.utils.enums import (
 # Puzzle configuration
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
-    THEME = Theme.GENERIC
+    THEME = Theme.MARBLE
     CASE_SHAPE = (
         CaseShape.SPHERE_WITH_FLANGE
     )  # Options: Sphere, Box, Sphere with flange, Sphere with flange enclosed two sides
@@ -29,7 +29,8 @@ class Puzzle:
     PATH_ACCENT_COLOR = "#2F66F5FF"  # Blue
     TEXT_COLOR = "#2F66F5FF"  # Blue
     MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
-    DOME_COLOR = "#FFFFFF0D"  # White with alpha 0.05
+    TRANSPARENT_CASE_COLOR = "#FFFFFF0D"  # White with alpha 0.05
+    SUPPORT_MATERIAL_COLOR = "#FFFFFF1A"  # White with alpha 0.10
 
 
 # Manufacturing configuration

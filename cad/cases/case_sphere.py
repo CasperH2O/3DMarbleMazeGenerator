@@ -16,10 +16,10 @@ from build123d import (
 
 from config import Config
 
-from .case_base import CaseBase
+from .case import Case, CasePart
 
 
-class CaseSphere(CaseBase):
+class CaseSphere(Case):
     def __init__(self):
         self.diameter = Config.Sphere.SPHERE_DIAMETER
         self.shell_thickness = Config.Sphere.SHELL_THICKNESS
@@ -39,12 +39,12 @@ class CaseSphere(CaseBase):
 
     def get_parts(self):
         # Assign name and color to the casing part
-        self.casing.part.name = "Casing"
-        self.casing.part.color = "#FFFFFF0D"  # (1,1,1) with alpha 0.05
+        self.casing.part.label = CasePart.CASING.value
+        self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        return {
-            "Casing": self.casing.part,
-        }
+        return [
+            self.casing.part,
+        ]
 
     def create_cut_shape(self):
         flush_distance_tolerance = (
