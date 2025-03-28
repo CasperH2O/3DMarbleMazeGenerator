@@ -1,5 +1,6 @@
-from build123d import *
 from typing import Optional
+
+from build123d import *
 from ocp_vscode import *
 
 text = Text("hello world", 12)
