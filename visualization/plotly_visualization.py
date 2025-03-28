@@ -228,7 +228,7 @@ def visualize_interpolated_path_plotly(nodes, interpolated_segments, casing):
     # Prepare path traces from interpolated segments
     path_traces = []
     colors = {
-        PathCurveModel.POLYLINE: "gray",
+        PathCurveModel.STANDARD: "gray",
         PathCurveModel.BEZIER: "orange",
         PathCurveModel.SPLINE: "lime",
     }
@@ -347,11 +347,11 @@ def visualize_path_architect(nodes, segments, casing):
         )
 
         # Determine the method to generate the segment curve.
-        if segment.curve_model == PathCurveModel.POLYLINE:
+        if segment.curve_model == PathCurveModel.STANDARD:
             # Use Bézier (B-Spline) if the curve type is S_CURVE or DEGREE_90_SINGLE_PLANE.
             if segment.curve_type in [
                 PathCurveType.S_CURVE,
-                PathCurveType.DEGREE_90_SINGLE_PLANE,
+                PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
             ]:
                 control_points = [[node.x, node.y, node.z] for node in segment.nodes]
                 num_control_points = len(control_points)

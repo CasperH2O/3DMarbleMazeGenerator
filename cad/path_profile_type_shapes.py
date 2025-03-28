@@ -2,27 +2,45 @@
 
 from enum import Enum
 
+from build123d import (
+    BuildLine,
+    BuildSketch,
+    Circle,
+    Mode,
+    Plane,
+    Polyline,
+    RegularPolygon,
+    Rot,
+    make_face,
+)
+
 import config
-from build123d import BuildSketch, BuildLine, Rot, Polyline, Plane, make_face, Circle, RegularPolygon, Mode
+
 
 class PathProfileType(Enum):
     """
     Enumeration representing the different types of path profiles.
     """
-    L_SHAPE = 'l_shape'
-    L_SHAPE_ADJUSTED_HEIGHT = 'l_shape_adjusted_height'
-    O_SHAPE = 'o_shape'
-    O_SHAPE_SUPPORT = 'o_shape_support'
-    U_SHAPE = 'u_shape'
-    U_SHAPE_PATH_COLOR = 'u_shape_path_color'
-    U_SHAPE_ADJUSTED_HEIGHT = 'u_shape_adjusted_height'
-    U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR = 'u_shape_adjusted_height_path_color'
-    V_SHAPE = 'v_shape'
-    V_SHAPE_PATH_COLOR = 'v_shape_path_color'
-    RECTANGLE_SHAPE = 'rectangle_shape'
+
+    L_SHAPE = "l_shape"
+    L_SHAPE_ADJUSTED_HEIGHT = "l_shape_adjusted_height"
+    O_SHAPE = "o_shape"
+    O_SHAPE_SUPPORT = "o_shape_support"
+    U_SHAPE = "u_shape"
+    U_SHAPE_PATH_COLOR = "u_shape_path_color"
+    U_SHAPE_ADJUSTED_HEIGHT = "u_shape_adjusted_height"
+    U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR = "u_shape_adjusted_height_path_color"
+    V_SHAPE = "v_shape"
+    V_SHAPE_PATH_COLOR = "v_shape_path_color"
+    RECTANGLE_SHAPE = "rectangle_shape"
 
 
-def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+def create_l_shape(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates an L-shaped cross-section centered at the origin or on the given work plane.
 
@@ -39,13 +57,13 @@ def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, w
     inner_half_width = half_width - wall_thickness
 
     l_shape_points = [
-        (-half_width,  half_width),      # 1
-        (-inner_half_width,  half_width),# 2
-        (-inner_half_width, -inner_half_width), # 3
-        ( half_width, -inner_half_width),# 4
-        ( half_width, -half_width),      # 5
-        (-half_width, -half_width),      # 6
-        (-half_width,  half_width)       # close
+        (-half_width, half_width),  # 1
+        (-inner_half_width, half_width),  # 2
+        (-inner_half_width, -inner_half_width),  # 3
+        (half_width, -inner_half_width),  # 4
+        (half_width, -half_width),  # 5
+        (-half_width, -half_width),  # 6
+        (-half_width, half_width),  # close
     ]
 
     with BuildSketch(work_plane) as l_shape_sketch:
@@ -56,7 +74,13 @@ def create_l_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, w
     return l_shape_sketch
 
 
-def create_l_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0, rotation_angle: float = -90):
+def create_l_shape_adjusted_height(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    lower_distance: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates an L-shaped cross-section with adjusted height centered at the origin or on the given work plane.
 
@@ -81,15 +105,15 @@ def create_l_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: f
     inner_half_width = half_width - wall_thickness
 
     l_shape_adjusted_points = [
-        (-half_width, -half_width),                # 1
-        (-half_width, adjusted_top_y),             # 2
-        (-inner_half_width, adjusted_top_y),       # 3
-        (-inner_half_width, -inner_half_width),    # 4
-        ( inner_half_width, -inner_half_width),    # 5
-        ( inner_half_width, adjusted_top_y),       # 6
-        ( half_width, adjusted_top_y),             # 7
-        ( half_width, -half_width),                # 8
-        (-half_width, -half_width)                 # close
+        (-half_width, -half_width),  # 1
+        (-half_width, adjusted_top_y),  # 2
+        (-inner_half_width, adjusted_top_y),  # 3
+        (-inner_half_width, -inner_half_width),  # 4
+        (inner_half_width, -inner_half_width),  # 5
+        (inner_half_width, adjusted_top_y),  # 6
+        (half_width, adjusted_top_y),  # 7
+        (half_width, -half_width),  # 8
+        (-half_width, -half_width),  # close
     ]
 
     with BuildSketch(work_plane) as l_shape_adjusted_sketch:
@@ -100,7 +124,12 @@ def create_l_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: f
     return l_shape_adjusted_sketch
 
 
-def create_o_shape(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+def create_o_shape(
+    work_plane: Plane = Plane.XY,
+    outer_diameter: float = 9.9999,
+    wall_thickness: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a tube-shaped cross-section centered at the origin or on the given work plane.
 
@@ -125,7 +154,12 @@ def create_o_shape(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999,
     return o_shape_sketch
 
 
-def create_o_shape_support(work_plane: Plane = Plane.XY, outer_diameter: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+def create_o_shape_support(
+    work_plane: Plane = Plane.XY,
+    outer_diameter: float = 9.9999,
+    wall_thickness: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a circle-shaped cross-section centered at the origin or on the given work plane.
     Required as additional 3D print support material for the O-shaped cross-section.
@@ -147,13 +181,21 @@ def create_o_shape_support(work_plane: Plane = Plane.XY, outer_diameter: float =
 
     with BuildSketch(work_plane) as support_sketch:
         Circle(radius=inner_diameter / 2)
-        RegularPolygon(radius=(inner_diameter - distance) / 2, side_count=4, mode=Mode.SUBTRACT)    
+        RegularPolygon(
+            radius=(inner_diameter - distance) / 2, side_count=4, mode=Mode.SUBTRACT
+        )
 
     return support_sketch
 
 
-def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, 
-                   wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+def create_u_shape(
+    work_plane: Plane = Plane.XY,
+    height: float = 9.9999,
+    width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    factor: float = 1.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a U-shaped cross-section centered at the origin or on the given work plane.
     The width of the shape can be scaled using the factor parameter.
@@ -179,15 +221,15 @@ def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: 
     inner_half_height = half_height - wall_thickness
 
     u_shape_points = [
-        (-half_width,  half_height),                # 1
-        (-inner_half_width,  half_height),          # 2
-        (-inner_half_width, -inner_half_height),    # 3
-        ( inner_half_width, -inner_half_height),    # 4
-        ( inner_half_width,  half_height),          # 5
-        ( half_width,  half_height),                # 6
-        ( half_width, -half_height),                # 7
-        (-half_width, -half_height),                # 8
-        (-half_width,  half_height)                 # close
+        (-half_width, half_height),  # 1
+        (-inner_half_width, half_height),  # 2
+        (-inner_half_width, -inner_half_height),  # 3
+        (inner_half_width, -inner_half_height),  # 4
+        (inner_half_width, half_height),  # 5
+        (half_width, half_height),  # 6
+        (half_width, -half_height),  # 7
+        (-half_width, -half_height),  # 8
+        (-half_width, half_height),  # close
     ]
 
     with BuildSketch(work_plane) as u_shape_sketch:
@@ -198,9 +240,14 @@ def create_u_shape(work_plane: Plane = Plane.XY, height: float = 9.9999, width: 
     return u_shape_sketch
 
 
-
-def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.9999, width: float = 9.9999, 
-                   wall_thickness: float = 2.0, factor: float = 1.0, rotation_angle: float = -90):
+def create_u_shape_path_color(
+    work_plane: Plane = Plane.XY,
+    height: float = 9.9999,
+    width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    factor: float = 1.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a single layer path for within a U-shaped cross-section to apply a color on top.
 
@@ -217,7 +264,7 @@ def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.99
     """
     adjusted_width = width * factor
     adjusted_height = height
-    
+
     half_width = adjusted_width / 2
     half_height = adjusted_height / 2
     inner_half_width = half_width - wall_thickness
@@ -227,10 +274,10 @@ def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.99
 
     u_shape_path_color_points = [
         (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
-        (-inner_half_width, -inner_half_height),                    # 2
-        ( inner_half_width, -inner_half_height),                    # 3
-        ( inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter)   # close
+        (-inner_half_width, -inner_half_height),  # 2
+        (inner_half_width, -inner_half_height),  # 3
+        (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
+        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
     ]
 
     with BuildSketch(work_plane) as u_shape_path_color_sketch:
@@ -241,7 +288,13 @@ def create_u_shape_path_color(work_plane: Plane = Plane.XY, height: float = 9.99
     return u_shape_path_color_sketch
 
 
-def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, lower_distance: float = 2.0, rotation_angle: float = -90):
+def create_u_shape_adjusted_height(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    lower_distance: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a U-shaped cross-section with adjusted height centered at the origin or on the given work plane.
 
@@ -266,15 +319,15 @@ def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: f
     inner_half_width = half_width - wall_thickness
 
     u_shape_adjusted_points = [
-        (-half_width, -half_width),              # 1
-        (-half_width, adjusted_top_y),           # 2
-        (-inner_half_width, adjusted_top_y),     # 3
+        (-half_width, -half_width),  # 1
+        (-half_width, adjusted_top_y),  # 2
+        (-inner_half_width, adjusted_top_y),  # 3
         (-inner_half_width, -inner_half_width),  # 4
-        ( inner_half_width, -inner_half_width),  # 5
-        ( inner_half_width, adjusted_top_y),     # 6
-        ( half_width, adjusted_top_y),           # 7
-        ( half_width, -half_width),              # 8
-        (-half_width, -half_width)               # close
+        (inner_half_width, -inner_half_width),  # 5
+        (inner_half_width, adjusted_top_y),  # 6
+        (half_width, adjusted_top_y),  # 7
+        (half_width, -half_width),  # 8
+        (-half_width, -half_width),  # close
     ]
 
     with BuildSketch(work_plane) as u_shape_adjusted_sketch:
@@ -285,12 +338,14 @@ def create_u_shape_adjusted_height(work_plane: Plane = Plane.XY, height_width: f
     return u_shape_adjusted_sketch
 
 
-def create_u_shape_adjusted_height_path_color(work_plane: Plane = Plane.XY, 
-                                              height: float = 9.9999, 
-                                              width: float = 9.9999, 
-                                              wall_thickness: float = 2.0, 
-                                              factor: float = 1.0, 
-                                              rotation_angle: float = -90):
+def create_u_shape_adjusted_height_path_color(
+    work_plane: Plane = Plane.XY,
+    height: float = 9.9999,
+    width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    factor: float = 1.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a single layer path for within a U-shaped adjusted height cross-section to apply a color on top.
 
@@ -307,7 +362,7 @@ def create_u_shape_adjusted_height_path_color(work_plane: Plane = Plane.XY,
     """
     adjusted_width = width * factor
     adjusted_height = height
-    
+
     half_width = adjusted_width / 2
     half_height = adjusted_height / 2
     inner_half_width = half_width - wall_thickness
@@ -317,10 +372,10 @@ def create_u_shape_adjusted_height_path_color(work_plane: Plane = Plane.XY,
 
     u_shape_path_color_points = [
         (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
-        (-inner_half_width, -inner_half_height),                    # 2
-        ( inner_half_width, -inner_half_height),                    # 3
-        ( inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter)   # close
+        (-inner_half_width, -inner_half_height),  # 2
+        (inner_half_width, -inner_half_height),  # 3
+        (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
+        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
     ]
 
     with BuildSketch(work_plane) as u_shape_adjusted_height_path_color_sketch:
@@ -331,7 +386,12 @@ def create_u_shape_adjusted_height_path_color(work_plane: Plane = Plane.XY,
     return u_shape_adjusted_height_path_color_sketch
 
 
-def create_v_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+def create_v_shape(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a V-shaped cross-section centered at the origin or on the given work plane.
     Height/width define the dimensions.
@@ -346,15 +406,15 @@ def create_v_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, w
     - A face object representing the created V-shape.
     """
     v_shape_points = [
-        (-wall_thickness, -height_width / 2),                     # 1 start bottom left outer corner
-        (-height_width / 2, -wall_thickness),                     # 2
-        (-height_width / 2 + wall_thickness, -wall_thickness),    # 3
-        (-wall_thickness, -height_width / 2 + wall_thickness),    # 4
-        ( wall_thickness, -height_width / 2 + wall_thickness),    # 5
-        ( height_width / 2 - wall_thickness, -wall_thickness),    # 6
-        ( height_width / 2, -wall_thickness),                     # 7
-        ( wall_thickness, -height_width / 2),                     # 8
-        (-wall_thickness, -height_width / 2)                      # close
+        (-wall_thickness, -height_width / 2),  # 1 start bottom left outer corner
+        (-height_width / 2, -wall_thickness),  # 2
+        (-height_width / 2 + wall_thickness, -wall_thickness),  # 3
+        (-wall_thickness, -height_width / 2 + wall_thickness),  # 4
+        (wall_thickness, -height_width / 2 + wall_thickness),  # 5
+        (height_width / 2 - wall_thickness, -wall_thickness),  # 6
+        (height_width / 2, -wall_thickness),  # 7
+        (wall_thickness, -height_width / 2),  # 8
+        (-wall_thickness, -height_width / 2),  # close
     ]
 
     with BuildSketch(work_plane) as v_shape_sketch:
@@ -365,7 +425,12 @@ def create_v_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, w
     return v_shape_sketch
 
 
-def create_v_shape_path_color(work_plane: Plane = Plane.XY, height_width: float = 9.9999, wall_thickness: float = 2.0, rotation_angle: float = -90):
+def create_v_shape_path_color(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    wall_thickness: float = 2.0,
+    rotation_angle: float = -90,
+):
     """
     Creates a colored path area for the V-shaped cross-section centered at the origin or on the given work plane.
     Height/width define the dimensions.
@@ -382,11 +447,17 @@ def create_v_shape_path_color(work_plane: Plane = Plane.XY, height_width: float 
     nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
 
     v_shape_path_color_points = [
-        (-wall_thickness, -height_width / 2 + wall_thickness),                                      # 1
-        (-wall_thickness - nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter),  # 2
-        ( wall_thickness + nozzle_diameter, -height_width / 2 + wall_thickness + nozzle_diameter),  # 3
-        ( wall_thickness, -height_width / 2 + wall_thickness),                                      # 4
-        (-wall_thickness, -height_width / 2 + wall_thickness)                                       # close
+        (-wall_thickness, -height_width / 2 + wall_thickness),  # 1
+        (
+            -wall_thickness - nozzle_diameter,
+            -height_width / 2 + wall_thickness + nozzle_diameter,
+        ),  # 2
+        (
+            wall_thickness + nozzle_diameter,
+            -height_width / 2 + wall_thickness + nozzle_diameter,
+        ),  # 3
+        (wall_thickness, -height_width / 2 + wall_thickness),  # 4
+        (-wall_thickness, -height_width / 2 + wall_thickness),  # close
     ]
 
     with BuildSketch(work_plane) as v_shape_path_color_sketch:
@@ -397,7 +468,11 @@ def create_v_shape_path_color(work_plane: Plane = Plane.XY, height_width: float 
     return v_shape_path_color_sketch
 
 
-def create_rectangle_shape(work_plane: Plane = Plane.XY, height_width: float = 9.9999, rotation_angle: float = -90):
+def create_rectangle_shape(
+    work_plane: Plane = Plane.XY,
+    height_width: float = 9.9999,
+    rotation_angle: float = -90,
+):
     """
     Creates a rectangular cross-section centered at the origin or on the given work plane.
 
@@ -414,10 +489,10 @@ def create_rectangle_shape(work_plane: Plane = Plane.XY, height_width: float = 9
 
     rectangle_points = [
         (-half_side, -half_side),
-        ( half_side, -half_side),
-        ( half_side,  half_side),
-        (-half_side,  half_side),
-        (-half_side, -half_side) # close
+        (half_side, -half_side),
+        (half_side, half_side),
+        (-half_side, half_side),
+        (-half_side, -half_side),  # close
     ]
 
     with BuildSketch(work_plane) as rectangle_sketch:
@@ -437,10 +512,10 @@ PROFILE_TYPE_FUNCTIONS = {
     PathProfileType.U_SHAPE: create_u_shape,
     PathProfileType.U_SHAPE_PATH_COLOR: create_u_shape_path_color,
     PathProfileType.U_SHAPE_ADJUSTED_HEIGHT: create_u_shape_adjusted_height,
-    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR: create_u_shape_adjusted_height_path_color,    
+    PathProfileType.U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR: create_u_shape_adjusted_height_path_color,
     PathProfileType.V_SHAPE: create_v_shape,
     PathProfileType.V_SHAPE_PATH_COLOR: create_v_shape_path_color,
-    PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape
+    PathProfileType.RECTANGLE_SHAPE: create_rectangle_shape,
 }
 
 # Accent registry, map a path profile to its accent color profile
@@ -454,4 +529,3 @@ ACCENT_REGISTRY = {
 SUPPORT_REGISTRY = {
     PathProfileType.O_SHAPE: PathProfileType.O_SHAPE_SUPPORT,
 }
-

@@ -1,9 +1,11 @@
 # cad/curve_detection.py
 
-from typing import List
-from puzzle.node import Node
 import math
-from config import PathCurveType, Path
+from typing import List
+
+from config import Path, PathCurveType
+from puzzle.node import Node
+
 
 def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
     """
@@ -19,7 +21,7 @@ def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
     if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
         curve_id_counter = detect_s_curves(nodes, curve_id_counter)
 
-    if PathCurveType.DEGREE_90_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
+    if PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
         curve_id_counter = detect_arcs(nodes, curve_id_counter)
 
     return curve_id_counter
@@ -31,7 +33,7 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
         return curve_id_counter  # Not enough nodes to form an S-curve
 
     for i in range(len(nodes) - s_curve_length + 1):
-        segment = nodes[i:i + s_curve_length]
+        segment = nodes[i : i + s_curve_length]
         if is_in_plane(segment):
             # Split into three parts and check linearity and direction changes
             first_part = segment[:3]
@@ -39,8 +41,12 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
             last_part = segment[3:]
 
             # Check if first and last parts are linear in the same direction and middle segment changes direction
-            for axis in ['x', 'y', 'z']:
-                if is_linear(first_part, axis) and is_linear(last_part, axis) and not is_linear(middle_segment, axis):
+            for axis in ["x", "y", "z"]:
+                if (
+                    is_linear(first_part, axis)
+                    and is_linear(last_part, axis)
+                    and not is_linear(middle_segment, axis)
+                ):
                     # Compute direction vectors
                     first_vector = vector_between_nodes(first_part[0], first_part[1])
                     last_vector = vector_between_nodes(last_part[-2], last_part[-1])
@@ -50,7 +56,10 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
                     last_vector_normalized = normalize_vector(last_vector)
 
                     # Compute dot product
-                    dot_product = sum(f * l for f, l in zip(first_vector_normalized, last_vector_normalized))
+                    dot_product = sum(
+                        f * l
+                        for f, l in zip(first_vector_normalized, last_vector_normalized)
+                    )
 
                     # Threshold for same direction
                     direction_threshold = 0.95
@@ -68,10 +77,13 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
 
 
 def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
-    curve_lengths = [5, 3]  # Marking 5 and 3 nodes, but segments are of length n + 2 (7 and 5)
+    curve_lengths = [
+        5,
+        3,
+    ]  # Marking 5 and 3 nodes, but segments are of length n + 2 (7 and 5)
     n_to_curve_type = {
-        5: PathCurveType.DEGREE_90_SINGLE_PLANE,
-        3: PathCurveType.DEGREE_90_SINGLE_PLANE,
+        5: PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
+        3: PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
     }
 
     for n in curve_lengths:
@@ -80,11 +92,11 @@ def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
             continue  # Not enough nodes for this curve length
 
         for i in range(len(nodes) - segment_length + 1):
-            segment = nodes[i:i + segment_length]
+            segment = nodes[i : i + segment_length]
 
             # Check if any node in the segment (excluding first and last) has already been used
             middle_nodes = segment[1:-1]
-            if any(getattr(node, 'used_in_curve', False) for node in middle_nodes):
+            if any(getattr(node, "used_in_curve", False) for node in middle_nodes):
                 continue  # Skip overlapping segments
 
             if check_90_deg_curve(segment):
@@ -97,23 +109,27 @@ def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
 
     return curve_id_counter
 
+
 def is_in_plane(pts: List[Node]) -> bool:
     x_vals = [pt.x for pt in pts]
     y_vals = [pt.y for pt in pts]
     z_vals = [pt.z for pt in pts]
     return len(set(x_vals)) == 1 or len(set(y_vals)) == 1 or len(set(z_vals)) == 1
 
+
 def is_linear(pts: List[Node], axis: str) -> bool:
-    if axis == 'x':
+    if axis == "x":
         return all(pt.y == pts[0].y and pt.z == pts[0].z for pt in pts)
-    elif axis == 'y':
+    elif axis == "y":
         return all(pt.x == pts[0].x and pt.z == pts[0].z for pt in pts)
-    elif axis == 'z':
+    elif axis == "z":
         return all(pt.x == pts[0].x and pt.y == pts[0].y for pt in pts)
     return False
 
+
 def vector_between_nodes(n1: Node, n2: Node):
     return n2.x - n1.x, n2.y - n1.y, n2.z - n1.z
+
 
 def check_90_deg_curve(segment: List[Node]) -> bool:
     if not is_in_plane(segment):
@@ -126,13 +142,13 @@ def check_90_deg_curve(segment: List[Node]) -> bool:
 
     if len(set(x_vals)) == 1:
         # Nodes are in the YZ plane
-        plane_axes = ['y', 'z']
+        plane_axes = ["y", "z"]
     elif len(set(y_vals)) == 1:
         # Nodes are in the XZ plane
-        plane_axes = ['x', 'z']
+        plane_axes = ["x", "z"]
     elif len(set(z_vals)) == 1:
         # Nodes are in the XY plane
-        plane_axes = ['x', 'y']
+        plane_axes = ["x", "y"]
     else:
         return False  # Should not happen as we already checked is_in_plane
 
@@ -141,8 +157,10 @@ def check_90_deg_curve(segment: List[Node]) -> bool:
     middle_index = length // 2  # Middle index (integer division)
 
     # Include the middle node in both halves
-    first_half = segment[:middle_index+1]  # Nodes from start to middle node (inclusive)
-    second_half = segment[middle_index:]   # Nodes from middle node to end
+    first_half = segment[
+        : middle_index + 1
+    ]  # Nodes from start to middle node (inclusive)
+    second_half = segment[middle_index:]  # Nodes from middle node to end
 
     # Check if nodes in each half are moving in a consistent direction
     if not all_vectors_aligned_in_plane(first_half, plane_axes):
@@ -167,6 +185,7 @@ def check_90_deg_curve(segment: List[Node]) -> bool:
 
     return True
 
+
 def all_vectors_aligned_in_plane(pts: List[Node], plane_axes: List[str]) -> bool:
     if len(pts) < 2:
         return True  # Not enough points to check alignment
@@ -185,6 +204,7 @@ def all_vectors_aligned_in_plane(pts: List[Node], plane_axes: List[str]) -> bool
             return False
     return True
 
+
 def vector_in_plane(n1: Node, n2: Node, plane_axes: List[str]):
     v = []
     for axis in plane_axes:
@@ -193,11 +213,13 @@ def vector_in_plane(n1: Node, n2: Node, plane_axes: List[str]):
         v.append(coord2 - coord1)
     return v
 
+
 def normalize_vector(v):
-    magnitude = math.sqrt(sum(c ** 2 for c in v))
+    magnitude = math.sqrt(sum(c**2 for c in v))
     if magnitude == 0:
         return [0 for _ in v]
     return [c / magnitude for c in v]
+
 
 def angle_between_vectors(v1, v2):
     v1 = normalize_vector(v1)

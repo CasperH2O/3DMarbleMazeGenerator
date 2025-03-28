@@ -7,18 +7,23 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Circle,
+    Face,
     FrameMethod,
     Line,
+    Part,
     Plane,
     Polyline,
     Sketch,
     Spline,
+    Transition,
     Vector,
     add,
     extrude,
     loft,
     sweep,
 )
+from .path_architect import PathArchitect
+from .path_segment import PathSegment
 
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
@@ -27,6 +32,7 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from config import Config, PathCurveModel, PathCurveType
+from puzzle.puzzle import Puzzle
 
 
 class PathTypes(Enum):
@@ -44,11 +50,11 @@ class PathBuilder:
     Handles the creation of segment shapes using profiles, sweeping along paths, and building the final path body.
     """
 
-    def __init__(self, puzzle):
+    def __init__(self, puzzle: Puzzle):
         """
         Initializes the PathBuilder with a reference to the PathArchitect.
         """
-        self.path_architect = puzzle.path_architect
+        self.path_architect: PathArchitect = puzzle.path_architect
         self.total_path = puzzle.total_path
         self.node_size = Config.Puzzle.NODE_SIZE  # Store node size
         self.path_profile_type_parameters = Config.Path.PATH_PROFILE_TYPE_PARAMETERS
@@ -78,9 +84,9 @@ class PathBuilder:
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            # Polyline and spline segments are handled differently
-            if segment.curve_model == PathCurveModel.POLYLINE:
-                segment = self.create_polyline_segment(previous_segment, segment)
+            # Staddard and spline path curve model segments are handled differently
+            if segment.curve_model == PathCurveModel.STANDARD:
+                segment = self.create_standard_segment(previous_segment, segment)
             elif segment.curve_model == PathCurveModel.SPLINE:
                 segment = self.create_spline_segment(previous_segment, segment)
             else:
@@ -88,9 +94,11 @@ class PathBuilder:
 
             previous_segment = segment
 
-    def create_polyline_segment(self, previous_segment, segment):
+    def create_standard_segment(
+        self, previous_segment: PathSegment, segment: PathSegment
+    ):
         """
-        Creates a polyline segment.
+        Creates a standard segment.
         """
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
@@ -98,8 +106,8 @@ class PathBuilder:
         # Path
 
         # Create the path based on the curve model
-        if segment.curve_model == PathCurveModel.POLYLINE:
-            if segment.curve_type == PathCurveType.DEGREE_90_SINGLE_PLANE:
+        if segment.curve_model == PathCurveModel.STANDARD:
+            if segment.curve_type == PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE:
                 if len(sub_path_points) >= 3:
                     first = sub_path_points[0]
                     middle = sub_path_points[len(sub_path_points) // 2]
@@ -197,7 +205,9 @@ class PathBuilder:
 
         return segment
 
-    def create_spline_segment(self, previous_segment, segment):
+    def create_spline_segment(
+        self, previous_segment: PathSegment, segment: PathSegment
+    ):
         """
         Creates a spline segment.
 
@@ -475,12 +485,12 @@ class PathBuilder:
             f"Falling back to POLYLINE for segment {segment.main_index}.{segment.secondary_index}"
         )
 
-        # Create the path as polyline with all nodes and set curve model to POLYLINE
+        # Create the path as standard curve model with all nodes and set curve model to POLYLINE
         segment.path = Polyline(sub_path_points)
-        segment.curve_model = PathCurveModel.POLYLINE
+        segment.curve_model = PathCurveModel.STANDARD
 
-        # Create the segment as polyline instead of a spline
-        segment = self.create_polyline_segment(previous_segment, segment)
+        # Create the segment as standard curve model instead of a spline
+        segment = self.create_standard_segment(previous_segment, segment)
 
         return segment
 
@@ -528,7 +538,7 @@ class PathBuilder:
             PathTypes.ACCENT_COLOR: accent_color_body,
         }
 
-    def create_start_area_funnel(self, segment):
+    def create_start_area_funnel(self, segment: PathSegment):
         """
         Creates two lofted funnel shapes for the first segment of the puzzle
         One using U-shaped profiles, and another using U-shaped path accent coloring.
@@ -606,10 +616,10 @@ class PathBuilder:
         for segment in self.path_architect.segments:
             main_index = segment.main_index
 
-            # Only process segments of PathProfileType O_SHAPE and POLYLINE
+            # Only process segments of PathProfileType O_SHAPE and Standard curve model
             if (
                 segment.path_profile_type not in [PathProfileType.O_SHAPE]
-                or segment.curve_model != PathCurveModel.POLYLINE
+                or segment.curve_model != PathCurveModel.STANDARD
             ):
                 continue  # Skip this segment
 
@@ -675,7 +685,10 @@ class PathBuilder:
                     )
 
     def determine_path_profile_angle(
-        self, previous_segment, current_segment, start_angle: float
+        self,
+        previous_segment: PathSegment,
+        current_segment: PathSegment,
+        start_angle: float,
     ) -> float:
         """
         Determine the relative rotation angle between the profile of the `previous_segment`
@@ -773,7 +786,7 @@ def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) ->
     return (diff / avg) <= tolerance
 
 
-def are_equal_faces(face1, face2, tolerance: float = 0.01) -> bool:
+def are_equal_faces(face1: Face, face2: Face, tolerance: float = 0.01) -> bool:
     """
     Check if two faces have 'approximately' the same area within a given tolerance (default 1%).
 
@@ -796,7 +809,12 @@ def are_equal_faces(face1, face2, tolerance: float = 0.01) -> bool:
     return (difference_area / avg_area) <= tolerance
 
 
-def sweep_single_profile(segment, profile, transition_type, sweep_label="Path"):
+def sweep_single_profile(
+    segment: PathSegment,
+    profile: Sketch,
+    transition_type: Transition,
+    sweep_label: str = "Path",
+) -> Part | None:
     """
     Helper for sweeping a single profile (main path, accent, or support).
     """
@@ -825,7 +843,7 @@ def sweep_single_profile(segment, profile, transition_type, sweep_label="Path"):
         return None
 
 
-def round_to_nearest_90(value):
+def round_to_nearest_90(value: float) -> float:
     if value not in [-180, -90, 0, 90, 180]:
         rounded_value = round(value / 90) * 90
         print(f"Warning: {value} was rounded to {rounded_value}")
@@ -835,7 +853,7 @@ def round_to_nearest_90(value):
     return rounded_value
 
 
-def normalize_angle(angle):
+def normalize_angle(angle: float) -> float:
     """Normalize angle to the range (-180, 180)"""
     while angle <= -180:
         angle += 360

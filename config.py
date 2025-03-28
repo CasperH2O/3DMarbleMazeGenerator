@@ -65,14 +65,14 @@ class Box:
 # Path curves and profile configuration
 class Path:
     PATH_CURVE_MODEL = [
-        PathCurveModel.POLYLINE,
+        PathCurveModel.STANDARD,
         # PathCurveModel.BEZIER,
         PathCurveModel.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [
         PathCurveType.S_CURVE,
-        PathCurveType.DEGREE_90_SINGLE_PLANE,
+        PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
         PathCurveType.ARC,
     ]
 

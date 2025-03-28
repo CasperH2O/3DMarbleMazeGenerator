@@ -1,7 +1,7 @@
 # puzzle/path_interpolator.py
 
 import random
-from typing import Any, Dict, List, Tuple, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 from geomdl import BSpline, utilities
@@ -43,12 +43,16 @@ class PathInterpolator:
         self.total_path: List[Node] = total_path
         self.seed: int = seed
 
-        self.interpolated_segments: List[Dict[str, Any]] = []  # List to store interpolated segments with metadata
+        self.interpolated_segments: List[
+            Dict[str, Any]
+        ] = []  # List to store interpolated segments with metadata
         self._spline_cache: Optional[Any] = None  # Cache for the computed spline
 
         # Initialize interpolation methods from config
         if interpolation_types is None:
-            self.interpolation_methods: List[PathCurveModel] = config.Path.PATH_CURVE_MODEL.copy()
+            self.interpolation_methods: List[PathCurveModel] = (
+                config.Path.PATH_CURVE_MODEL.copy()
+            )
         else:
             self.interpolation_methods = interpolation_types.copy()
 
@@ -82,22 +86,22 @@ class PathInterpolator:
             current_segment_nodes.append(node)
             if node.waypoint and i != 0:
                 # Save the current segment before changing the method
-                segments.append({
-                    'method': current_method,
-                    'nodes': current_segment_nodes.copy()
-                })
+                segments.append(
+                    {"method": current_method, "nodes": current_segment_nodes.copy()}
+                )
                 # Change interpolation method randomly for the next segment
-                new_methods: List[PathCurveModel] = [m for m in interpolation_methods if m != current_method]
+                new_methods: List[PathCurveModel] = [
+                    m for m in interpolation_methods if m != current_method
+                ]
                 if new_methods:
                     current_method = random.choice(new_methods)
                 # Start a new segment beginning with the current waypoint
                 current_segment_nodes = [node]
         # After processing all nodes, add the last segment
         if current_segment_nodes:
-            segments.append({
-                'method': current_method,
-                'nodes': current_segment_nodes.copy()
-            })
+            segments.append(
+                {"method": current_method, "nodes": current_segment_nodes.copy()}
+            )
         return segments
 
     def interpolate_segments(self) -> None:
@@ -106,14 +110,14 @@ class PathInterpolator:
         """
         # Map method enums to interpolation functions
         interpolation_functions: Dict[PathCurveModel, Any] = {
-            PathCurveModel.POLYLINE: self._interpolate_straight,
+            PathCurveModel.STANDARD: self._interpolate_straight,
             PathCurveModel.BEZIER: self._interpolate_bezier,
             PathCurveModel.SPLINE: self._interpolate_spline,
         }
 
         for segment in self.segments:
-            method: PathCurveModel = segment['method']
-            nodes: List[Node] = segment['nodes']
+            method: PathCurveModel = segment["method"]
+            nodes: List[Node] = segment["nodes"]
             if method in interpolation_functions:
                 interpolation_functions[method](nodes)
             else:
@@ -126,10 +130,12 @@ class PathInterpolator:
         Parameters:
             nodes (List[Node]): The list of nodes to interpolate.
         """
-        points: List[Tuple[float, float, float]] = [(node.x, node.y, node.z) for node in nodes]
+        points: List[Tuple[float, float, float]] = [
+            (node.x, node.y, node.z) for node in nodes
+        ]
         segment: Dict[str, Any] = {
-            'type': PathCurveModel.POLYLINE,
-            'points': np.array(points)
+            "type": PathCurveModel.STANDARD,
+            "points": np.array(points),
         }
         self.interpolated_segments.append(segment)
 
@@ -155,7 +161,9 @@ class PathInterpolator:
         curve.ctrlpts = control_points
 
         # Auto-generate the knot vector
-        curve.knotvector = utilities.generate_knot_vector(curve.degree, len(control_points))
+        curve.knotvector = utilities.generate_knot_vector(
+            curve.degree, len(control_points)
+        )
 
         # Increase the evaluation resolution for smoother curves
         curve.delta = 0.001  # Lower delta for smoother evaluation
@@ -166,8 +174,8 @@ class PathInterpolator:
         # Extract the evaluated points
         curve_points: np.ndarray = np.array(curve.evalpts)
         segment: Dict[str, Any] = {
-            'type': PathCurveModel.BEZIER,
-            'points': curve_points
+            "type": PathCurveModel.BEZIER,
+            "points": curve_points,
         }
         self.interpolated_segments.append(segment)
 
@@ -181,7 +189,7 @@ class PathInterpolator:
             segment_nodes (List[Node]): The list of nodes to interpolate.
         """
         # Ensure the spline has been computed
-        if not hasattr(self, '_spline_segments'):
+        if not hasattr(self, "_spline_segments"):
             self._compute_full_spline()
 
         # Find the spline segment corresponding to the provided nodes
@@ -190,11 +198,14 @@ class PathInterpolator:
 
         # Search for the matching spline segment
         for spline_segment in self._spline_segments:
-            if spline_segment['start_node'] == start_node and spline_segment['end_node'] == end_node:
+            if (
+                spline_segment["start_node"] == start_node
+                and spline_segment["end_node"] == end_node
+            ):
                 # Found the matching segment
                 segment: Dict[str, Any] = {
-                    'type': PathCurveModel.SPLINE,
-                    'points': spline_segment['points']
+                    "type": PathCurveModel.SPLINE,
+                    "points": spline_segment["points"],
                 }
                 self.interpolated_segments.append(segment)
                 return
@@ -221,8 +232,7 @@ class PathInterpolator:
 
         # Sort the relevant nodes by their original order in total_path
         relevant_nodes: List[Node] = sorted(
-            relevant_nodes_set,
-            key=lambda node: total_path_nodes.index(node)
+            relevant_nodes_set, key=lambda node: total_path_nodes.index(node)
         )
 
         if len(relevant_nodes) < 2:
@@ -237,7 +247,9 @@ class PathInterpolator:
 
         # Chord-length parameterization
         xyz: np.ndarray = np.vstack([xs, ys, zs]).T
-        u_nodes: np.ndarray = np.cumsum(np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)])
+        u_nodes: np.ndarray = np.cumsum(
+            np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)]
+        )
 
         # Create splines for each coordinate
         try:
@@ -256,7 +268,9 @@ class PathInterpolator:
         zz: np.ndarray = sz(uu)
 
         # Identify indices of waypoints in relevant_nodes
-        waypoint_indices: List[int] = [i for i, node in enumerate(relevant_nodes) if node.waypoint]
+        waypoint_indices: List[int] = [
+            i for i, node in enumerate(relevant_nodes) if node.waypoint
+        ]
         u_waypoints: np.ndarray = u_nodes[waypoint_indices]
 
         # Split the spline at waypoints and store each segment
@@ -267,16 +281,20 @@ class PathInterpolator:
             end_idx: int = np.searchsorted(uu, end_u)
 
             # Get the segment points
-            segment_xx: np.ndarray = xx[start_idx:end_idx + 1]
-            segment_yy: np.ndarray = yy[start_idx:end_idx + 1]
-            segment_zz: np.ndarray = zz[start_idx:end_idx + 1]
-            segment_points: np.ndarray = np.vstack([segment_xx, segment_yy, segment_zz]).T
+            segment_xx: np.ndarray = xx[start_idx : end_idx + 1]
+            segment_yy: np.ndarray = yy[start_idx : end_idx + 1]
+            segment_zz: np.ndarray = zz[start_idx : end_idx + 1]
+            segment_points: np.ndarray = np.vstack(
+                [segment_xx, segment_yy, segment_zz]
+            ).T
 
             # Store the segment along with its corresponding waypoints
             segment_info: Dict[str, Any] = {
-                'start_node': relevant_nodes[waypoint_indices[i - 1]] if i > 0 else relevant_nodes[0],
-                'end_node': relevant_nodes[waypoint_indices[i]],
-                'points': segment_points
+                "start_node": relevant_nodes[waypoint_indices[i - 1]]
+                if i > 0
+                else relevant_nodes[0],
+                "end_node": relevant_nodes[waypoint_indices[i]],
+                "points": segment_points,
             }
             self._spline_segments.append(segment_info)
 
