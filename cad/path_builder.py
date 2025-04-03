@@ -144,7 +144,7 @@ class PathBuilder:
                             all_edges.append(seg.path)
 
                 # Combine the collected edges into one continuous wire.
-                combined_wire = Wire._make_wire(all_edges)
+                combined_wire = Wire(all_edges)
 
                 # Combine the nodes of the segments.
                 # Start with the nodes of the first segment, and for each subsequent segment, skip its first node if it duplicates the previous segment's end.
@@ -165,8 +165,7 @@ class PathBuilder:
                 new_segment.curve_model = PathCurveModel.COMPOUND
                 new_segment.path = combined_wire
                 # Inherit additional attributes (like profile type and transition) from the first segment of the group.
-                new_segment.path_profile_type = seg_list_sorted[0].path_profile_type
-                new_segment.transition_type = seg_list_sorted[0].transition_type
+                new_segment.copy_attributes_from(seg_list_sorted[0])
                 # Sweep the combined compound segment after combining all paths.
                 new_segment = self.sweep_standard_segment(new_segment, None)
                 combined_segments.append(new_segment)
@@ -912,6 +911,11 @@ def sweep_single_profile(
     """
     Helper for sweeping a single profile (main path, accent, or support).
     """
+
+    print(
+        f"Segment {segment.main_index}.{segment.secondary_index} path type: {type(segment.path)}"
+    )
+
     try:
         # Create part out of path profile and path
         with BuildPart() as sweep_result:

@@ -421,6 +421,8 @@ class PathSegment:
         Copy path-related attributes from another PathSegment instance.
         """
         self.path_profile_type = other_segment.path_profile_type
+        self.accent_profile_type = other_segment.accent_profile_type
+        self.support_profile_type = other_segment.support_profile_type
         self.curve_model = other_segment.curve_model
         self.curve_type = other_segment.curve_type
         self.transition_type = other_segment.transition_type
