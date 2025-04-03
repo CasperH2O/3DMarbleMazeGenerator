@@ -1,3 +1,4 @@
+import math
 import random
 from enum import Enum
 
@@ -13,6 +14,7 @@ from build123d import (
     Part,
     Plane,
     Polyline,
+    RadiusArc,
     Sketch,
     Spline,
     Transition,
@@ -78,15 +80,15 @@ class PathBuilder:
         """
         Create profile(s), path and body for each path segment.
         For segments with curve_model == PathCurveModel.COMPOUND:
-        1. First, create the segment path (wire) using create_standard_segment (based on the segment's PathCurveType).
+        1. First, create the segment path (wire) using build_segment_path (based on the segment's PathCurveType).
         2. Then, group segments (by main_index) and combine the wires (in secondary_index order)
             into a single compound segment.
+        3. Finally, sweep the compound segment.
         """
         segments = self.path_architect.segments
         previous_segment = None
 
         # First pass: Process each segment to define its path.
-        # For COMPOUND segments, call create_standard_segment so that the segment.path is properly defined.
         for i, segment in enumerate(segments):
             # Skip segments with a puzzle_start if necessary.
             if any(node.puzzle_start for node in segment.nodes):
@@ -96,9 +98,11 @@ class PathBuilder:
                 segment.curve_model == PathCurveModel.COMPOUND
                 or segment.curve_model == PathCurveModel.SINGLE
             ):
-                segment = self.create_standard_segment(previous_segment, segment)
+                segment = self.define_standard_segment_path(segment)
+                if segment.curve_model == PathCurveModel.SINGLE:
+                    # For single segments, sweep right away
+                    segment = self.sweep_standard_segment(segment, previous_segment)
             elif segment.curve_model == PathCurveModel.SPLINE:
-                segment = self.create_standard_segment(previous_segment, segment)
                 segment = self.create_spline_segment(previous_segment, segment)
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
@@ -116,6 +120,8 @@ class PathBuilder:
                 compound_groups.setdefault(segment.main_index, []).append(segment)
             else:
                 non_compound_segments.append(segment)
+
+        # TODO typehinting, get rid of white text
 
         combined_segments = []
         # Process each group: if more than one segment exists, combine them.
@@ -161,6 +167,8 @@ class PathBuilder:
                 # Inherit additional attributes (like profile type and transition) from the first segment of the group.
                 new_segment.path_profile_type = seg_list_sorted[0].path_profile_type
                 new_segment.transition_type = seg_list_sorted[0].transition_type
+                # Sweep the combined compound segment after combining all paths.
+                new_segment = self.sweep_standard_segment(new_segment, None)
                 combined_segments.append(new_segment)
 
         # Rebuild the full segments list: include non-compound segments and the newly combined compound segments.
@@ -168,18 +176,16 @@ class PathBuilder:
         new_segments_list.sort(key=lambda s: (s.main_index, s.secondary_index))
         self.path_architect.segments = new_segments_list
 
-    def create_standard_segment(
-        self, previous_segment: PathSegment, segment: PathSegment
-    ):
+    def define_standard_segment_path(self, segment: PathSegment) -> PathSegment:
         """
-        Creates a standard segment.
+        Creates a standard segment's path
         """
+        # TODO datatype of path consistency
+
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
 
-        # Path
-
-        # Create the path based on the curve type
+        # Create the path wire based on the curve type
         if segment.curve_type == PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE:
             if len(sub_path_points) >= 3:
                 first = sub_path_points[0]
@@ -195,8 +201,27 @@ class PathBuilder:
         elif segment.curve_type == PathCurveType.S_CURVE:
             if len(sub_path_points) >= 3:
                 segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
+        # TODO this PathCurveType still needs to be set in PathArchitect, its now never used
+        elif segment.curve_type == PathCurveType.ARC:
+            first = sub_path_points[0]
+            last = sub_path_points[-1]
+            # Calculate the Euclidean distance between first node to 0,0,0 center of puzzle
+            distance_to_center = math.sqrt(first.X**2 + first.Y**2 + first.Z**2)
+            segment.path = RadiusArc(start=first, end=last, radius=distance_to_center)
+            pass
         else:
             segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
+
+        return segment
+
+    def sweep_standard_segment(
+        self, segment: PathSegment, previous_segment: PathSegment
+    ) -> PathSegment:
+        """
+        Sweeps the segment based on its defined path and profile.
+        Uses the previous segment for it's start orienation
+        Creates the main path body, accent body, and support body.
+        """
 
         # Profile
         path_line_angle = -90
@@ -241,7 +266,6 @@ class PathBuilder:
             accent_path_parameters = self.path_profile_type_parameters.get(
                 segment.accent_profile_type.value, {}
             )
-
             # Store accent color profile sketch based on path profile registry
             accent_profile_function = PROFILE_TYPE_FUNCTIONS.get(
                 segment.accent_profile_type, create_u_shape
@@ -249,7 +273,6 @@ class PathBuilder:
             segment.accent_profile = accent_profile_function(
                 **accent_path_parameters, rotation_angle=path_line_angle + profile_angle
             )
-
             # Sweep for the accent body
             segment.accent_body = sweep_single_profile(
                 segment, segment.accent_profile, segment.transition_type, "Accent"
@@ -261,7 +284,6 @@ class PathBuilder:
             support_path_parameters = self.path_profile_type_parameters.get(
                 segment.support_profile_type.value, {}
             )
-
             # Store support profile sketch based on path profile registry
             support_profile_function = PROFILE_TYPE_FUNCTIONS.get(
                 segment.support_profile_type, create_u_shape
@@ -270,7 +292,6 @@ class PathBuilder:
                 **support_path_parameters,
                 rotation_angle=path_line_angle + profile_angle,
             )
-
             # Sweep for the support body
             segment.support_body = sweep_single_profile(
                 segment, segment.support_profile, segment.transition_type, "Support"
