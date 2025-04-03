@@ -65,8 +65,7 @@ class Box:
 # Path curves and profile configuration
 class Path:
     PATH_CURVE_MODEL = [
-        PathCurveModel.STANDARD,
-        # PathCurveModel.BEZIER,
+        PathCurveModel.COMPOUND,
         PathCurveModel.SPLINE,
     ]
 

@@ -17,13 +17,12 @@ from build123d import (
     Spline,
     Transition,
     Vector,
+    Wire,
     add,
     extrude,
     loft,
     sweep,
 )
-from .path_architect import PathArchitect
-from .path_segment import PathSegment
 
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
@@ -33,6 +32,9 @@ from cad.path_profile_type_shapes import (
 )
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.puzzle import Puzzle
+
+from .path_architect import PathArchitect
+from .path_segment import PathSegment, _node_to_vector, is_same_location
 
 
 class PathTypes(Enum):
@@ -74,25 +76,97 @@ class PathBuilder:
 
     def create_segments(self):
         """
-        Creates profile(s), path and body for each path segment
+        Create profile(s), path and body for each path segment.
+        For segments with curve_model == PathCurveModel.COMPOUND:
+        1. First, create the segment path (wire) using create_standard_segment (based on the segment's PathCurveType).
+        2. Then, group segments (by main_index) and combine the wires (in secondary_index order)
+            into a single compound segment.
         """
         segments = self.path_architect.segments
         previous_segment = None
 
-        for segment in segments:
-            # Skip segments that contain the start node
+        # First pass: Process each segment to define its path.
+        # For COMPOUND segments, call create_standard_segment so that the segment.path is properly defined.
+        for i, segment in enumerate(segments):
+            # Skip segments with a puzzle_start if necessary.
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            # Staddard and spline path curve model segments are handled differently
-            if segment.curve_model == PathCurveModel.STANDARD:
+            if (
+                segment.curve_model == PathCurveModel.COMPOUND
+                or segment.curve_model == PathCurveModel.SINGLE
+            ):
                 segment = self.create_standard_segment(previous_segment, segment)
             elif segment.curve_model == PathCurveModel.SPLINE:
+                segment = self.create_standard_segment(previous_segment, segment)
                 segment = self.create_spline_segment(previous_segment, segment)
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
 
             previous_segment = segment
+
+        # Second pass: Group COMPOUND segments by main_index for combination.
+        compound_groups = {}  # key: main_index, value: list of COMPOUND segments
+        non_compound_segments = []
+        for segment in segments:
+            # Only group COMPOUND segments that do not include a puzzle start node.
+            if segment.curve_model == PathCurveModel.COMPOUND and not any(
+                node.puzzle_start for node in segment.nodes
+            ):
+                compound_groups.setdefault(segment.main_index, []).append(segment)
+            else:
+                non_compound_segments.append(segment)
+
+        combined_segments = []
+        # Process each group: if more than one segment exists, combine them.
+        for main_index, seg_list in compound_groups.items():
+            if len(seg_list) == 1:
+                # No combination needed if there's only one segment.
+                combined_segments.append(seg_list[0])
+            else:
+                # Sort the segments by secondary_index to ensure correct order.
+                seg_list_sorted = sorted(seg_list, key=lambda s: s.secondary_index)
+
+                # Collect edges from each segment's already-created path (wire).
+                all_edges = []
+                for seg in seg_list_sorted:
+                    if seg.path:
+                        # If the path is a Wire, extract its edges; otherwise, assume it's a single Edge.
+                        if hasattr(seg.path, "edges"):
+                            all_edges.extend(seg.path.edges())
+                        else:
+                            all_edges.append(seg.path)
+
+                # Combine the collected edges into one continuous wire.
+                combined_wire = Wire._make_wire(all_edges)
+
+                # Combine the nodes of the segments.
+                # Start with the nodes of the first segment, and for each subsequent segment, skip its first node if it duplicates the previous segment's end.
+                combined_nodes = seg_list_sorted[0].nodes.copy()
+                for seg in seg_list_sorted[1:]:
+                    if seg.nodes and is_same_location(
+                        _node_to_vector(seg.nodes[0]),
+                        _node_to_vector(combined_nodes[-1]),
+                    ):
+                        combined_nodes.extend(seg.nodes[1:])
+                    else:
+                        combined_nodes.extend(seg.nodes)
+
+                # Create a new compound segment using the combined nodes and the combined wire.
+                new_segment = PathSegment(
+                    combined_nodes, main_index=main_index, secondary_index=0
+                )
+                new_segment.curve_model = PathCurveModel.COMPOUND
+                new_segment.path = combined_wire
+                # Inherit additional attributes (like profile type and transition) from the first segment of the group.
+                new_segment.path_profile_type = seg_list_sorted[0].path_profile_type
+                new_segment.transition_type = seg_list_sorted[0].transition_type
+                combined_segments.append(new_segment)
+
+        # Rebuild the full segments list: include non-compound segments and the newly combined compound segments.
+        new_segments_list = non_compound_segments + combined_segments
+        new_segments_list.sort(key=lambda s: (s.main_index, s.secondary_index))
+        self.path_architect.segments = new_segments_list
 
     def create_standard_segment(
         self, previous_segment: PathSegment, segment: PathSegment
@@ -105,25 +179,24 @@ class PathBuilder:
 
         # Path
 
-        # Create the path based on the curve model
-        if segment.curve_model == PathCurveModel.STANDARD:
-            if segment.curve_type == PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE:
-                if len(sub_path_points) >= 3:
-                    first = sub_path_points[0]
-                    middle = sub_path_points[len(sub_path_points) // 2]
-                    last = sub_path_points[-1]
-                    segment.path = Bezier(
-                        [
-                            (first.X, first.Y, first.Z),
-                            (middle.X, middle.Y, middle.Z),
-                            (last.X, last.Y, last.Z),
-                        ]
-                    )
-            elif segment.curve_type == PathCurveType.S_CURVE:
-                if len(sub_path_points) >= 3:
-                    segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
-            else:
-                segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
+        # Create the path based on the curve type
+        if segment.curve_type == PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE:
+            if len(sub_path_points) >= 3:
+                first = sub_path_points[0]
+                middle = sub_path_points[len(sub_path_points) // 2]
+                last = sub_path_points[-1]
+                segment.path = Bezier(
+                    [
+                        (first.X, first.Y, first.Z),
+                        (middle.X, middle.Y, middle.Z),
+                        (last.X, last.Y, last.Z),
+                    ]
+                )
+        elif segment.curve_type == PathCurveType.S_CURVE:
+            if len(sub_path_points) >= 3:
+                segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
+        else:
+            segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
 
         # Profile
         path_line_angle = -90
@@ -487,7 +560,7 @@ class PathBuilder:
 
         # Create the path as standard curve model with all nodes and set curve model to POLYLINE
         segment.path = Polyline(sub_path_points)
-        segment.curve_model = PathCurveModel.STANDARD
+        segment.curve_model = PathCurveModel.COMPOUND
 
         # Create the segment as standard curve model instead of a spline
         segment = self.create_standard_segment(previous_segment, segment)
@@ -619,7 +692,7 @@ class PathBuilder:
             # Only process segments of PathProfileType O_SHAPE and Standard curve model
             if (
                 segment.path_profile_type not in [PathProfileType.O_SHAPE]
-                or segment.curve_model != PathCurveModel.STANDARD
+                or segment.curve_model != PathCurveModel.COMPOUND
             ):
                 continue  # Skip this segment
 

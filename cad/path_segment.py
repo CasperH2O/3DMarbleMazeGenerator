@@ -1,31 +1,31 @@
 # cad/path_segment.py
 
 import math
-from typing import List, Optional
+from typing import List, Optional, Union
 
-import build123d as b3d
+from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 
 from config import PathCurveModel, PathCurveType, PathProfileType
 from puzzle.node import Node, NodeGridType
 
 
-def _node_to_vector(node: Node) -> b3d.Vector:
+def _node_to_vector(node: Node) -> Vector:
     """Helper to convert a Node to a b3d.Vector."""
-    return b3d.Vector(node.x, node.y, node.z)
+    return Vector(node.x, node.y, node.z)
 
 
-def _safe_normalize(vec: b3d.Vector) -> b3d.Vector:
+def _safe_normalize(vec: Vector) -> Vector:
     """
     Returns a normalized vector.
     If the vector length is zero, returns a default vector (1, 0, 0)
     to avoid division by zero.
     """
     if vec.length == 0:
-        return b3d.Vector(1, 0, 0)
+        return Vector(1, 0, 0)
     return vec.normalized()
 
 
-def midpoint(P: b3d.Vector, Q: b3d.Vector, circular: bool = False) -> b3d.Vector:
+def midpoint(P: Vector, Q: Vector, circular: bool = False) -> Vector:
     """
     Returns the midpoint between two vectors.
     If circular is True, returns the midpoint along the arc of the circle with center (0,0)
@@ -48,9 +48,7 @@ def midpoint(P: b3d.Vector, Q: b3d.Vector, circular: bool = False) -> b3d.Vector
         r2 = math.hypot(Q.X, Q.Y)
         r_mid = (r1 + r2) / 2.0
         z_mid = (P.Z + Q.Z) / 2.0
-        return b3d.Vector(
-            r_mid * math.cos(theta_mid), r_mid * math.sin(theta_mid), z_mid
-        )
+        return Vector(r_mid * math.cos(theta_mid), r_mid * math.sin(theta_mid), z_mid)
     else:
         return (P + Q) * 0.5
 
@@ -71,28 +69,30 @@ class PathSegment:
 
         self.curve_type: Optional[PathCurveType] = None  # Curve type as enum
         self.curve_model: Optional[PathCurveModel] = None  # Assigned path curve model
-        self.transition_type: Optional[b3d.Transition] = (
+        self.transition_type: Optional[Transition] = (
             None  # Assigned path transition type
         )
-
-        self.path = None  # CAD path
-        self.path_profile_type: Optional[PathProfileType] = (
-            None  # Assigned path profile type
-        )
-        self.path_profile: Optional[b3d.Sketch] = None  # CAD path profile
-        self.path_body: Optional[b3d.Part] = None  # CAD swept path body
+        # CAD path (might be specific edge type or combined wire for the group)
+        self.path: Optional[Union[Edge, Wire]] = None
+        # Assigned path profile type
+        self.path_profile_type: Optional[PathProfileType] = None
+        self.path_profile: Optional[Sketch] = None  # CAD path profile
+        self.path_body: Optional[Part] = None  # CAD swept path body
 
         self.accent_profile_type: Optional[PathProfileType] = (
             None  # Path corresponding accent profile type
         )
-        self.accent_profile: Optional[b3d.Sketch] = None  # CAD path profile
-        self.accent_body: Optional[b3d.Part] = None  # CAD accent body
+        self.accent_profile: Optional[Sketch] = None  # CAD path profile
+        self.accent_body: Optional[Part] = None  # CAD accent body
 
         self.support_profile_type: Optional[PathProfileType] = (
             None  # Path corresponding support profile type
         )
-        self.support_profile: Optional[b3d.Sketch] = None  # CAD path profile
-        self.support_body: Optional[b3d.Part] = None  # CAD support body
+        self.support_profile: Optional[Sketch] = None  # CAD path profile
+        self.support_body: Optional[Part] = None  # CAD support body
+
+        # Store the specific edge created for this segment before combination
+        self.path_edge_only: Optional[Union[Edge, Wire]] = None
 
     def adjust_start_and_endpoints(
         self,
@@ -220,7 +220,7 @@ class PathSegment:
                 # Otherwise, use a linear offset by half the node size.
                 entering_vector = end_node_point - _node_to_vector(previous_end_node)
                 if entering_vector.length == 0:
-                    entering_vector = b3d.Vector(1, 0, 0)
+                    entering_vector = Vector(1, 0, 0)
                 entering_direction = _safe_normalize(entering_vector)
                 move_distance = node_size / 2
                 move_vector = entering_direction * move_distance
@@ -353,7 +353,7 @@ class PathSegment:
         elif previous_end_node is not None:
             exiting_vector = node_point - _node_to_vector(previous_end_node)
         else:
-            exiting_vector = b3d.Vector(1, 0, 0)
+            exiting_vector = Vector(1, 0, 0)
 
         exiting_direction = _safe_normalize(exiting_vector)
 
@@ -426,7 +426,7 @@ class PathSegment:
         self.transition_type = other_segment.transition_type
 
 
-def is_same_location(p1: b3d.Vector, p2: b3d.Vector, tol: float = 1e-7) -> bool:
+def is_same_location(p1: Vector, p2: Vector, tol: float = 1e-7) -> bool:
     """
     Returns True if p1 and p2 are effectively the same point within a given tolerance.
     """

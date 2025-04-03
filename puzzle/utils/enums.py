@@ -19,7 +19,8 @@ class PathCurveModel(Enum):
     Enumeration representing the different models for path curves.
     """
 
-    STANDARD = "standard"
+    SINGLE = "single"
+    COMPOUND = "compound"
     SPLINE = "spline"
 
 

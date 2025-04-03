@@ -1,13 +1,14 @@
-# plotly_helpers.py
+# visualization/plotly_helpers.py
 
 import numpy as np
 import plotly.graph_objects as go
 
+from cad.cases.case import Case
 from puzzle.casing import BoxCasing, SphereCasing
-from puzzle.node import NodeGridType
+from puzzle.node import Node, NodeGridType
 
 
-def plot_nodes_plotly(nodes):
+def plot_nodes_plotly(nodes: list[Node]):
     """
     Groups nodes by their primary property so that the legend only displays the primary label,
     while the hover text for each marker shows all applicable flags on separate lines.
@@ -123,7 +124,7 @@ def plot_nodes_plotly(nodes):
     return traces
 
 
-def plot_casing_plotly(casing):
+def plot_casing_plotly(casing: Case):
     if isinstance(casing, SphereCasing):
         return plot_sphere_casing_plotly(casing)
     elif isinstance(casing, BoxCasing):
@@ -132,7 +133,7 @@ def plot_casing_plotly(casing):
         raise ValueError(f"Unsupported casing type: {type(casing)}")
 
 
-def plot_sphere_casing_plotly(casing):
+def plot_sphere_casing_plotly(casing: SphereCasing):
     theta = np.linspace(0, 2 * np.pi, 100)
     r = casing.inner_radius
 
@@ -183,7 +184,7 @@ def plot_sphere_casing_plotly(casing):
     return casing_traces
 
 
-def plot_box_casing_plotly(casing):
+def plot_box_casing_plotly(casing: BoxCasing):
     hw = casing.half_width
     hh = casing.half_length
     hl = casing.half_height

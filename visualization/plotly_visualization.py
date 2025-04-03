@@ -7,8 +7,10 @@ import plotly.graph_objects as go
 from geomdl import BSpline, utilities
 from scipy import interpolate
 
+from cad.cases.case import Case
+from cad.path_segment import PathSegment
 from config import PathCurveModel, PathCurveType
-from puzzle.node import NodeGridType
+from puzzle.node import Node, NodeGridType
 
 from .plotly_helpers import (  # Import shared helper functions
     plot_casing_plotly,
@@ -16,7 +18,7 @@ from .plotly_helpers import (  # Import shared helper functions
 )
 
 
-def visualize_path_architect(nodes, segments, casing):
+def visualize_path_architect(nodes: Node, segments: list[PathSegment], casing: Case):
     """
     Visualizes the nodes and path segments as defined by path architect.
     """
@@ -86,7 +88,7 @@ def visualize_path_architect(nodes, segments, casing):
         )
 
         # Determine the method to generate the segment curve.
-        if segment.curve_model == PathCurveModel.STANDARD:
+        if segment.curve_model == PathCurveModel.COMPOUND:
             # Use Bézier (B-Spline) if the curve type is S_CURVE or DEGREE_90_SINGLE_PLANE.
             if segment.curve_type in [
                 PathCurveType.S_CURVE,

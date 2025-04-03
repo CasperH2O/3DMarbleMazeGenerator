@@ -112,7 +112,7 @@ class PathArchitect:
                     PathProfileType.U_SHAPE,
                     PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
                 ]
-                available_curve_models = [PathCurveModel.STANDARD]
+                available_curve_models = [PathCurveModel.COMPOUND]
             else:
                 # For other segments, use all available types
                 available_profile_types = self.path_profile_types.copy()
@@ -174,7 +174,7 @@ class PathArchitect:
         curve_id_counter = 1  # Initialize the curve ID counter
         while i < len(self.segments):
             segment = self.segments[i]
-            if segment.curve_model == PathCurveModel.STANDARD:
+            if segment.curve_model == PathCurveModel.COMPOUND:
                 # Split the segment into sub-segments around mounting nodes
                 sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
                 new_split_segments = []
@@ -333,7 +333,7 @@ class PathArchitect:
                             original_segment.path_profile_type
                         )
                         connecting_segment.curve_model = (
-                            PathCurveModel.STANDARD
+                            PathCurveModel.COMPOUND
                         )  # Assuming a straight line
                         connecting_segment.curve_type = None  # No specific curve type
                         connecting_segment.transition_type = (
@@ -471,7 +471,7 @@ class PathArchitect:
             )
 
             # Set the profile type to rectangle shape for the closing shape
-            new_segment.curve_model = PathCurveModel.STANDARD
+            new_segment.curve_model = PathCurveModel.COMPOUND
             new_segment.path_profile_type = PathProfileType.RECTANGLE_SHAPE
             new_segment.curve_type = PathCurveType.STRAIGHT
             new_segment.transition_type = end_segment.transition_type
@@ -539,7 +539,7 @@ class PathArchitect:
                 secondary_index=secondary_index_counter,
             )
             first_node_segment.copy_attributes_from(segment)
-            first_node_segment.curve_model = PathCurveModel.STANDARD
+            first_node_segment.curve_model = PathCurveModel.SINGLE
             new_segments.append(first_node_segment)
             secondary_index_counter += 1
 
@@ -561,7 +561,7 @@ class PathArchitect:
                 secondary_index=secondary_index_counter,
             )
             last_node_segment.copy_attributes_from(segment)
-            last_node_segment.curve_model = PathCurveModel.STANDARD
+            last_node_segment.curve_model = PathCurveModel.SINGLE
             new_segments.append(last_node_segment)
             secondary_index_counter += 1
         else:
@@ -573,7 +573,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter,
                 )
                 single_node_segment.copy_attributes_from(segment)
-                single_node_segment.curve_model = PathCurveModel.STANDARD
+                single_node_segment.curve_model = PathCurveModel.COMPOUND
                 new_segments.append(single_node_segment)
                 secondary_index_counter += 1
 
