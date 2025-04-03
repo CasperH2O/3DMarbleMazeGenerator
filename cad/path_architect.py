@@ -176,7 +176,8 @@ class PathArchitect:
             segment = self.segments[i]
             if segment.curve_model == PathCurveModel.COMPOUND:
                 # Split the segment into sub-segments around mounting nodes
-                sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
+                # sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
+                sub_segments = [segment]
                 new_split_segments = []
                 for sub_segment in sub_segments:
                     if len(sub_segment.nodes) > 1:

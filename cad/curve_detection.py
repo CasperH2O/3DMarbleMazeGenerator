@@ -24,6 +24,9 @@ def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
     if PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
         curve_id_counter = detect_arcs(nodes, curve_id_counter)
 
+    if PathCurveType.ARC in Path.PATH_CURVE_TYPE:
+        curve_id_counter = detect_circular_segments(nodes, curve_id_counter)
+
     return curve_id_counter
 
 
@@ -73,6 +76,37 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
                         curve_id_counter += 1  # Increment curve ID counter
                         break  # No need to check other axes
 
+    return curve_id_counter
+
+
+def detect_circular_segments(nodes: List[Node], curve_id_counter: int) -> int:
+    """
+    Detects consecutive nodes with a circular grid type and marks them as ARC curves.
+
+    Args:
+        nodes (List[Node]): The list of nodes to process.
+        curve_id_counter (int): The current curve ID counter.
+
+    Returns:
+        int: The updated curve ID counter.
+    """
+    i = 0
+    while i < len(nodes):
+        # Check if the node is circular; adjust this check if needed (e.g., using membership)
+        if "circular" in nodes[i].grid_type:
+            start = i
+            # Continue while subsequent nodes are circular.
+            while i < len(nodes) and "circular" in nodes[i].grid_type:
+                i += 1
+            # Mark the block of consecutive circular nodes.
+            for j in range(start, i):
+                node = nodes[j]
+                node.path_curve_type = PathCurveType.ARC
+                node.used_in_curve = True
+                node.curve_id = curve_id_counter
+            curve_id_counter += 1  # Increment the counter after processing a block.
+        else:
+            i += 1
     return curve_id_counter
 
 

@@ -18,7 +18,7 @@ class Puzzle:
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 9  # Random seed for reproducibility
+    SEED = 10  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 10  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
 

@@ -230,12 +230,15 @@ class PathBuilder:
                 segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
         # TODO this PathCurveType still needs to be set in PathArchitect, its now never used
         elif segment.curve_type == PathCurveType.ARC:
-            first = sub_path_points[0]
-            last = sub_path_points[-1]
-            # Calculate the Euclidean distance between first node to 0,0,0 center of puzzle
-            distance_to_center = math.sqrt(first.X**2 + first.Y**2 + first.Z**2)
-            segment.path = RadiusArc(start=first, end=last, radius=distance_to_center)
-            pass
+            if len(sub_path_points) >= 2:
+                first = sub_path_points[0]
+                last = sub_path_points[-1]
+                # Calculate the Euclidean distance between first node to 0,0,0 center of puzzle
+                distance_to_center = math.sqrt(first.X**2 + first.Y**2 + first.Z**2)
+                distance_to_center *= -1  # TODO Invert sometimes, why?
+                segment.path = RadiusArc(
+                    start_point=first, end_point=last, radius=distance_to_center
+                )
         else:
             segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
 
