@@ -472,6 +472,7 @@ class PathArchitect:
 
             # Set the profile type to rectangle shape for the closing shape
             new_segment.curve_model = PathCurveModel.SINGLE
+            # TODO instead of a rectangle, wrap the path profile type shape
             new_segment.path_profile_type = PathProfileType.RECTANGLE_SHAPE
             new_segment.curve_type = PathCurveType.STRAIGHT
             new_segment.transition_type = end_segment.transition_type

@@ -1,6 +1,7 @@
 import math
 import random
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from build123d import (
     Bezier,
@@ -33,7 +34,7 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from config import Config, PathCurveModel, PathCurveType
-from puzzle.puzzle import Puzzle
+from puzzle.puzzle import Node, Puzzle
 
 from .path_architect import PathArchitect
 from .path_segment import PathSegment, _node_to_vector, is_same_location
@@ -76,44 +77,61 @@ class PathBuilder:
 
         self.final_path_bodies = self.build_final_path_body()
 
-    def create_segments(self):
+    def create_segments(self) -> None:
         """
         Create profile(s), path and body for each path segment.
+
         For segments with curve_model == PathCurveModel.COMPOUND:
-        1. First, create the segment path (wire) using build_segment_path (based on the segment's PathCurveType).
-        2. Then, group segments (by main_index) and combine the wires (in secondary_index order)
-            into a single compound segment.
+        1. First, create the segment path (wire) using define_standard_segment_path (based on the segment's PathCurveType).
+        2. Then, group segments (by main_index) and combine the wires (in secondary_index order) into a single compound segment.
         3. Finally, sweep the compound segment.
         """
-        segments = self.path_architect.segments
-        previous_segment = None
+        segments: List[PathSegment] = self.path_architect.segments
+        # Process each segment to define its path.
+        self._process_segment_paths(segments)
+        # Group compound segments and combine them.
+        combined_segments: List[PathSegment] = self._combine_compound_segments(segments)
+        # Sort segments by main_index and secondary_index to ensure correct order.
+        combined_segments.sort(key=lambda s: (s.main_index, s.secondary_index))
+        self.path_architect.segments = combined_segments
 
-        # First pass: Process each segment to define its path.
-        for i, segment in enumerate(segments):
-            # Skip segments with a puzzle_start if necessary.
+    def _process_segment_paths(self, segments: List[PathSegment]) -> None:
+        """
+        Process each segment to define its path and if necessary, sweep it.
+
+        Segment that contain the puzzle start node is skipped.
+        """
+        previous_segment: Optional[PathSegment] = None
+        for segment in segments:
+            # Skip segments that include a puzzle_start node.
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            if (
-                segment.curve_model == PathCurveModel.COMPOUND
-                or segment.curve_model == PathCurveModel.SINGLE
-            ):
+            if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
+                # Create the standard segment path based on its curve type.
                 segment = self.define_standard_segment_path(segment)
                 if segment.curve_model == PathCurveModel.SINGLE:
-                    # For single segments, sweep right away
+                    # For single segments, sweep immediately.
                     segment = self.sweep_standard_segment(segment, previous_segment)
             elif segment.curve_model == PathCurveModel.SPLINE:
+                # Create a spline segment, trying different path combinations.
                 segment = self.create_spline_segment(previous_segment, segment)
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
-
             previous_segment = segment
 
-        # Second pass: Group COMPOUND segments by main_index for combination.
-        compound_groups = {}  # key: main_index, value: list of COMPOUND segments
-        non_compound_segments = []
+    def _combine_compound_segments(
+        self, segments: List[PathSegment]
+    ) -> List[PathSegment]:
+        """
+        Combine compound segments by main_index
+        """
+        compound_groups: Dict[int, List[PathSegment]] = {}
+        # TODO not sure if this is needed anymore
+        non_compound_segments: List[PathSegment] = []
+
+        # Separate compound segments from non-compound segments.
         for segment in segments:
-            # Only group COMPOUND segments that do not include a puzzle start node.
             if segment.curve_model == PathCurveModel.COMPOUND and not any(
                 node.puzzle_start for node in segment.nodes
             ):
@@ -121,65 +139,75 @@ class PathBuilder:
             else:
                 non_compound_segments.append(segment)
 
-        # TODO typehinting, get rid of white text
-
-        combined_segments = []
-        # Process each group: if more than one segment exists, combine them.
+        combined_segments: List[PathSegment] = []
         for main_index, seg_list in compound_groups.items():
             if len(seg_list) == 1:
-                # No combination needed if there's only one segment.
+                # No combination needed if there's only one segment in this group.
                 combined_segments.append(seg_list[0])
             else:
-                # Sort the segments by secondary_index to ensure correct order.
-                seg_list_sorted = sorted(seg_list, key=lambda s: s.secondary_index)
-
-                # Collect edges from each segment's already-created path (wire).
-                all_edges = []
-                for seg in seg_list_sorted:
-                    if seg.path:
-                        # If the path is a Wire, extract its edges; otherwise, assume it's a single Edge.
-                        if hasattr(seg.path, "edges"):
-                            all_edges.extend(seg.path.edges())
-                        else:
-                            all_edges.append(seg.path)
-
-                # Combine the collected edges into one continuous wire.
+                # Sort segments by secondary_index to maintain correct order.
+                seg_list_sorted: List[PathSegment] = sorted(
+                    seg_list, key=lambda s: s.secondary_index
+                )
+                # Collect edges from each segment's already-created path.
+                all_edges: List[Any] = self._collect_edges(seg_list_sorted)
+                # Combine the collected edges into one continuous Wire.
                 combined_wire = Wire(all_edges)
-
                 # Combine the nodes of the segments.
-                # Start with the nodes of the first segment, and for each subsequent segment, skip its first node if it duplicates the previous segment's end.
-                combined_nodes = seg_list_sorted[0].nodes.copy()
-                for seg in seg_list_sorted[1:]:
-                    if seg.nodes and is_same_location(
-                        _node_to_vector(seg.nodes[0]),
-                        _node_to_vector(combined_nodes[-1]),
-                    ):
-                        combined_nodes.extend(seg.nodes[1:])
-                    else:
-                        combined_nodes.extend(seg.nodes)
-
-                # Create a new compound segment using the combined nodes and the combined wire.
+                combined_nodes = self._combine_nodes(seg_list_sorted)
+                # Create a new compound segment using the combined nodes and Wire.
                 new_segment = PathSegment(
                     combined_nodes, main_index=main_index, secondary_index=0
                 )
                 new_segment.curve_model = PathCurveModel.COMPOUND
                 new_segment.path = combined_wire
-                # Inherit additional attributes (like profile type and transition) from the first segment of the group.
+                # Inherit additional attributes (like profile type and transition) from the first segment.
                 new_segment.copy_attributes_from(seg_list_sorted[0])
-                # Sweep the combined compound segment after combining all paths.
+                # Sweep the combined compound segment.
                 new_segment = self.sweep_standard_segment(new_segment, None)
                 combined_segments.append(new_segment)
 
-        # Rebuild the full segments list: include non-compound segments and the newly combined compound segments.
-        new_segments_list = non_compound_segments + combined_segments
-        new_segments_list.sort(key=lambda s: (s.main_index, s.secondary_index))
-        self.path_architect.segments = new_segments_list
+        # Return both non-compound and combined compound segments.
+        return non_compound_segments + combined_segments
+
+    def _collect_edges(self, seg_list: List[PathSegment]) -> List[Any]:
+        """
+        Helper method to collect edges from the path of each segment.
+
+        If the path is a Wire, extract its edges; otherwise, assume it's a single Edge.
+        """
+        all_edges: List[Any] = []
+        for seg in seg_list:
+            if seg.path:
+                if hasattr(seg.path, "edges"):
+                    all_edges.extend(seg.path.edges())
+                else:
+                    all_edges.append(seg.path)
+        return all_edges
+
+    def _combine_nodes(self, seg_list: List[PathSegment]) -> List[Node]:
+        """
+        Helper method to combine nodes from a sorted list of segments.
+
+        Starts with the nodes of the first segment, then for each subsequent segment,
+        skips its first node if it duplicates the previous segment's end node,
+        ensuring continuity in the combined node list.
+        """
+        combined_nodes: List[Node] = seg_list[0].nodes.copy()
+        for seg in seg_list[1:]:
+            # Use helper _node_to_vector to compare positions of nodes.
+            if seg.nodes and is_same_location(
+                _node_to_vector(seg.nodes[0]), _node_to_vector(combined_nodes[-1])
+            ):
+                combined_nodes.extend(seg.nodes[1:])
+            else:
+                combined_nodes.extend(seg.nodes)
+        return combined_nodes
 
     def define_standard_segment_path(self, segment: PathSegment) -> PathSegment:
         """
         Creates a standard segment's path
         """
-        # TODO datatype of path consistency
 
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
@@ -911,10 +939,6 @@ def sweep_single_profile(
     """
     Helper for sweeping a single profile (main path, accent, or support).
     """
-
-    print(
-        f"Segment {segment.main_index}.{segment.secondary_index} path type: {type(segment.path)}"
-    )
 
     try:
         # Create part out of path profile and path
