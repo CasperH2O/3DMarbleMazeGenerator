@@ -5,12 +5,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from config import CaseShape, Config
-from .path_finder import AStarPathFinder
 from cad.path_architect import PathArchitect
+from config import CaseShape, Config
+
+from .casing import BoxCasing, SphereCasing
 from .node import Node
-from .node_creator import SphereGridNodeCreator, BoxGridNodeCreator
-from .casing import SphereCasing, BoxCasing
+from .node_creator import BoxGridNodeCreator, SphereGridNodeCreator
+from .path_finder import AStarPathFinder
 
 
 class Puzzle:
@@ -33,7 +34,11 @@ class Puzzle:
         self.case_shape: CaseShape = case_shape
 
         # Initialize the casing and node_creator based on case_shape
-        if case_shape in (CaseShape.SPHERE, CaseShape.SPHERE_WITH_FLANGE, CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES):
+        if case_shape in (
+            CaseShape.SPHERE,
+            CaseShape.SPHERE_WITH_FLANGE,
+            CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES,
+        ):
             self.casing: SphereCasing = SphereCasing(
                 diameter=Config.Sphere.SPHERE_DIAMETER,
                 shell_thickness=Config.Sphere.SHELL_THICKNESS,
@@ -57,7 +62,9 @@ class Puzzle:
         self.nodes: List[Node]
         self.node_dict: Dict[Tuple[float, float, float], Node]
         self.start_node: Node
-        self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(self)
+        self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(
+            self
+        )
 
         # Define mounting waypoints
         self.define_mounting_waypoints()
@@ -72,17 +79,16 @@ class Puzzle:
         self.total_path: List[Node] = self.pathfinder.connect_waypoints(self)
 
         # Interpolate the path
-        '''
+        """
         self.path_interpolator: PathInterpolator = PathInterpolator(
             total_path=self.total_path,
             seed=self.seed,
         )
         self.interpolated_segments: List[Any] = self.path_interpolator.interpolated_segments
-        '''
-        
+        """
+
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
-
 
     def get_neighbors(self, node: Node) -> List[Node]:
         """
@@ -132,7 +138,9 @@ class Puzzle:
             num_candidates (int, optional): Number of candidate nodes to consider when selecting each waypoint. Defaults to 10.
         """
         # Select unoccupied nodes
-        unoccupied_nodes: List[Node] = [node for node in self.nodes if not node.occupied]
+        unoccupied_nodes: List[Node] = [
+            node for node in self.nodes if not node.occupied
+        ]
         if len(unoccupied_nodes) < num_waypoints:
             num_waypoints = len(unoccupied_nodes)
             print(
@@ -157,13 +165,11 @@ class Puzzle:
 
                 if not waypoints:
                     # If no waypoints yet, any candidate is acceptable
-                    min_dist = float('inf')
+                    min_dist = float("inf")
                 else:
                     # Compute distances to existing waypoints
                     dists = [
-                        np.linalg.norm(
-                            candidate_pos - np.array([wp.x, wp.y, wp.z])
-                        )
+                        np.linalg.norm(candidate_pos - np.array([wp.x, wp.y, wp.z]))
                         for wp in waypoints
                     ]
                     min_dist = min(dists)
@@ -191,16 +197,14 @@ class Puzzle:
 
         # Segment statistics
         straight_segments = sum(
-            1
-            for segment in self.path_architect.segments
-            if segment.curve_type is None
+            1 for segment in self.path_architect.segments if segment.curve_type is None
         )
         curved_segments = len(self.path_architect.segments) - straight_segments
         print("\n=== Segment Statistics ===")
         print(f"Straight segments: {straight_segments}")
         print(f"Curved segments: {curved_segments}")
         print(
-            f"Ratio (curved/total): {curved_segments/len(self.path_architect.segments):.2%}"
+            f"Ratio (curved/total): {curved_segments / len(self.path_architect.segments):.2%}"
         )
 
         # Path profile counts
@@ -213,7 +217,7 @@ class Puzzle:
         print("\n=== Profile Type Usage ===")
         for profile_type, count in profile_counts.items():
             print(
-                f"{profile_type.value}: {count} times ({count/len(self.path_architect.segments):.1%})"
+                f"{profile_type.value}: {count} times ({count / len(self.path_architect.segments):.1%})"
             )
 
         # Curve type counts
@@ -227,7 +231,7 @@ class Puzzle:
         print("\n=== Curve Type Usage ===")
         for curve_type, count in curve_counts.items():
             print(
-                f"{curve_type.value}: {count} times ({count/len(self.path_architect.segments):.1%})"
+                f"{curve_type.value}: {count} times ({count / len(self.path_architect.segments):.1%})"
             )
 
         # Straight segments count
@@ -235,7 +239,7 @@ class Puzzle:
             curve_counts.values()
         )
         print(
-            f"Straight segments: {straight_segments} ({straight_segments/len(self.path_architect.segments):.1%})"
+            f"Straight segments: {straight_segments} ({straight_segments / len(self.path_architect.segments):.1%})"
         )
 
         # Path profile information
@@ -267,7 +271,7 @@ class Puzzle:
         # Additional useful information
         print("\n=== Additional Details ===")
         print(f"Number of nodes: {len(self.nodes)}")
-        
+
         # Find the start and end node
         start_node = next(node for node in self.nodes if node.puzzle_start)
         end_node = next(node for node in self.nodes if node.puzzle_end)
@@ -276,6 +280,7 @@ class Puzzle:
         print(
             f"Start point (xyz): ({start_node.x:.2f}, {start_node.y:.2f}, {start_node.z:.2f})"
         )
-        print(f"End point (xyz): ({end_node.x:.2f}, {end_node.y:.2f}, {end_node.z:.2f})"
+        print(
+            f"End point (xyz): ({end_node.x:.2f}, {end_node.y:.2f}, {end_node.z:.2f})"
         )
         print("\n")
