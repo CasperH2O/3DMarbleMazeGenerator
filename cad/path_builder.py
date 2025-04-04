@@ -228,17 +228,21 @@ class PathBuilder:
         elif segment.curve_type == PathCurveType.S_CURVE:
             if len(sub_path_points) >= 3:
                 segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
-        # TODO this PathCurveType still needs to be set in PathArchitect, its now never used
         elif segment.curve_type == PathCurveType.ARC:
             if len(sub_path_points) >= 2:
                 first = sub_path_points[0]
                 last = sub_path_points[-1]
                 # Calculate the Euclidean distance between first node to 0,0,0 center of puzzle
                 distance_to_center = math.sqrt(first.X**2 + first.Y**2 + first.Z**2)
-                distance_to_center *= -1  # TODO Invert sometimes, why?
                 segment.path = RadiusArc(
                     start_point=first, end_point=last, radius=distance_to_center
                 )
+                # Check if the arc is bent in the right direction, if not invert and recreate
+                if not is_close_to_origin(segment.path.arc_center):
+                    distance_to_center *= -1
+                    segment.path = RadiusArc(
+                        start_point=first, end_point=last, radius=distance_to_center
+                    )
         else:
             segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
 
@@ -985,3 +989,8 @@ def normalize_angle(angle: float) -> float:
     while angle > 180:
         angle -= 360
     return angle
+
+
+def is_close_to_origin(vec: Vector, tol=1e-5) -> bool:
+    """Check if a vector is close to the origin within a tolerance."""
+    return vec.length < tol
