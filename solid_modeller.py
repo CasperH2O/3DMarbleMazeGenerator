@@ -7,8 +7,10 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Circle,
+    Part,
     Polyline,
     Pos,
+    SortBy,
     Sphere,
     Transition,
     export_stl,
@@ -57,6 +59,30 @@ def main() -> None:
                 label = part.label
                 color = part.color
                 case_parts[idx] = part - standard_path
+                # Extract and sort the solids by volume
+                sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
+
+                # Get the largest solid (last one in ascending volume sort)
+                largest_solid = sorted_solids[-1]
+
+                # Convert it to a Part
+                case_parts[idx] = largest_solid
+                case_parts[idx].label = label
+                case_parts[idx].color = color
+            if part.label == CasePart.INTERNAL_PATH_BRIDGES.value:
+                label = part.label
+                color = part.color
+                case_parts[idx] = part - standard_path
+                # Extract and sort the solids by volume
+                sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
+
+                # Get the n mounting points path amount smallest solids
+                remaining_path_bridge_pieces = sorted_solids[
+                    : Config.Sphere.NUMBER_OF_MOUNTING_POINTS - 1
+                ]
+
+                # Convert it to a Part
+                case_parts[idx] = remaining_path_bridge_pieces
                 case_parts[idx].label = label
                 case_parts[idx].color = color
                 break
