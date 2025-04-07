@@ -1,15 +1,16 @@
 # puzzle/puzzle.py
 
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from collections import Counter
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from cad.path_architect import PathArchitect
-from config import CaseShape, Config
+from config import CaseManufacturer, CaseShape, Config, Theme
 
 from .casing import BoxCasing, SphereCasing
-from .node import Node
+from .node import Node, NodeGridType
 from .node_creator import BoxGridNodeCreator, SphereGridNodeCreator
 from .path_finder import AStarPathFinder
 
@@ -189,98 +190,207 @@ class Puzzle:
 
     def print_puzzle_info(self) -> None:
         """
-        Prints detailed information about the puzzle, including segment statistics and usage of profile and curve types.
+        Prints detailed information about the generated puzzle configuration and results.
         """
-        print("=== Puzzle Information ===")
-        print(f"Total path length: {len(self.total_path)}")
-        print(f"Number of segments: {len(self.path_architect.segments)}")
+        print("\n" + "=" * 30)
+        print("      PUZZLE INFORMATION")
+        print("=" * 30)
 
-        # Segment statistics
-        straight_segments = sum(
-            1 for segment in self.path_architect.segments if segment.curve_type is None
-        )
-        curved_segments = len(self.path_architect.segments) - straight_segments
-        print("\n=== Segment Statistics ===")
-        print(f"Straight segments: {straight_segments}")
-        print(f"Curved segments: {curved_segments}")
-        print(
-            f"Ratio (curved/total): {curved_segments / len(self.path_architect.segments):.2%}"
-        )
-
-        # Path profile counts
-        profile_counts: Dict[Any, int] = {}
-        for segment in self.path_architect.segments:
-            profile_counts[segment.path_profile_type] = (
-                profile_counts.get(segment.path_profile_type, 0) + 1
-            )
-
-        print("\n=== Profile Type Usage ===")
-        for profile_type, count in profile_counts.items():
+        # --- Configuration Summary ---
+        print("\n--- Configuration Summary ---")
+        print(f"Seed: {self.seed}")
+        print(f"Case Shape: {self.case_shape.value}")
+        if hasattr(Config.Puzzle, "CASE_MANUFACTURER"):
+            print(f"Manufacturer Profile: {Config.Puzzle.CASE_MANUFACTURER.value}")
+        if hasattr(Config.Puzzle, "THEME"):
+            print(f"Theme: {Config.Puzzle.THEME.value}")
+        print(f"Node Size (mm): {self.node_size}")
+        print(f"Ball Diameter (mm): {Config.Puzzle.BALL_DIAMETER}")
+        if isinstance(self.casing, SphereCasing):
+            print(f"Sphere Diameter (mm): {self.casing.diameter}")
+        elif isinstance(self.casing, BoxCasing):
             print(
-                f"{profile_type.value}: {count} times ({count / len(self.path_architect.segments):.1%})"
+                f"Box Dimensions (LxWxH mm): {self.casing.length} x {self.casing.width} x {self.casing.height}"
+            )
+        print(f"Requested Waypoints: {Config.Puzzle.NUMBER_OF_WAYPOINTS}")
+
+        # --- Allowed Settings ---
+        print("\n--- Allowed Path Settings (from Config) ---")
+        print(
+            f"Allowed Curve Models: {', '.join(m.value for m in Config.Path.PATH_CURVE_MODEL)}"
+        )
+        print(
+            f"Allowed Profile Types: {', '.join(p.value for p in Config.Path.PATH_PROFILE_TYPES)}"
+        )
+        print(
+            f"Allowed Curve Types for Detection: {', '.join(c.value for c in Config.Path.PATH_CURVE_TYPE)}"
+        )
+
+        # --- Node Grid Summary ---
+        print("\n--- Node Grid Summary ---")
+        total_nodes_generated = len(self.nodes)
+        print(f"Total Nodes Generated: {total_nodes_generated}")
+
+        start_node = next((node for node in self.nodes if node.puzzle_start), None)
+        end_node = next((node for node in self.nodes if node.puzzle_end), None)
+
+        path_nodes = set(self.total_path) if self.total_path else set()
+        occupied_count = len(path_nodes)
+
+        all_waypoints_in_grid = [node for node in self.nodes if node.waypoint]
+
+        print(
+            f"Occupied Nodes (Path): {occupied_count} ({occupied_count / total_nodes_generated:.1%})"
+            if total_nodes_generated
+            else "Occupied Nodes (Path): 0"
+        )
+        print(f"Total Waypoints in Grid: {len(all_waypoints_in_grid)}")
+
+        # --- Start Waypoint Pattern/Stats Logic ---
+        waypoint_labels = []
+        last_wp_node = None  # Track the actual node to avoid duplicates
+
+        if self.total_path:
+            for node in self.total_path:
+                is_waypoint = node.waypoint
+                is_start = node.puzzle_start
+                is_end = node.puzzle_end
+
+                current_label = None
+                if is_start:
+                    current_label = "Start"
+                    last_wp_node = node
+                elif is_end:
+                    current_label = "End"
+                    last_wp_node = node
+                elif is_waypoint:
+                    if node != last_wp_node:
+                        current_label = "M" if node.mounting else "N"
+                        last_wp_node = node
+
+                if current_label:
+                    waypoint_labels.append(current_label)
+
+            # Generate Symbolic Pattern
+            symbolic_pattern_parts = []
+            symbol_map = {
+                "Start": "Start",
+                "End": "End",
+                "M": "|",
+                "N": ".",
+            }
+            for label in waypoint_labels:
+                symbolic_pattern_parts.append(symbol_map.get(label, "?"))
+            symbolic_pattern = " ".join(symbolic_pattern_parts)
+            print(f"Waypoint Pattern: {symbolic_pattern}")
+
+            # Generate Gap Statistics
+            gap_sizes = []
+            current_n_count = 0
+            found_first_mount = False
+
+            for i, label in enumerate(waypoint_labels):
+                if label == "N":
+                    current_n_count += 1
+                elif label == "M":
+                    if not found_first_mount:
+                        found_first_mount = True
+                    else:
+                        gap_sizes.append(current_n_count)
+                    current_n_count = 0
+
+            actual_mount_count = waypoint_labels.count("M")
+            actual_random_count = waypoint_labels.count("N")
+
+            print(
+                f"Waypoint Stats: {actual_mount_count} mounting points, {actual_random_count} non-mounting points"
             )
 
-        # Curve type counts
-        curve_counts: Dict[Any, int] = {}
-        for segment in self.path_architect.segments:
-            if segment.curve_type:
-                curve_counts[segment.curve_type] = (
-                    curve_counts.get(segment.curve_type, 0) + 1
+        else:  # If no self.total_path
+            print("Waypoint Stats: No path generated.")
+        # --- End Waypoint Pattern/Stats Logic ---
+
+        if start_node:
+            print(
+                f"Start Node X: {start_node.x:.1f}, Y: {start_node.y:.1f}, Z: {start_node.z:.1f}"
+            )
+        if end_node:
+            print(
+                f"End Node   X: {end_node.x:.1f}, Y: {end_node.y:.1f}, Z: {end_node.z:.1f}"
+            )
+
+        if isinstance(self.node_creator, SphereGridNodeCreator):
+            rect_count = sum(
+                1
+                for node in self.nodes
+                if NodeGridType.CIRCULAR.value not in node.grid_type
+            )
+            circ_count = len(self.nodes) - rect_count
+            print(f"Node Grid Types: Rectangular={rect_count}, Circular={circ_count}")
+
+        # --- Path Summary ---
+        print("\n--- Path Summary ---")
+        total_path_nodes = len(self.total_path) if self.total_path else 0
+        num_segments = (
+            len(self.path_architect.segments)
+            if self.path_architect and self.path_architect.segments
+            else 0
+        )
+        print(f"Total Path Length (nodes): {total_path_nodes}")
+        print(f"Number of Segments: {num_segments}")
+        if num_segments > 0 and total_path_nodes > 0:
+            avg_nodes_per_segment = total_path_nodes / num_segments
+            print(f"Average Nodes per Segment: {avg_nodes_per_segment:.1f}")
+
+        # --- Segment Details ---
+        if num_segments > 0:
+            print("\n--- Segment Details ---")
+            segments = self.path_architect.segments
+
+            # Profile Type Distribution
+            profile_counter = Counter(
+                s.path_profile_type for s in segments if s.path_profile_type
+            )
+            print("Profile Type Distribution:")
+            for profile_type, count in profile_counter.most_common():
+                print(f"  - {profile_type.value}: {count} ({count / num_segments:.1%})")
+
+            # Curve Model Distribution
+            model_counter = Counter(s.curve_model for s in segments if s.curve_model)
+            print("Curve Model Distribution:")
+            for model, count in model_counter.most_common():
+                print(f"  - {model.value}: {count} ({count / num_segments:.1%})")
+
+            # Curve Type Distribution (Specific Curves)
+            curve_type_counter = Counter(s.curve_type for s in segments if s.curve_type)
+            print("Detected Curve Type Distribution:")
+            if curve_type_counter:
+                num_curved_segments = sum(curve_type_counter.values())
+                num_straight_segments = num_segments - num_curved_segments
+                for curve_type, count in curve_type_counter.most_common():
+                    print(
+                        f"  - {curve_type.value}: {count} ({count / num_segments:.1%})"
+                    )
+                num_straight_segments = max(0, num_straight_segments)
+                print(
+                    f"  - Straight (Implicit): {num_straight_segments} ({num_straight_segments / num_segments:.1%})"
                 )
+            else:
+                print("  - All segments appear straight or undefined.")
 
-        print("\n=== Curve Type Usage ===")
-        for curve_type, count in curve_counts.items():
-            print(
-                f"{curve_type.value}: {count} times ({count / len(self.path_architect.segments):.1%})"
+            # Transition Type Distribution
+            transition_counter = Counter(
+                s.transition_type for s in segments if s.transition_type
             )
+            print("Transition Type Distribution:")
+            for transition, count in transition_counter.most_common():
+                transition_name = (
+                    transition.name if hasattr(transition, "name") else str(transition)
+                )
+                print(f"  - {transition_name}: {count} ({count / num_segments:.1%})")
 
-        # Straight segments count
-        straight_segments = len(self.path_architect.segments) - sum(
-            curve_counts.values()
-        )
-        print(
-            f"Straight segments: {straight_segments} ({straight_segments / len(self.path_architect.segments):.1%})"
-        )
+        else:
+            print("\n--- Path Segments ---")
+            print("No path segments generated.")
 
-        # Path profile information
-        profile_types_used = set(
-            segment.path_profile_type for segment in self.path_architect.segments
-        )
-        print(
-            f"Profile types used: {len(profile_types_used)}, "
-            f"{', '.join(pt.value for pt in profile_types_used)}"
-        )
-
-        # Curve models information
-        curve_models_used = set(
-            segment.curve_model for segment in self.path_architect.segments
-        )
-        print(f"Number of different curve models used: {len(curve_models_used)}")
-
-        # Curve types information
-        curve_types_used = set(
-            segment.curve_type
-            for segment in self.path_architect.segments
-            if segment.curve_type is not None
-        )
-        print(
-            f"Different curves used: {len(curve_types_used)}, "
-            f"{', '.join(ct.value for ct in curve_types_used)}"
-        )
-
-        # Additional useful information
-        print("\n=== Additional Details ===")
-        print(f"Number of nodes: {len(self.nodes)}")
-
-        # Find the start and end node
-        start_node = next(node for node in self.nodes if node.puzzle_start)
-        end_node = next(node for node in self.nodes if node.puzzle_end)
-
-        # Print the start and end node coordinates
-        print(
-            f"Start point (xyz): ({start_node.x:.2f}, {start_node.y:.2f}, {start_node.z:.2f})"
-        )
-        print(
-            f"End point (xyz): ({end_node.x:.2f}, {end_node.y:.2f}, {end_node.z:.2f})"
-        )
-        print("\n")
+        print("\n" + "=" * 30 + "\n")
