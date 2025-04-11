@@ -258,7 +258,7 @@ class PathBuilder:
         """
 
         # Profile
-        path_line_angle = -90
+        path_line_angle = 0
         profile_angle = 0
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
