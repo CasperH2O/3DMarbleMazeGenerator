@@ -13,17 +13,17 @@ from puzzle.utils.enums import (
 # Puzzle configuration
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
-    THEME = Theme.MARBLE
+    THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 1  # Random seed for reproducibility
+    SEED = 11  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 10  # Number of randomly placed waypoints
-    WAYPOINT_CHANGE_INTERVAL = 2  # Change path profile and curve type every n waypoints
+    WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
-    PATH_COLOR = "#FFD700FF"  # Yellow
+    PATH_COLORS = ["#FFD700FF", "#00E4EBFF", "#EB009FFF"]  # Gold, Cyan, Magenta
     PATH_ACCENT_COLOR = "#2F66F5FF"  # Blue
     TEXT_COLOR = "#2F66F5FF"  # Blue
     MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
@@ -36,6 +36,7 @@ class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
     EXPORT_STL = False
+    DIVIDE_PATHS_IN = 1  # Divide paths into n parts for printing
 
 
 # Sphere case configuration
@@ -156,7 +157,7 @@ def apply_theme_overrides():
     module_name = f"themes.{theme}"
     try:
         theme_module = __import__(module_name, fromlist=[""])
-        theme_module.apply_overrides(Puzzle, Sphere, Box, Path)
+        theme_module.apply_overrides(Puzzle, Sphere, Box, Path, Manufacturing)
     except ImportError:
         pass  # Generic theme or unknown theme, no overrides
 

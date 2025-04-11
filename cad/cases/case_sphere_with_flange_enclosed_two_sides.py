@@ -504,8 +504,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         self.start_indicator.part.color = Config.Puzzle.PATH_ACCENT_COLOR
 
         self.internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
-        self.internal_path_bridges.part.color = Config.Puzzle.PATH_COLOR
-
+        self.internal_path_bridges.part.color = Config.Puzzle.PATH_COLORS[0]
         # Return parts
         return [
             self.dome_top.part,

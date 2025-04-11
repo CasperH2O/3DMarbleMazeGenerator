@@ -216,7 +216,7 @@ class CaseSphereWithFlange(Case):
         self.dome_bottom.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         self.path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
-        self.path_bridges.part.color = Config.Puzzle.PATH_COLOR
+        self.path_bridges.part.color = Config.Puzzle.PATH_COLORS[0]
 
         self.start_text.part.label = CasePart.START_INDICATOR.value
         self.start_text.part.color = Config.Puzzle.TEXT_COLOR

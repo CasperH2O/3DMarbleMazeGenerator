@@ -75,7 +75,7 @@ class PathBuilder:
         # Make holes in O-shaped path segments
         self.cut_holes_in_o_shape_path_profile_segments()
 
-        self.final_path_bodies = self.build_final_path_body()
+        self.final_path_bodies = self.build_final_path_bodies()
 
     def create_segments(self) -> None:
         """
@@ -622,46 +622,52 @@ class PathBuilder:
 
         return segment
 
-    def build_final_path_body(self):
-        # Create two separate combined bodies
-        standard_body = None
+    def build_final_path_bodies(self):
+        # Prepare for n standard path bodies
+        num_divisions = Config.Manufacturing.DIVIDE_PATHS_IN
+        standard_bodies = [None] * num_divisions
+        counter = 0
+
         support_body = None
         accent_color_body = None
 
         for segment in self.path_architect.segments:
-            # Skip segments that contain the start node
+            # Skip segments with the start node.
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
-            # Skip segments without a body
             if not hasattr(segment, "path_body") or segment.path_body is None:
                 print(
-                    f"Segment at index {segment.main_index}-{segment.secondary_index} has no body."
+                    f"Segment {segment.main_index}-{segment.secondary_index} has no body."
                 )
                 continue
+
+            # Assign each segment to a bucket in a cyclic fashion
+            bucket_idx = counter % num_divisions
+            if standard_bodies[bucket_idx] is None:
+                standard_bodies[bucket_idx] = segment.path_body.part
             else:
-                # Build the path body
-                if standard_body is None:
-                    standard_body = segment.path_body.part
-                else:
-                    standard_body = standard_body + segment.path_body.part
+                standard_bodies[bucket_idx] = (
+                    standard_bodies[bucket_idx] + segment.path_body.part
+                )
+            counter += 1
 
             # Check if the segment has a (optional) support body
-            if segment.support_body is not None:
+            if hasattr(segment, "support_body") and segment.support_body is not None:
                 if support_body is None:
                     support_body = segment.support_body.part
                 else:
                     support_body = support_body + segment.support_body.part
 
             # Check if the segment has a (optional) color accent body
-            if segment.accent_body is not None:
+            if hasattr(segment, "accent_body") and segment.accent_body is not None:
                 if accent_color_body is None:
                     accent_color_body = segment.accent_body.part
                 else:
                     accent_color_body = accent_color_body + segment.accent_body.part
 
         return {
-            PathTypes.STANDARD: standard_body,
+            PathTypes.STANDARD: [body for body in standard_bodies if body is not None],
             PathTypes.SUPPORT: support_body,
             PathTypes.ACCENT_COLOR: accent_color_body,
         }

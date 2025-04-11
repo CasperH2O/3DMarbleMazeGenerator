@@ -7,7 +7,6 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Circle,
-    Part,
     Polyline,
     Pos,
     SortBy,
@@ -46,19 +45,21 @@ def main() -> None:
     case_parts, cut_shape = puzzle_casing()
 
     # Build paths associated with the puzzle and cut them from the case
-    standard_path, support_path, coloring_path = path(puzzle, cut_shape)
+    standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
 
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
 
-    # If a mounting ring is one of the parts, subtract the standard path for physical bridge
-    if standard_path:
+    if standard_paths:
         for idx, part in enumerate(case_parts):
+            # Subtract the standard path for physical bridge
             if part.label == CasePart.MOUNTING_RING.value:
                 # TODO improve this, need all objects to be same type, then it should remember label and color
                 label = part.label
                 color = part.color
-                case_parts[idx] = part - standard_path
+
+                # TODO, combine all paths into one object, then subtract the cut shape from it
+                case_parts[idx] = part - standard_paths[0]
                 # Extract and sort the solids by volume
                 sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
 
@@ -69,10 +70,13 @@ def main() -> None:
                 case_parts[idx] = largest_solid
                 case_parts[idx].label = label
                 case_parts[idx].color = color
+            # Cut internal patch bridges to be flush with paths
             if part.label == CasePart.INTERNAL_PATH_BRIDGES.value:
                 label = part.label
                 color = part.color
-                case_parts[idx] = part - standard_path
+
+                # TODO, combine all paths into one object, then subtract the cut shape from it
+                case_parts[idx] = part - standard_paths[0]
                 # Extract and sort the solids by volume
                 sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
 
@@ -89,7 +93,7 @@ def main() -> None:
 
     # Display all case, puzzle and additional parts
     display_parts(
-        case_parts, standard_path, support_path, coloring_path, ball, ball_path
+        case_parts, standard_paths, support_path, coloring_path, ball, ball_path
     )
 
     # Set viewer configuration
@@ -97,7 +101,7 @@ def main() -> None:
 
     # Export all case and additional parts
     additional_parts = [
-        standard_path,
+        standard_paths,
         support_path,
         coloring_path,
     ]
@@ -137,27 +141,39 @@ def puzzle_casing():
 def path(puzzle, cut_shape):
     """
     Generate the path objects, cut them from the case where needed, and return:
-      - standard_path
-      - support_path
-      - coloring_path
+      - standard_paths: a list of standard path bodies with proper labeling and colors
+      - support_path: a single support path body
+      - coloring_path: a single accent/coloring path body
     """
-    # Initialize the PathBuilder
+    # Initialize the PathBuilder (which internally builds and stores the final path bodies)
     path_builder = PathBuilder(puzzle)
 
     # Retrieve the path bodies and the start area
     path_bodies = path_builder.final_path_bodies
     start_area = path_builder.start_area
 
-    standard_path = None
-    support_path = None
-    coloring_path = None
-
-    if path_bodies[PathTypes.STANDARD]:
-        standard_path = path_bodies[PathTypes.STANDARD]
-        standard_path = standard_path + start_area[0].part  # combine with start area
-        standard_path = standard_path - cut_shape.part  # subtract the cut shape
-        standard_path.label = PathTypes.STANDARD.value
-        standard_path.color = Config.Puzzle.PATH_COLOR
+    # Process standard paths:
+    standard_path_bodies = []
+    if path_bodies.get(PathTypes.STANDARD):
+        # Available standard colors from the configuration (roll over if more segments than colors)
+        standard_colors = Config.Puzzle.PATH_COLORS
+        standard_parts = path_bodies[PathTypes.STANDARD]
+        # Loop through each standard part; use a counter for labeling and color assignment.
+        for idx, part in enumerate(standard_parts, start=1):
+            # For the first body, combine it with the start area
+            if idx == 1:
+                combined = (
+                    part + start_area[0].part
+                )  # merge with the first start area element
+            else:
+                combined = part
+            # Subtract the cut shape from the combined (or single) object.
+            final_obj = combined - cut_shape.part
+            # Assign a label with a counter (e.g., "Standard Path 1", "Standard Path 2", etc.)
+            final_obj.label = f"Standard Path {idx}"
+            # Use the color from the list, rolling over if necessary.
+            final_obj.color = standard_colors[(idx - 1) % len(standard_colors)]
+            standard_path_bodies.append(final_obj)
 
     if path_bodies[PathTypes.SUPPORT]:
         support_path = path_bodies[PathTypes.SUPPORT]
@@ -174,7 +190,7 @@ def path(puzzle, cut_shape):
         coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
 
-    return standard_path, support_path, coloring_path
+    return standard_path_bodies, support_path, coloring_path
 
 
 def ball_and_path_indicators(puzzle):
@@ -207,7 +223,7 @@ def ball_and_path_indicators(puzzle):
 
 
 def display_parts(
-    case_parts, standard_path, support_path, coloring_path, ball, ball_path
+    case_parts, standard_paths, support_path, coloring_path, ball, ball_path
 ):
     """
     Display all puzzle physical objects.
@@ -219,8 +235,8 @@ def display_parts(
     for part in case_parts:
         show_object(part)
 
-    # The paths already have labels and colors
-    if standard_path:
+    # The paths, standard paths, support path and coloring path
+    for standard_path in standard_paths:
         show_object(standard_path)
 
     if support_path:
