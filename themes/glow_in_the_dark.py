@@ -6,7 +6,7 @@ def apply_overrides(
     puzzle: Puzzle, sphere: Sphere, box: Box, path: Path, manufacturing: Manufacturing
 ):
     """Set glow in the dark theme specific configurations"""
-    puzzle.BALL_COLOR = "#CAFFBFFF"  # Neon Green
+    puzzle.BALL_COLOR = "#39FF14FF"  # Neon Green
     puzzle.PATH_COLORS = [
         puzzle.BALL_COLOR,  # First standard color
         "#8A00C4FF",  # Second standard color (Neon Purple)

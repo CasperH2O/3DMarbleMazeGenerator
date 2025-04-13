@@ -12,7 +12,7 @@ from puzzle.utils.enums import (
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
@@ -36,7 +36,10 @@ class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
     EXPORT_STL = False
-    DIVIDE_PATHS_IN = 1  # Divide paths into n parts for printing
+    # Divide paths into n parts for printing,
+    # 0 for everything seperate
+    # 1 for one part, 2 for two parts, etc.
+    DIVIDE_PATHS_IN = 1
 
 
 # Sphere case configuration

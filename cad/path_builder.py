@@ -631,26 +631,37 @@ class PathBuilder:
         support_body = None
         accent_color_body = None
 
+        # TODO first combine all segments with the same main_index, for example spline segments consists of sets of threes
+        # TODO, when DIVIDE_PATHS_IN is 0, keep all paths seperate
+        # TODO, seperate method to create inner bridge cut and addition to the path bodies to connect them
+
         for segment in self.path_architect.segments:
-            # Skip segments with the start node.
+            # Skip segments with a start node.
             if any(node.puzzle_start for node in segment.nodes):
                 continue
 
+            # Skip segments that have no body.
             if not hasattr(segment, "path_body") or segment.path_body is None:
                 print(
-                    f"Segment {segment.main_index}-{segment.secondary_index} has no body."
+                    f"Segment at {segment.main_index}-{segment.secondary_index} has no body."
                 )
                 continue
 
-            # Assign each segment to a bucket in a cyclic fashion
-            bucket_idx = counter % num_divisions
-            if standard_bodies[bucket_idx] is None:
-                standard_bodies[bucket_idx] = segment.path_body.part
+            # Standard body processing:
+            if num_divisions == 0:
+                # If number of divisions is zero, do not combine: store each path body separately.
+                standard_bodies.append(segment.path_body.part)
             else:
-                standard_bodies[bucket_idx] = (
-                    standard_bodies[bucket_idx] + segment.path_body.part
-                )
-            counter += 1
+                # If number of divisions > 0, use cyclic bucket combination.
+                bucket_idx = counter % num_divisions
+
+                if standard_bodies[bucket_idx] is None:
+                    standard_bodies[bucket_idx] = segment.path_body.part
+                else:
+                    standard_bodies[bucket_idx] = (
+                        standard_bodies[bucket_idx] + segment.path_body.part
+                    )
+                    counter += 1
 
             # Check if the segment has a (optional) support body
             if hasattr(segment, "support_body") and segment.support_body is not None:
