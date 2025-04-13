@@ -158,7 +158,7 @@ def path(puzzle, cut_shape):
         # Available standard colors from the configuration (roll over if more segments than colors)
         standard_colors = Config.Puzzle.PATH_COLORS
         standard_parts = path_bodies[PathTypes.STANDARD]
-        # Loop through each standard part; use a counter for labeling and color assignment.
+        # Loop through each standard path part; use a counter for labeling and color assignment.
         for idx, part in enumerate(standard_parts, start=1):
             # For the first body, combine it with the start area
             if idx == 1:
@@ -292,11 +292,19 @@ def export_all(case_parts, additional_parts=None):
         stl_file_path = os.path.join(export_path, f"{case_part.label}.stl")
         export_stl(to_export=case_part, file_path=stl_file_path)
 
-    # Export additional objects, if any
+    # Export additional objects, if any.
     if additional_parts:
-        for additiona_part in additional_parts:
-            stl_file_path = os.path.join(export_path, f"{additiona_part.label}.stl")
-            export_stl(to_export=additiona_part, file_path=stl_file_path)
+        # flatten nested lists,  for split body paths
+        def _flatten(parts):
+            for item in parts:
+                if isinstance(item, list):
+                    yield from _flatten(item)
+                else:
+                    yield item
+
+        for part in _flatten(additional_parts):
+            stl_file_path = os.path.join(export_path, f"{part.label}.stl")
+            export_stl(to_export=part, file_path=stl_file_path)
 
 
 if __name__ == "__main__":
