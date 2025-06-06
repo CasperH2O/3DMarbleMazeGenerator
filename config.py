@@ -19,7 +19,7 @@ class Puzzle:
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
     SEED = 11  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 10  # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 3  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
@@ -44,7 +44,7 @@ class Manufacturing:
 
 # Sphere case configuration
 class Sphere:
-    SPHERE_DIAMETER = 200  # Diameter of the sphere in mm
+    SPHERE_DIAMETER = 120  # Diameter of the sphere in mm
     SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
     SPHERE_FLANGE_INNER_DIAMETER = SPHERE_FLANGE_DIAMETER - 5
     SPHERE_FLANGE_SLOT_ANGLE = 5

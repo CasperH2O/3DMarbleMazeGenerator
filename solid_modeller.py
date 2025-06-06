@@ -1,12 +1,14 @@
 # solid_modeller.py
 
 import os
+from typing import Optional
 
 from build123d import (
     BuildLine,
     BuildPart,
     BuildSketch,
     Circle,
+    Part,
     Polyline,
     Pos,
     SortBy,
@@ -138,7 +140,7 @@ def puzzle_casing():
     return case_parts, cut_shape
 
 
-def path(puzzle, cut_shape):
+def path(puzzle, cut_shape: Part):
     """
     Generate the path objects, cut them from the case where needed, and return:
       - standard_paths: a list of standard path bodies with proper labeling and colors
@@ -147,6 +149,10 @@ def path(puzzle, cut_shape):
     """
     # Initialize the PathBuilder (which internally builds and stores the final path bodies)
     path_builder = PathBuilder(puzzle)
+
+    standard_path_bodies: Optional[Part] = None
+    support_path: Optional[Part] = None
+    coloring_path: Optional[Part] = None
 
     # Retrieve the path bodies and the start area
     path_bodies = path_builder.final_path_bodies
