@@ -220,9 +220,69 @@ def visualize_path_architect(nodes: Node, segments: list[PathSegment], casing: C
     for trace in plot_casing_plotly(casing):
         fig.add_trace(trace)
 
+    # Define camera positions
+    camera_views = {
+        "Iso": dict(eye=dict(x=1.5, y=1.5, z=1.5)),
+        "Front": dict(eye=dict(x=0, y=1.5, z=0)),
+        "Side": dict(eye=dict(x=1.5, y=0, z=0)),
+        "Top": dict(eye=dict(x=0, y=0, z=1.5)),
+    }
+
     fig.update_layout(
         title="Path Visualization",
-        scene=dict(xaxis_title="X Axis", yaxis_title="Y Axis", zaxis_title="Z Axis"),
         template="plotly_dark",
+        scene=dict(
+            xaxis_title="X Axis",
+            yaxis_title="Y Axis",
+            zaxis_title="Z Axis",
+            aspectmode="data",
+            camera=dict(
+                projection=dict(type="orthographic"), eye=camera_views["Iso"]["eye"]
+            ),
+        ),
+        margin=dict(l=0, r=0, t=40, b=0),  # adjust top margin for title
+        updatemenus=[
+            # Projection dropdown
+            dict(
+                buttons=[
+                    dict(
+                        label="Orthographic",
+                        method="relayout",
+                        args=["scene.camera.projection.type", "orthographic"],
+                    ),
+                    dict(
+                        label="Perspective",
+                        method="relayout",
+                        args=["scene.camera.projection.type", "perspective"],
+                    ),
+                ],
+                direction="down",
+                showactive=True,
+                x=0.0,
+                y=1.15,
+                xanchor="left",
+                font=dict(size=12),
+                pad=dict(r=10, t=10),
+            ),
+            # Viewpoint dropdown
+            dict(
+                buttons=[
+                    dict(
+                        label=name,
+                        method="relayout",
+                        args=["scene.camera.eye", cam["eye"]],
+                    )
+                    for name, cam in camera_views.items()
+                ],
+                direction="down",
+                showactive=True,
+                x=0.3,
+                y=1.15,
+                xanchor="left",
+                font=dict(size=12),
+                pad=dict(r=10, t=10),
+            ),
+        ],
     )
+
     fig.show()
