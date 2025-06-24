@@ -31,6 +31,16 @@ def frange(start: float, stop: float, step: float) -> List[float]:
     return values
 
 
+def snap(val: float, *, decimals: int = 10, zero_tol: float = 1e-9) -> float:
+    """
+    Round `val` to `decimals` places; if the rounded value is closer to
+    zero than `zero_tol`, return exactly 0.0 so that coordinates that
+    *should* be on an axis are placed there.
+    """
+    v = round(val, decimals)
+    return 0.0 if abs(v) < zero_tol else v
+
+
 class NodeCreator(ABC):
     @abstractmethod
     def create_nodes(
@@ -133,8 +143,8 @@ class SphereGridNodeCreator(NodeCreator):
         # Evenly distributed circular nodes along the circle in the XY plane (z=0) for mounting waypoints
         for i in range(circular_even_count):
             angle = 2 * math.pi * i / circular_even_count
-            x = circular_radius * math.cos(angle)
-            y = circular_radius * math.sin(angle)
+            x = snap(circular_radius * math.cos(angle))
+            y = snap(circular_radius * math.sin(angle))
             z = 0.0
 
             new_node = Node(x, y, z)
