@@ -70,7 +70,7 @@ class PathBuilder:
         self.start_area = self.create_start_area_funnel(self.path_architect.segments[0])
 
         # Create the paths based provided segments from path architect
-        self.create_segments()
+        self.build_segments()
 
         # Make holes in O-shaped path segments
         self.cut_holes_in_o_shape_path_profile_segments()
@@ -78,71 +78,80 @@ class PathBuilder:
         # Combine final path bodies, depending on amount of divides
         self.final_path_bodies = self.combine_final_path_bodies()
 
-    def create_segments(self) -> None:
+    def build_segments(self) -> None:
         """
         Create profile(s), path and body for each path segment.
-
-        For segments with curve_model == PathCurveModel.COMPOUND:
-        1. First, create the segment path (wire) using define_standard_segment_path (based on the segment's PathCurveType).
-        2. Then, group segments (by main_index) and combine the wires (in secondary_index order) into a single compound segment.
-        3. Finally, sweep the compound segment.
         """
+        # Get segments from path architect
         segments: List[PathSegment] = self.path_architect.segments
-        # Process each segment
-        self._process_segment_paths(segments)
-        # Group compound segments and combine them.
-        combined_segments: List[PathSegment] = self._combine_compound_segments(segments)
+
+        # Process each segment, define it's path
+        self._define_segment_paths(segments)
+
+        # Group sub segments of compound segments and combine their paths
+        combine_segments: List[PathSegment] = self._combine_compound_segments_for_path(
+            segments
+        )
+
+        # Sweep segments
+        swept_segments: List[PathSegment] = self.sweep_segments(combine_segments)
 
         # Store segments in path architect again
-        self.path_architect.segments = combined_segments
+        self.path_architect.segments = swept_segments
 
-    def _process_segment_paths(self, segments: List[PathSegment]) -> None:
-        """
-        Process each segment to define its path and, if appropriate, sweep it.
-        """
+    def sweep_segments(self, segments: List[PathSegment]) -> List[PathSegment]:
+        # Sweep the segments, with information of which ever segment comes previous
         previous_segment: Optional[PathSegment] = None
-        for segment in segments:
-            # Special case for the start segment, it's not swept but a
-            # path is created to determine orientation for the next segment
-            if any(node.puzzle_start for node in segment.nodes):
-                segment = self.define_standard_segment_path(segment)
-                previous_segment = segment
-                continue  # done, skip sweeping
 
+        # Iterate with an index so we can look ahead one element
+        for idx, segment in enumerate(segments):
+            # Get the following segment if it exists
+            next_segment: Optional[PathSegment] = (
+                segments[idx + 1] if idx + 1 < len(segments) else None
+            )
+
+            print(
+                f"Segment {segment.main_index}.{segment.secondary_index} of curve mode {segment.curve_model}"
+            )
             if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
-                # Create the standard segment path based on its curve type
-                segment = self.define_standard_segment_path(segment)
-
-                if segment.curve_model == PathCurveModel.SINGLE:
-                    # For single segments, sweep immediately.
-
-                    # FIXME if previous segment is a compound determining profile orientation
-                    # can start in the wrong spot
-
-                    segment = self.sweep_standard_segment(
-                        segment=segment,
-                        previous_segment=previous_segment,
-                    )
+                # Sweep the segment.
+                segment = self.sweep_standard_segment(
+                    segment=segment, previous_segment=previous_segment
+                )
 
             # Create a spline segment, trying different path combinations.
+            # Requires the paths of the segment before and after it for proper tangents
             elif segment.curve_model == PathCurveModel.SPLINE:
                 segment = self.create_spline_segment(
                     segment=segment,
                     previous_segment=previous_segment,
+                    next_segment=next_segment,
                 )
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
 
+            # Store the processed segment back (in case it was modified)
+            segments[idx] = segment
             previous_segment = segment
 
-    def _combine_compound_segments(
+        return segments
+
+    def _define_segment_paths(self, segments: List[PathSegment]) -> None:
+        """
+        Process each (sub) segment to define its path.
+        """
+        for segment in segments:
+            if segment.curve_model != PathCurveModel.SPLINE:
+                segment = self.define_standard_segment_path(segment)
+
+    def _combine_compound_segments_for_path(
         self, segments: List[PathSegment]
     ) -> List[PathSegment]:
         """
-        Combine compound segments by main_index
+        Combine all the individual paths of sub segments of a
+        single main index compound segment into a single path
         """
         compound_groups: Dict[int, List[PathSegment]] = {}
-        # TODO not sure if this is needed anymore
         non_compound_segments: List[PathSegment] = []
 
         # Separate compound segments from non-compound segments.
@@ -184,19 +193,6 @@ class PathBuilder:
 
         # Sort segments by main_index and secondary_index to ensure correct order.
         segments.sort(key=lambda s: (s.main_index, s.secondary_index))
-
-        # Sweep the compound segments, with information of which ever segment comes previous
-        previous_segment: Optional[PathSegment] = None
-        for segment in segments:
-            print(
-                f"Segment {segment.main_index}.{segment.secondary_index} of curvle mode {segment.curve_model}"
-            )
-            if segment.curve_model == PathCurveModel.COMPOUND:
-                # Sweep the combined compound segment.
-                segment = self.sweep_standard_segment(
-                    segment=segment, previous_segment=previous_segment
-                )
-            previous_segment = segment
 
         # Return both non-compound and combined compound segments (sorted)
         return segments
@@ -290,10 +286,10 @@ class PathBuilder:
 
         # Profile
         path_line_angle = 0
-        profile_angle = 0
+        profile_angle = -90
 
         print(
-            f"Sweep Segment {segment.main_index}.{segment.secondary_index} of curvle mode {segment.curve_model}"
+            f"Sweep Segment {segment.main_index}.{segment.secondary_index} of curve mode {segment.curve_model}"
         )
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
@@ -369,7 +365,10 @@ class PathBuilder:
         return segment
 
     def create_spline_segment(
-        self, segment: PathSegment, previous_segment: PathSegment
+        self,
+        segment: PathSegment,
+        previous_segment: PathSegment,
+        next_segment: PathSegment,
     ):
         """
         Creates a spline segment.
@@ -432,9 +431,12 @@ class PathBuilder:
             # Polyline helper path for tangents at start and end of spline
             help_path = Polyline(sub_path_points)
 
+            # previous_segment
+            # next_segment
+
             # Create the spline with tangents
             segment.path = Spline(
-                spline_points, tangents=[help_path % 0, help_path % 1]
+                spline_points, tangents=[previous_segment.path % 1, next_segment.path % 0]
             )
 
             # Debug statement indicating sweep attempt
@@ -749,9 +751,9 @@ class PathBuilder:
                 Line(first_coordinate, second_coordinate)
             # Create the two U-shaped profiles
             with BuildSketch(start_area_line.line ^ 0):
-                add(create_u_shape(factor=3, **u_shape_params, rotation_angle=0))
+                add(create_u_shape(factor=3, **u_shape_params, rotation_angle=-90))
             with BuildSketch(start_area_line.line ^ 1):
-                add(create_u_shape(**u_shape_params, rotation_angle=0))
+                add(create_u_shape(**u_shape_params, rotation_angle=-90))
             loft()
 
         # Create the accent coloring path start area funnel
@@ -766,11 +768,11 @@ class PathBuilder:
             with BuildSketch(start_area_line.line ^ 0):
                 add(
                     create_u_shape_path_color(
-                        factor=3, **u_shape_color_params, rotation_angle=0
+                        factor=3, **u_shape_color_params, rotation_angle=-90
                     )
                 )
             with BuildSketch(start_area_line.line ^ 1):
-                add(create_u_shape_path_color(**u_shape_color_params, rotation_angle=0))
+                add(create_u_shape_path_color(**u_shape_color_params, rotation_angle=-90))
             loft()
 
         # Return both lofted shapes
