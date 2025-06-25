@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from cad.path_architect import PathArchitect
-from config import CaseManufacturer, CaseShape, Config, Theme
+from config import CaseShape, Config
 
 from .casing import BoxCasing, SphereCasing
 from .node import Node, NodeGridType
@@ -70,6 +70,9 @@ class Puzzle:
         # Define mounting waypoints
         self.define_mounting_waypoints()
 
+        # Node neighbor connectivity sanity-check,
+        self._check_node_connectivity()
+
         # Randomly occupy nodes within the casing as obstacles
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
@@ -78,15 +81,6 @@ class Puzzle:
 
         # Connect the waypoints using the pathfinder
         self.total_path: List[Node] = self.pathfinder.connect_waypoints(self)
-
-        # Interpolate the path
-        """
-        self.path_interpolator: PathInterpolator = PathInterpolator(
-            total_path=self.total_path,
-            seed=self.seed,
-        )
-        self.interpolated_segments: List[Any] = self.path_interpolator.interpolated_segments
-        """
 
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
@@ -394,3 +388,23 @@ class Puzzle:
             print("No path segments generated.")
 
         print("\n" + "=" * 30 + "\n")
+
+    def _check_node_connectivity(self) -> None:
+        """
+        Verify every node has ≥1 neighbour
+        """
+
+        max_report = 10  # limit in case something went really wrong
+        isolated = [n for n in self.nodes if not self.get_neighbors(n)]
+        if len(isolated) > 0:
+            msg = (
+                f"[DEBUG] {len(isolated)} isolated nodes detected "
+                f"({sum(1 for n in isolated if n.puzzle_start)} of them are the start node)."
+            )
+
+            print(msg)
+            for n in isolated[:max_report]:
+                tag = "  <-- START" if n is self.start_node else ""
+                print(f"      ({n.x:.1f}, {n.y:.1f}, {n.z:.1f}){tag}")
+            if len(isolated) > max_report:
+                print(f"      … and {len(isolated) - max_report} more")

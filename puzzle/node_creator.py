@@ -41,6 +41,12 @@ def snap(val: float, *, decimals: int = 10, zero_tol: float = 1e-9) -> float:
     return 0.0 if abs(v) < zero_tol else v
 
 
+def key3(x: float, y: float, z: float) -> Tuple[float, float, float]:
+    """Return the normalised tuple used as dict-key."""
+    DECIMALS = 10
+    return (round(x, DECIMALS), round(y, DECIMALS), round(z, DECIMALS))
+
+
 class NodeCreator(ABC):
     @abstractmethod
     def create_nodes(
@@ -127,7 +133,7 @@ class SphereGridNodeCreator(NodeCreator):
             raise ValueError("No nodes were created inside the spherical casing.")
 
         node_dict: Dict[Coordinate, Node] = {
-            (node.x, node.y, node.z): node for node in nodes
+            key3(node.x, node.y, node.z): node for node in nodes
         }
 
         # Prepare for circular placed nodes along the sphere's circumference
@@ -150,7 +156,7 @@ class SphereGridNodeCreator(NodeCreator):
             new_node = Node(x, y, z)
             new_node.grid_type.append(NodeGridType.CIRCULAR.value)
             nodes.append(new_node)
-            node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
+            node_dict[key3(new_node.x, new_node.y, new_node.z)] = new_node
 
         # Nodes at the intersections of the grid and the circle
         grid_step = node_size
@@ -202,7 +208,7 @@ class SphereGridNodeCreator(NodeCreator):
                 new_node = Node(candidate[0], candidate[1], candidate[2])
                 new_node.grid_type.append(NodeGridType.CIRCULAR.value)
                 nodes.append(new_node)
-                node_dict[(new_node.x, new_node.y, new_node.z)] = new_node
+                node_dict[key3(new_node.x, new_node.y, new_node.z)] = new_node
 
         # Remove rectangular grid nodes at z == 0 that are closer than node_size to any circular node
         circular_nodes = [
@@ -223,7 +229,7 @@ class SphereGridNodeCreator(NodeCreator):
                     break  # No need to check further circular nodes.
         for node in nodes_to_remove:
             nodes.remove(node)
-            key = (node.x, node.y, node.z)
+            key = key3(node.x, node.y, node.z)
             if key in node_dict:
                 del node_dict[key]
 
@@ -232,13 +238,13 @@ class SphereGridNodeCreator(NodeCreator):
             node for node in nodes if abs(node.y) < 1e-3 and node.z == 0
         ]
         min_x: float = min(node.x for node in x_axis_nodes) if x_axis_nodes else 0
-        x1: float = min_x - node_size
-        x2: float = x1 - node_size
+        x1 = snap(min_x - node_size)
+        x2 = snap(x1 - node_size)
         node1 = Node(x1, 0, 0)
         node2 = Node(x2, 0, 0)
         nodes.extend([node1, node2])
-        node_dict[(node1.x, node1.y, node1.z)] = node1
-        node_dict[(node2.x, node2.y, node2.z)] = node2
+        node_dict[key3(node1.x, node1.y, node1.z)] = node1
+        node_dict[key3(node2.x, node2.y, node2.z)] = node2
         node2.puzzle_start = True  # furthest in -x becomes start
         start_node: Node = node2
 
@@ -271,7 +277,7 @@ class SphereGridNodeCreator(NodeCreator):
             (0, 0, -node_size),
         ]
         for dx, dy, dz in cardinal_offsets:
-            coord: Coordinate = (node.x + dx, node.y + dy, node.z + dz)
+            coord = key3(node.x + dx, node.y + dy, node.z + dz)
             candidate = node_dict.get(coord)
             if candidate and not candidate.occupied:
                 neighbors.append((candidate, node_size))
@@ -359,7 +365,7 @@ class BoxGridNodeCreator(NodeCreator):
                     if casing.contains_point(x, y, z):
                         node = Node(x, y, z)
                         nodes.append(node)
-                        node_dict[(x, y, z)] = node
+                        node_dict[key3(x, y, z)] = node
 
         if not nodes:
             raise ValueError("No nodes were created inside the box casing.")
@@ -373,8 +379,8 @@ class BoxGridNodeCreator(NodeCreator):
         )
 
         # Extend along the negative x-direction
-        x1: float = min_x - node_size
-        x2: float = x1 - node_size
+        x1 = snap(min_x - node_size)
+        x2 = snap(x1 - node_size)
 
         # Create two new nodes at positions (x1, min_y, min_z) and (x2, min_y, min_z)
         node1 = Node(x1, min_y, min_z)
@@ -382,8 +388,8 @@ class BoxGridNodeCreator(NodeCreator):
 
         # Add them to nodes and node_dict
         nodes.extend([node1, node2])
-        node_dict[(node1.x, node1.y, node1.z)] = node1
-        node_dict[(node2.x, node2.y, node2.z)] = node2
+        node_dict[key3(node1.x, node1.y, node1.z)] = node1
+        node_dict[key3(node2.x, node2.y, node2.z)] = node2
 
         # Mark the furthest node as the start node
         node2.puzzle_start = (
@@ -417,12 +423,7 @@ class BoxGridNodeCreator(NodeCreator):
             (0, 0, -node_size),
         ]
         for dx, dy, dz in directions:
-            neighbor_coordinates: Coordinate = (
-                node.x + dx,
-                node.y + dy,
-                node.z + dz,
-            )
-            neighbor = node_dict.get(neighbor_coordinates)
+            neighbor = node_dict.get(key3(node.x + dx, node.y + dy, node.z + dz))
             if neighbor and not neighbor.occupied:
                 neighbors.append((neighbor, node_size))
         return neighbors
