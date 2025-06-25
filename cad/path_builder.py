@@ -98,35 +98,41 @@ class PathBuilder:
 
     def _process_segment_paths(self, segments: List[PathSegment]) -> None:
         """
-        Process each segment to define its path and if necessary, sweep it.
-
-        Segment that contain the puzzle start node is skipped.
+        Process each segment to define its path and, if appropriate, sweep it.
         """
         previous_segment: Optional[PathSegment] = None
         for segment in segments:
-            # Skip segments that include a puzzle_start node.
+            # Special case for the start segment, it's not swept but a
+            # path is created to determine orientation for the next segment
             if any(node.puzzle_start for node in segment.nodes):
-                continue
+                segment = self.define_standard_segment_path(segment)
+                previous_segment = segment
+                continue  # done, skip sweeping
 
             if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
-                # Create the standard segment path based on its curve type.
+                # Create the standard segment path based on its curve type
                 segment = self.define_standard_segment_path(segment)
-                if segment.curve_model == PathCurveModel.COMPOUND:
-                    pass
+
                 if segment.curve_model == PathCurveModel.SINGLE:
                     # For single segments, sweep immediately.
-                    # FIXME if previous segment is a compound this can start in the wrong spot
+
+                    # FIXME if previous segment is a compound determining profile orientation
+                    # can start in the wrong spot
+
                     segment = self.sweep_standard_segment(
-                        segment=segment, previous_segment=previous_segment
+                        segment=segment,
+                        previous_segment=previous_segment,
                     )
+
+            # Create a spline segment, trying different path combinations.
             elif segment.curve_model == PathCurveModel.SPLINE:
-                # Create a spline segment, trying different path combinations.
                 segment = self.create_spline_segment(
                     segment=segment,
                     previous_segment=previous_segment,
                 )
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
+
             previous_segment = segment
 
     def _combine_compound_segments(

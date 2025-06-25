@@ -11,9 +11,9 @@ from cad.path_profile_type_shapes import (
     SUPPORT_REGISTRY,
     PathProfileType,
 )
-from cad.path_segment import PathSegment
+from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from config import Config, PathCurveModel, PathCurveType
-from puzzle.node import Node
+from puzzle.node import Node, NodeGridType
 
 from . import curve_detection
 
@@ -176,6 +176,7 @@ class PathArchitect:
             segment = self.segments[i]
             if segment.curve_model == PathCurveModel.COMPOUND:
                 # Split the segment into sub-segments around mounting nodes
+                # FIXME this has to be done in a better way
                 # sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
                 sub_segments = [segment]
                 new_split_segments = []
@@ -374,31 +375,82 @@ class PathArchitect:
         return split_segments
 
     def adjust_segments(self):
-        # Adjust start and end points of segments as needed
-        previous_end_point = None
-        previous_curve_type = None
-        for i, segment in enumerate(self.segments):
-            next_start_node = None
-            next_curve_type = None
-            if i + 1 < len(self.segments):
-                next_segment = self.segments[i + 1]
-                next_start_node = next_segment.nodes[0]
-                next_curve_type = next_segment.curve_type
+        """
+        Align segment end-points
+
+        Special considertation for any SINGLE-model segment that mixes
+        circular and non-circular nodes.
+
+        TODO It's a tad messy to make this adjustment after segments have already split,
+        this code could use a refactor.
+        """
+
+        # Remove duplicates within tolerance
+        def dedup(nodes):
+            uniq = []
+            for n in nodes:
+                if not uniq or not is_same_location(
+                    _node_to_vector(n), _node_to_vector(uniq[-1])
+                ):
+                    uniq.append(n)
+            return uniq
+
+        previous_end = None
+        previous_curve = None
+        i = 0
+        while i < len(self.segments):
+            segment = self.segments[i]
+
+            # Regular adjustment
+            next_start = (
+                self.segments[i + 1].nodes[0] if i + 1 < len(self.segments) else None
+            )
+            next_curve = (
+                self.segments[i + 1].curve_type if i + 1 < len(self.segments) else None
+            )
+
             segment.adjust_start_and_endpoints(
                 self.node_size,
-                previous_end_point,
-                next_start_node,
-                previous_curve_type,
-                next_curve_type,
+                previous_end,
+                next_start,
+                previous_curve,
+                next_curve,
             )
-            # Update previous_end_point and previous_curve_type
+
+            # Split mixed SINGLE segments
+            if segment.curve_model == PathCurveModel.SINGLE:
+                uniq_nodes = dedup(segment.nodes)
+                if len(uniq_nodes) > 2:
+                    circ_flags = [
+                        NodeGridType.CIRCULAR.value in getattr(n, "grid_type", [])
+                        for n in uniq_nodes
+                    ]
+                    if any(circ_flags) and not all(circ_flags):
+                        new_segments = []
+                        for k in range(len(uniq_nodes) - 1):
+                            pair = [uniq_nodes[k], uniq_nodes[k + 1]]
+                            is_circ = all(
+                                NodeGridType.CIRCULAR.value
+                                in getattr(n, "grid_type", [])
+                                for n in pair
+                            )
+                            new_segments.append(self._make_circular_run(segment, pair, is_circ))
+
+                        # substitute the original with the new chain
+                        self.segments[i : i + 1] = new_segments
+
+                        # advance cursor to *after* the inserted runs
+                        last = new_segments[-1]
+                        previous_end = last.nodes[-1]
+                        previous_curve = last.curve_type
+                        i += len(new_segments)
+                        continue  # restart main loop
+
+            # Proceed with next original segment
             if segment.nodes:
-                last_node = segment.nodes[-1]
-                previous_end_point = last_node
-                previous_curve_type = segment.curve_type
-            else:
-                previous_end_point = None
-                previous_curve_type = None
+                previous_end = segment.nodes[-1]
+                previous_curve = segment.curve_type
+            i += 1
 
     def create_start_ramp(self):
         # This method finds the segment containing the start node and creates the start ramp
@@ -582,3 +634,22 @@ class PathArchitect:
         self.secondary_index_counters[main_index] = secondary_index_counter
 
         return new_segments
+
+    def _make_circular_run(
+        self, original: PathSegment, run_nodes: List[Node], is_circ: bool
+    ) -> PathSegment:
+        """
+        Given a slice of nodes all sharing the same circular‐flag, make a new
+        PathSegment carrying over all the original attributes. Force
+        curve_type = ARC if is_circ else STRAIGHT.
+        """
+        segment = PathSegment(
+            run_nodes,
+            main_index=original.main_index,
+            secondary_index=original.secondary_index,  # reindex done later
+        )
+        # copy everything (profile_type, transition_type, etc.)
+        segment.copy_attributes_from(original)
+        segment.curve_model = PathCurveModel.COMPOUND
+        segment.curve_type = PathCurveType.ARC if is_circ else PathCurveType.STRAIGHT
+        return segment
