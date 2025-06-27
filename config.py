@@ -12,14 +12,14 @@ from puzzle.utils.enums import (
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.GENERIC
-    THEME = Theme.GENERIC
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
+    THEME = Theme.MARBLE
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 11  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 3  # Number of randomly placed waypoints
+    SEED = 46  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
