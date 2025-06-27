@@ -125,6 +125,10 @@ class PathSegment:
         if self._handle_single_node_puzzle_end(node_size, previous_end_node):
             return
 
+        # Adept first segment midpoint for half node size path corner:
+        if self._handle_first_segment_midpoint(previous_end_node, next_start_node):
+            return
+
         # For segments with two or more nodes, perform multi-node adjustment;
         # otherwise, handle the single-node case.
         if len(self.nodes) >= 2:
@@ -426,6 +430,50 @@ class PathSegment:
         self.curve_model = other_segment.curve_model
         self.curve_type = other_segment.curve_type
         self.transition_type = other_segment.transition_type
+
+    def _handle_first_segment_midpoint(
+        self,
+        previous_end_node: Optional[Node],
+        next_start_node: Optional[Node],
+    ) -> bool:
+        """
+        This end node adjustment is required to provide a half node size length segment
+        prior to the next segment. To allow the start ramp to properly connect to a segment
+        that goes left, straight or right just after the start ramp
+
+        If this is the very first segment (no previous_end_node) AND contains
+        the puzzle_start node AND there is a next_start_node, then:
+        • compute the linear midpoint between this segment's last node
+            and the next segment's first node,
+        • append that midpoint Node here,
+        Otherwise, return False.
+        """
+        if (
+            previous_end_node is None
+            and any(n.puzzle_start for n in self.nodes)
+            and next_start_node is not None
+        ):
+            # compute linear midpoint
+            P = _node_to_vector(self.nodes[-1])
+            Q = _node_to_vector(next_start_node)
+            M = midpoint(P, Q)
+
+            # create & append the new mid-node
+            end_node = Node(M.X, M.Y, M.Z)
+            end_node.occupied = True
+            end_node.segment_end = True
+            self.nodes[-1].segment_end = False
+            # propagate “circular” if either end is circular
+            # FIXME this works only if it gets set to circular, but technically that's wrong.
+            if (
+                NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                or NodeGridType.CIRCULAR.value in next_start_node.grid_type
+            ):
+                end_node.grid_type.append(NodeGridType.CIRCULAR.value)
+            self.nodes.append(end_node)
+            return True
+
+        return False
 
 
 def is_same_location(p1: Vector, p2: Vector, tol: float = 1e-7) -> bool:

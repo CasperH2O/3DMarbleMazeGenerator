@@ -130,8 +130,8 @@ class PathArchitect:
                 and not is_circ(second_last_a)  # seg-A’s 2nd-last is non-circ
             ):
                 print(
-                    f"Harmonise circular transitions pattern A being done for segments:"
-                    f"A: {seg_a.main_index}.{seg_a.secondary_index}"
+                    f"Harmonise circular transitions pattern A being done for segments: "
+                    f"A: {seg_a.main_index}.{seg_a.secondary_index} "
                     f"B: {seg_b.main_index}.{seg_b.secondary_index}"
                 )
 
@@ -169,8 +169,8 @@ class PathArchitect:
                 and not is_circ(seg_b.nodes[1])  # 2nd-node non-circ
             ):
                 print(
-                    f"Harmonise circular transitions pattern B being done for segments:"
-                    f"A: {seg_a.main_index}.{seg_a.secondary_index}"
+                    f"Harmonise circular transitions pattern B being done for segments: "
+                    f"A: {seg_a.main_index}.{seg_a.secondary_index} "
                     f"B: {seg_b.main_index}.{seg_b.secondary_index}"
                 )
 
