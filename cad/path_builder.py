@@ -26,6 +26,7 @@ from build123d import (
     loft,
     sweep,
 )
+from ocp_vscode import show_object
 
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
@@ -436,7 +437,8 @@ class PathBuilder:
 
             # Create the spline with tangents
             segment.path = Spline(
-                spline_points, tangents=[previous_segment.path % 1, next_segment.path % 0]
+                spline_points,
+                tangents=[previous_segment.path % 1, next_segment.path % 0],
             )
 
             # Debug statement indicating sweep attempt
@@ -772,7 +774,11 @@ class PathBuilder:
                     )
                 )
             with BuildSketch(start_area_line.line ^ 1):
-                add(create_u_shape_path_color(**u_shape_color_params, rotation_angle=-90))
+                add(
+                    create_u_shape_path_color(
+                        **u_shape_color_params, rotation_angle=-90
+                    )
+                )
             loft()
 
         # Return both lofted shapes
@@ -1009,14 +1015,26 @@ def sweep_single_profile(
             with BuildLine() as path_line:
                 add(segment.path)
             # Create the path profile sketch on the work plane
-            with BuildSketch(path_line.line ^ 0):
+            with BuildSketch(path_line.line ^ 0) as sketch_path_profile:
                 add(profile)
             sweep(transition=transition_type)
 
         # Debugging / visualization
-        # show_object(path_line, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path")
-        # show_object(sketch_path_profile.sketch, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile")
-        # show_object(sweep_result, name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body")
+
+        """
+        show_object(
+            path_line,
+            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path",
+        )
+        show_object(
+            sketch_path_profile.sketch,
+            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile",
+        )
+        show_object(
+            sweep_result,
+            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
+        )
+        """
 
         return sweep_result
 

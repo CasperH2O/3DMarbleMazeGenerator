@@ -11,7 +11,7 @@ from cad.path_profile_type_shapes import (
     SUPPORT_REGISTRY,
     PathProfileType,
 )
-from cad.path_segment import PathSegment, _node_to_vector, is_same_location
+from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.node import Node, NodeGridType
 
@@ -97,6 +97,112 @@ class PathArchitect:
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
 
+    def _harmonise_circular_transitions(self) -> None:
+        """
+        Fix mismatches where an arc meets a straight run at a segment boundary.
+        """
+
+        # helper that copes with either the enum or its .value in grid_type
+        def is_circ(node) -> bool:
+            g = getattr(node, "grid_type", [])
+            return NodeGridType.CIRCULAR in g or NodeGridType.CIRCULAR.value in g
+
+        for idx in range(len(self.segments) - 1):
+            seg_a, seg_b = self.segments[idx], self.segments[idx + 1]
+
+            # Only do adjustment if we are handling the end of of main segment and the start of another
+            if seg_a.main_index == seg_b.main_index:
+                continue
+
+            # need at least [.., end] in seg-A  +  [start, …] in seg-B
+            if len(seg_a.nodes) < 2 or len(seg_b.nodes) < 2:
+                continue
+
+            second_last_a = seg_a.nodes[-2]
+            end_a = seg_a.nodes[-1]
+            start_b = seg_b.nodes[0]
+
+            # pattern A (straight -> arc)
+            if (
+                is_circ(end_a)
+                and is_circ(start_b)
+                and len(seg_a.nodes) >= 2
+                and not is_circ(second_last_a)  # seg-A’s 2nd-last is non-circ
+            ):
+                print(
+                    f"Harmonise circular transitions pattern A being done for segments:"
+                    f"A: {seg_a.main_index}.{seg_a.secondary_index}"
+                    f"B: {seg_b.main_index}.{seg_b.secondary_index}"
+                )
+
+                # straight midpoint between the non-circular neighbour and the
+                # circular boundary node
+                P = _node_to_vector(second_last_a)  # non-circular
+                Q = _node_to_vector(start_b)  # circular boundary
+                mid = midpoint(P, Q, circular=False)
+
+                bridge = Node(mid.X, mid.Y, mid.Z)
+
+                # New connecting segment  (bridge -> first B)
+                new_seg = PathSegment(
+                    [bridge, start_b],
+                    main_index=seg_b.main_index,
+                    secondary_index=seg_b.secondary_index - 1,
+                )
+                new_seg.copy_attributes_from(seg_b)  # inherit profile etc.
+                new_seg.curve_model = PathCurveModel.COMPOUND
+                new_seg.curve_type = None  # No longer arc
+
+                # Insert immediately after seg-A, before seg-B
+                self.segments.insert(idx + 1, new_seg)
+
+                # Update end of seg-A
+                seg_a.nodes[-1] = bridge
+
+                continue  # skip re-checking pair
+
+            # pattern B (arc -> straight)
+            if (
+                is_circ(end_a)
+                and is_circ(start_b)
+                and len(seg_b.nodes) >= 2
+                and not is_circ(seg_b.nodes[1])  # 2nd-node non-circ
+            ):
+                print(
+                    f"Harmonise circular transitions pattern B being done for segments:"
+                    f"A: {seg_a.main_index}.{seg_a.secondary_index}"
+                    f"B: {seg_b.main_index}.{seg_b.secondary_index}"
+                )
+
+                second_b = seg_b.nodes[1]
+
+                # straight midpoint between the circular boundary and its neighbour
+                P = _node_to_vector(end_a)
+                Q = _node_to_vector(second_b)
+                mid = midpoint(P, Q, circular=False)
+
+                bridge = Node(mid.X, mid.Y, mid.Z)
+
+                # New connecting segment (end-A → bridge)
+                new_seg = PathSegment(
+                    [end_a, bridge],
+                    main_index=seg_a.main_index,
+                    secondary_index=seg_a.secondary_index + 1,
+                )
+
+                # inherit useful attributes from seg-A (profile, transition, …)
+                new_seg.copy_attributes_from(seg_a)
+                new_seg.curve_model = PathCurveModel.COMPOUND
+                new_seg.curve_type = None
+
+                # Insert immediately after seg-A, before seg-B
+                self.segments.insert(idx + 1, new_seg)
+
+                # Update start of seg-B
+                seg_b.nodes[0] = bridge
+
+                continue  # skip re-checking pair
+
     def assign_path_properties(self):
         # Randomly assign path profile types and path curve models to segments
         previous_profile_type = None
@@ -147,7 +253,7 @@ class PathArchitect:
 
         for segment in self.segments:
             # Check if segment already has a transition type, skip if so
-            # Todo, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
+            # TODO, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
             if segment.transition_type is not None:
                 continue
 
@@ -175,9 +281,6 @@ class PathArchitect:
         while i < len(self.segments):
             segment = self.segments[i]
             if segment.curve_model == PathCurveModel.COMPOUND:
-                # Split the segment into sub-segments around mounting nodes
-                # FIXME this has to be done in a better way
-                # sub_segments = self._split_around_mounting_nodes(segment.nodes, segment)
                 sub_segments = [segment]
                 new_split_segments = []
                 for sub_segment in sub_segments:
@@ -202,66 +305,6 @@ class PathArchitect:
                 i += len(new_segments)
             else:
                 i += 1
-
-    def _split_around_mounting_nodes(
-        self, nodes: List[Node], original_segment: PathSegment
-    ) -> List[PathSegment]:
-        sub_segments = []
-        current_segment_nodes = []
-
-        main_index = original_segment.main_index
-        # Retrieve or initialize the secondary_index_counter for this main_index
-        secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
-
-        for node in nodes:
-            # Filter out the puzzle start node, as we don't want that broken up
-            if node.mounting and not node.puzzle_start:
-                if current_segment_nodes:
-                    segment = PathSegment(
-                        current_segment_nodes,
-                        main_index=main_index,
-                        secondary_index=secondary_index_counter,
-                    )
-                    secondary_index_counter += 1
-                    # Copy attributes
-                    segment.path_profile_type = original_segment.path_profile_type
-                    segment.curve_model = original_segment.curve_model
-                    segment.transition_type = original_segment.transition_type
-                    sub_segments.append(segment)
-                    current_segment_nodes = []
-                # Segment for the mounting node
-                mounting_segment = PathSegment(
-                    [node],
-                    main_index=main_index,
-                    secondary_index=secondary_index_counter,
-                )
-                secondary_index_counter += 1
-                mounting_segment.path_profile_type = original_segment.path_profile_type
-                mounting_segment.curve_model = original_segment.curve_model
-                mounting_segment.transition_type = Transition.RIGHT
-                sub_segments.append(mounting_segment)
-            else:
-                current_segment_nodes.append(node)
-
-        if current_segment_nodes:
-            segment = PathSegment(
-                current_segment_nodes,
-                main_index=main_index,
-                secondary_index=secondary_index_counter,
-            )
-            secondary_index_counter += (
-                1  # Increment the counter after creating the segment
-            )
-            # Copy attributes
-            segment.path_profile_type = original_segment.path_profile_type
-            segment.curve_model = original_segment.curve_model
-            segment.transition_type = original_segment.transition_type
-            sub_segments.append(segment)
-
-        # Update the counter in the dictionary
-        self.secondary_index_counters[main_index] = secondary_index_counter
-
-        return sub_segments
 
     def _split_segment_by_detected_curves(
         self, nodes: List[Node], original_segment: PathSegment
@@ -434,7 +477,9 @@ class PathArchitect:
                                 in getattr(n, "grid_type", [])
                                 for n in pair
                             )
-                            new_segments.append(self._make_circular_run(segment, pair, is_circ))
+                            new_segments.append(
+                                self._make_circular_run(segment, pair, is_circ)
+                            )
 
                         # substitute the original with the new chain
                         self.segments[i : i + 1] = new_segments
@@ -451,6 +496,9 @@ class PathArchitect:
                 previous_end = segment.nodes[-1]
                 previous_curve = segment.curve_type
             i += 1
+
+        # Ensure segments don't start/end at a change between circular and straight or vice versa
+        self._harmonise_circular_transitions()
 
     def create_start_ramp(self):
         # This method finds the segment containing the start node and creates the start ramp
