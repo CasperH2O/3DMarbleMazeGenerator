@@ -110,6 +110,11 @@ class Path:
             "wall_thickness": 1.2,
             "lower_distance": 3.5,
         },
+        "l_shape_adjusted_height_path_color": {
+            "height": 10.0 - sweep_tolerance,
+            "width": 10.0 - sweep_tolerance,
+            "wall_thickness": 1.2,
+        },
         "o_shape": {"outer_diameter": 10.0 - sweep_tolerance, "wall_thickness": 1.2},
         "o_shape_support": {
             "outer_diameter": 10.0 - sweep_tolerance,

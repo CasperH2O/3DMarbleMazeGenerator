@@ -194,11 +194,11 @@ def create_l_shape_adjusted_height_path_color(
     nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
 
     l_shape_path_color_points = [
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
-        (-inner_half_width, -inner_half_height),  # 2
+        (-half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-half_width, -inner_half_height),  # 2
         (inner_half_width, -inner_half_height),  # 3
         (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
+        (-half_width, -inner_half_height + nozzle_diameter),  # close
     ]
 
     with BuildSketch(Plane.XY) as l_shape_adjusted_height_path_color_sketch:
