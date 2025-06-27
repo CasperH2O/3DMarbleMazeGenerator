@@ -204,7 +204,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                 angular_range=angle_range,
             ):
                 Box(
-                    width=self.node_size,
+                    width=self.node_size - 0.01,
                     length=self.node_size * 2 - 2.1,  # TODO Hardcoded, bad
                     height=self.mounting_bridge_height - tolerance,
                 )
@@ -521,14 +521,32 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
 
     def create_cut_shape(self):
         flush_distance_tolerance = 0.5
-        radius_outer = self.sphere_flange_diameter
+        radius_outer = self.sphere_flange_diameter * 0.7
         radius_inner = self.sphere_flange_inner_radius - flush_distance_tolerance
         mid_outer_x = radius_outer / math.sqrt(2)
         mid_outer_y = radius_outer / math.sqrt(2)
         mid_inner_x = radius_inner / math.sqrt(2)
         mid_inner_y = radius_inner / math.sqrt(2)
 
-        with BuildPart() as cut_shape:
+        with BuildPart() as cut_shape_cylinder:
+            Cylinder(
+                radius=self.sphere_flange_diameter * 0.75,
+                height=self.mounting_bridge_height,
+            )
+            internal_cut_out_radius = self.sphere_flange_inner_diameter / 2 + (
+                (
+                    self.sphere_flange_diameter / 2
+                    - self.sphere_flange_inner_diameter / 2
+                )
+                * 0.5
+            )
+            Cylinder(
+                radius=internal_cut_out_radius,
+                height=self.mounting_bridge_height,
+                mode=Mode.SUBTRACT,
+            )
+
+        with BuildPart() as cut_shape_sphere:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
                     ThreePointArc(
@@ -544,7 +562,11 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             translation_z = (
                 0.5 * self.mounting_bridge_height
             ) - 0.33333 * self.mounting_bridge_height
-            cut_shape.part.position = (0, 0, -translation_z)
+            cut_shape_sphere.part.position = (0, 0, -translation_z)
             mirror(about=Plane.XY)
+
+        cut_shape_cylinder.part = cut_shape_cylinder.part + cut_shape_sphere.part
+
+        cut_shape = cut_shape_cylinder
 
         return cut_shape

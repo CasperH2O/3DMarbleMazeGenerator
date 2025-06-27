@@ -26,7 +26,6 @@ from build123d import (
     loft,
     sweep,
 )
-from ocp_vscode import show_object
 
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
@@ -753,7 +752,7 @@ class PathBuilder:
                 Line(first_coordinate, second_coordinate)
             # Create the two U-shaped profiles
             with BuildSketch(start_area_line.line ^ 0):
-                add(create_u_shape(factor=3, **u_shape_params, rotation_angle=-90))
+                add(create_u_shape(factor=6, **u_shape_params, rotation_angle=-90))
             with BuildSketch(start_area_line.line ^ 1):
                 add(create_u_shape(**u_shape_params, rotation_angle=-90))
             loft()
@@ -770,7 +769,7 @@ class PathBuilder:
             with BuildSketch(start_area_line.line ^ 0):
                 add(
                     create_u_shape_path_color(
-                        factor=3, **u_shape_color_params, rotation_angle=-90
+                        factor=6, **u_shape_color_params, rotation_angle=-90
                     )
                 )
             with BuildSketch(start_area_line.line ^ 1):

@@ -125,6 +125,8 @@ class PathSegment:
         if self._handle_single_node_puzzle_end(node_size, previous_end_node):
             return
 
+        # FIXME found a bug, if this is followed by a SINGLE segment, say pre spline
+        # Then the half way point is adjusted again
         # Adept first segment midpoint for half node size path corner:
         if self._handle_first_segment_midpoint(previous_end_node, next_start_node):
             return

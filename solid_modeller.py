@@ -168,8 +168,8 @@ def path(puzzle, cut_shape: Part):
         for idx, part in enumerate(standard_parts, start=1):
             # For the first body, combine it with the start area
             if idx == 1:
-                combined = (
-                    part + start_area[0].part
+                combined = part + (
+                    start_area[0].part - cut_shape.part
                 )  # merge with the first start area element
             else:
                 combined = part
@@ -189,12 +189,15 @@ def path(puzzle, cut_shape: Part):
 
     if path_bodies[PathTypes.ACCENT_COLOR]:
         coloring_path = path_bodies[PathTypes.ACCENT_COLOR]
-        coloring_path = (
-            coloring_path + start_area[1].part
+        coloring_path = coloring_path + (
+            start_area[1].part - cut_shape.part
         )  # combine with second start area
-        coloring_path = coloring_path - cut_shape.part
         coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
+
+    set_defaults(reset_camera=Camera.KEEP)
+    cut_shape.color = "#E1F52A18"
+    show_object(cut_shape, name="Cut Shape")
 
     return standard_path_bodies, support_path, coloring_path
 
