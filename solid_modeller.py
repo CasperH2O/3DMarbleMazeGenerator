@@ -173,8 +173,8 @@ def path(puzzle, cut_shape: Part):
                 )  # merge with the first start area element
             else:
                 combined = part
-            # Subtract the cut shape from the combined (or single) object.
-            final_obj = combined - cut_shape.part
+            # Subtract the cut shape from the combined (or single) object. #FIXME
+            final_obj = combined  # - cut_shape.part
             # Assign a label with a counter (e.g., "Standard Path 1", "Standard Path 2", etc.)
             final_obj.label = f"Standard Path {idx}"
             # Use the color from the list, rolling over if necessary.
@@ -194,10 +194,6 @@ def path(puzzle, cut_shape: Part):
         )  # combine with second start area
         coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
-
-    set_defaults(reset_camera=Camera.KEEP)
-    cut_shape.color = "#E1F52A18"
-    show_object(cut_shape, name="Cut Shape")
 
     return standard_path_bodies, support_path, coloring_path
 
