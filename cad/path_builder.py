@@ -110,9 +110,12 @@ class PathBuilder:
                 segments[idx + 1] if idx + 1 < len(segments) else None
             )
 
+            """
             print(
                 f"Segment {segment.main_index}.{segment.secondary_index} of curve mode {segment.curve_model}"
             )
+            """
+
             if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
                 # Sweep the segment.
                 segment = self.sweep_standard_segment(
@@ -288,9 +291,12 @@ class PathBuilder:
         path_line_angle = 0
         profile_angle = -90
 
+        """
         print(
-            f"Sweep Segment {segment.main_index}.{segment.secondary_index} of curve mode {segment.curve_model}"
+            f"Sweep Segment {segment.main_index}.{segment.secondary_index} "
+            f"of curve mode {segment.curve_model}"
         )
+        """
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
         if previous_segment is not None:

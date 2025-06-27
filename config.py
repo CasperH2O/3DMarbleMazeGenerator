@@ -89,64 +89,65 @@ class Path:
     ]
 
     # Tight corner sweep tolerance
-    sweep_tolerance = 0.0001
+    sweep_tolerance = 0.001
+    wall_thickness = 1.2
 
     PATH_PROFILE_TYPE_PARAMETERS = {
         "l_shape_mirrored": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "l_shape_mirrored_path_color": {
             "height": 10.0 - sweep_tolerance,
             "width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "l_shape": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "l_shape_adjusted_height": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
             "lower_distance": 3.5,
         },
         "l_shape_adjusted_height_path_color": {
             "height": 10.0 - sweep_tolerance,
             "width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
-        "o_shape": {"outer_diameter": 10.0 - sweep_tolerance, "wall_thickness": 1.2},
+        "o_shape": {"outer_diameter": 10.0 - sweep_tolerance, "wall_thickness": wall_thickness},
         "o_shape_support": {
             "outer_diameter": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "u_shape": {
             "height": 10.0 - sweep_tolerance,
             "width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "u_shape_path_color": {
             "height": 10.0 - sweep_tolerance,
             "width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "u_shape_adjusted_height": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
             "lower_distance": 3.5,
         },
         "u_shape_adjusted_height_path_color": {
             "height": 10.0 - sweep_tolerance,
             "width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "v_shape": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "v_shape_path_color": {
             "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": 1.2,
+            "wall_thickness": wall_thickness,
         },
         "rectangle_shape": {
             "height_width": 10.0 - sweep_tolerance,
