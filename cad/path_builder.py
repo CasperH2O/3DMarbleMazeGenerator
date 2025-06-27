@@ -858,7 +858,7 @@ class PathBuilder:
                 with BuildPart() as cutting_cylinder:
                     with BuildSketch(work_plane):
                         Circle(hole_size / 2)
-                    extrude(amount=-self.node_size / 2, both=True)
+                    extrude(amount=self.node_size / 2 + self.node_size * 0.1, both=True)
 
                 # Move the cutting cylinder to the node position
                 cutting_cylinder.part.position = (node.x, node.y, node.z)
