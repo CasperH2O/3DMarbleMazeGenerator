@@ -38,6 +38,19 @@ Results in a 3D model made out of separate solid bodies for the enclosure, path,
 
 <img src="resources/3d_large.png" alt="3D Large" width="400"/>
 
+**Path Profile Overview**
+
+For quick visualization and debugging, all the path profiles, also called
+path cross sections can be 3D modelled by running:
+
+```Python
+path_profiles_overview.py
+```
+
+This results in an overview with all path profiles, including their path accent color and support material swep along a straight line. A red color color is used to indicate the path does not have any adjustments yet in the configuration:
+
+<img src="resources/path_profiles_overview.png" alt="Path Profiles Overview" width="400"/>
+
 ## Requirements
 
 Python 3.11

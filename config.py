@@ -81,7 +81,7 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
-        PathProfileType.L_SHAPE,
+        PathProfileType.L_SHAPE_MIRRORED,
         PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.O_SHAPE,
         PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
@@ -92,6 +92,15 @@ class Path:
     sweep_tolerance = 0.0001
 
     PATH_PROFILE_TYPE_PARAMETERS = {
+        "l_shape_mirrored": {
+            "height_width": 10.0 - sweep_tolerance,
+            "wall_thickness": 1.2,
+        },
+        "l_shape_mirrored_path_color": {
+            "height": 10.0 - sweep_tolerance,
+            "width": 10.0 - sweep_tolerance,
+            "wall_thickness": 1.2,
+        },
         "l_shape": {
             "height_width": 10.0 - sweep_tolerance,
             "wall_thickness": 1.2,
