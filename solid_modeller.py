@@ -8,6 +8,8 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Circle,
+    Cone,
+    Locations,
     Part,
     Polyline,
     Pos,
@@ -17,6 +19,7 @@ from build123d import (
     export_stl,
     sweep,
 )
+from build123d.build_enums import Align
 from ocp_vscode import Camera, set_defaults, set_viewer_config, show_object, status
 
 from cad.cases.case import CasePart
@@ -200,29 +203,49 @@ def path(puzzle, cut_shape: Part):
 
 def ball_and_path_indicators(puzzle):
     """
-    Create and return a ball and ball path object based on the puzzle's path.
+    Create and return a ball, its swept path, and
+    directional cones every n nodes along that path.
     """
 
     cad_nodes = puzzle.total_path
     node_positions = [(node.x, node.y, node.z) for node in cad_nodes]
 
-    # Create the ball at the start of the track
+    # Ball at the start
     with BuildPart(Pos(node_positions[1])) as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
-
     ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
 
-    # Create a ball path indicator line
+    # Puzzle path with direction indication
     with BuildPart() as ball_path:
+        # Path
         with BuildLine() as ball_path_line:
             Polyline(node_positions[1:])
+        # Small circle for sweep
         with BuildSketch(ball_path_line.line ^ 0):
             Circle(Config.Puzzle.BALL_DIAMETER / 10)
         sweep(transition=Transition.RIGHT)
 
+        # Insert cones every n nodes for direction indication
+        total_pts = len(node_positions)
+        step = 3
+        for idx in range(1, total_pts, step):
+            # parameterize position along polyline: 0 at first, 1 at last
+            t = (idx - 1) / (total_pts - 2)
+            loc = ball_path_line.line ^ t
+            # place a cone whose base sits at the node and
+            # whose tip points forward along the path tangent
+            with Locations(loc):
+                Cone(
+                    bottom_radius=Config.Puzzle.BALL_DIAMETER / 3,
+                    top_radius=0,
+                    height=Config.Puzzle.BALL_DIAMETER,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN),
+                )
+
     ball_path.part.label = "Ball Path"
     ball_path.part.color = Config.Puzzle.BALL_COLOR
+    # FIXME color's no longer seem to apply?!
 
     return ball.part, ball_path.part
 
