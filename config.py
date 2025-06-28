@@ -88,6 +88,13 @@ class Path:
         PathProfileType.V_SHAPE,
     ]
 
+    # Map a segment main index to a forced profile type
+    PATH_PROFILE_TYPE_OVERRIDES = {
+        2: PathProfileType.L_SHAPE_MIRRORED,
+        5: PathProfileType.V_SHAPE,
+        8: PathProfileType.O_SHAPE,
+    }
+
     # Tight corner sweep tolerance
     sweep_tolerance = 0.001
     wall_thickness = 1.2
@@ -116,7 +123,10 @@ class Path:
             "width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
         },
-        "o_shape": {"outer_diameter": 10.0 - sweep_tolerance, "wall_thickness": wall_thickness},
+        "o_shape": {
+            "outer_diameter": 10.0 - sweep_tolerance,
+            "wall_thickness": wall_thickness,
+        },
         "o_shape_support": {
             "outer_diameter": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,

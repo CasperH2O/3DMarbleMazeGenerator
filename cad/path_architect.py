@@ -247,6 +247,16 @@ class PathArchitect:
             previous_profile_type = segment.path_profile_type
             previous_curve_model = segment.curve_model
 
+            # If applicalbe, apply forced profile for this main_index
+            # Intentionally placed last as override so it does not interfer
+            forced = Config.Path.PATH_PROFILE_TYPE_OVERRIDES.get(segment.main_index)
+            if forced:
+                print(
+                    f"[Config Override] Segment {segment.main_index} "
+                    f"→ forcing profile {forced.value}"
+                )
+                segment.path_profile_type = forced
+
     def assign_path_transition_types(self):
         # Initialize the transition tracker
         next_transition = Transition.ROUND  # Starting with 'round'
