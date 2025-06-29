@@ -15,7 +15,9 @@ from build123d import (
     Part,
     Plane,
     Polyline,
+    PositionMode,
     RadiusArc,
+    Rot,
     Sketch,
     Spline,
     Transition,
@@ -811,73 +813,116 @@ class PathBuilder:
         for segment in self.path_architect.segments:
             main_index = segment.main_index
 
-            # Only process segments of PathProfileType O_SHAPE and Standard curve model
-            if (
-                segment.path_profile_type not in [PathProfileType.O_SHAPE]
-                or segment.curve_model != PathCurveModel.COMPOUND
-            ):
+            # Only process segments of PathProfileType O_SHAPE
+            if segment.path_profile_type not in [PathProfileType.O_SHAPE]:
                 continue  # Skip this segment
 
-            # Determine the work plane direction for this main_index
-            if main_index not in main_index_to_work_plane_direction:
-                has_mounting_node = main_index_to_has_mounting_node[main_index]
-                if has_mounting_node:
-                    # Must use 'XY' work plane
-                    work_plane = Plane.XY
+            if segment.curve_model == PathCurveModel.COMPOUND:
+                # Determine the work plane direction for this main_index
+                if main_index not in main_index_to_work_plane_direction:
+                    has_mounting_node = main_index_to_has_mounting_node[main_index]
+                    if has_mounting_node:
+                        # Must use 'XY' work plane
+                        work_plane = Plane.XY
+                    else:
+                        # Randomly choose a work plane direction
+                        work_plane = random.choice(possible_work_planes)
+                    main_index_to_work_plane_direction[main_index] = work_plane
                 else:
-                    # Randomly choose a work plane direction
-                    work_plane = random.choice(possible_work_planes)
-                main_index_to_work_plane_direction[main_index] = work_plane
-            else:
-                work_plane = main_index_to_work_plane_direction[main_index]
+                    work_plane = main_index_to_work_plane_direction[main_index]
 
-            # Skip O_SHAPE_SUPPORT segments if work plane is not 'XY',
-            # no need to print support underneath holes along the Z axis
-            if (
-                work_plane != Plane.XY
-                and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT
-            ):
-                continue  # Skip this segment
+                # Skip O_SHAPE_SUPPORT segments if work plane is not 'XY',
+                # no need to print support underneath holes along the Z axis
+                if (
+                    work_plane != Plane.XY
+                    and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT
+                ):
+                    continue  # Skip this segment
 
-            # Skip segments that are not straight
-            if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
-                continue  # Skip this segment
+                # Skip segments that are not straight
+                if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
+                    continue  # Skip this segment
 
-            hole_size = Config.Puzzle.BALL_DIAMETER + 1
-            total_nodes = len(segment.nodes)
+                hole_size = Config.Puzzle.BALL_DIAMETER + 1
+                total_nodes = len(segment.nodes)
 
-            if total_nodes <= 2:
-                continue  # Skip this segment
+                if total_nodes <= 2:
+                    continue  # Skip this segment
 
-            start_idx = 1  # Exclude the first node
-            end_idx = total_nodes - 1  # Exclude the last node
+                start_idx = 1  # Exclude the first node
+                end_idx = total_nodes - 1  # Exclude the last node
 
-            for idx in range(start_idx, end_idx):
-                node = segment.nodes[idx]
-                # Adjust the index to align with the interval 'n'
-                adjusted_idx = idx - start_idx
-                if adjusted_idx % n != 0:
-                    continue  # Skip this node
+                for idx in range(start_idx, end_idx):
+                    node = segment.nodes[idx]
+                    # Adjust the index to align with the interval 'n'
+                    adjusted_idx = idx - start_idx
+                    if adjusted_idx % n != 0:
+                        continue  # Skip this node
 
-                # Create the cutting cylinder based on work plane direction
-                with BuildPart() as cutting_cylinder:
-                    with BuildSketch(work_plane):
-                        Circle(hole_size / 2)
-                    extrude(amount=self.node_size / 2 + self.node_size * 0.1, both=True)
+                    # Create the cutting cylinder based on work plane direction
+                    with BuildPart() as cutting_cylinder:
+                        with BuildSketch(work_plane):
+                            Circle(hole_size / 2)
+                        extrude(
+                            amount=self.node_size / 2 + self.node_size * 0.1, both=True
+                        )
 
-                # Move the cutting cylinder to the node position
-                cutting_cylinder.part.position = (node.x, node.y, node.z)
+                    # Move the cutting cylinder to the node position
+                    cutting_cylinder.part.position = (node.x, node.y, node.z)
 
-                # show_object(cutting_cylinder, name=f"Cutting Cylinder at Node {idx}")
+                    # show_object(cutting_cylinder, name=f"Cutting Cylinder at Node {idx}")
 
-                if segment.path_body and segment.path_body.part.is_valid():
-                    segment.path_body.part = (
-                        segment.path_body.part - cutting_cylinder.part
-                    )
-                if segment.support_body:
-                    segment.support_body.part = (
-                        segment.support_body.part - cutting_cylinder.part
-                    )
+                    if segment.path_body and segment.path_body.part.is_valid():
+                        segment.path_body.part = (
+                            segment.path_body.part - cutting_cylinder.part
+                        )
+                    if segment.support_body:
+                        segment.support_body.part = (
+                            segment.support_body.part - cutting_cylinder.part
+                        )
+            # For splines, use spline edge to determine location of holes to cut
+            elif segment.curve_model == PathCurveModel.SPLINE:
+                total_length = segment.path.length
+                hole_size = Config.Puzzle.BALL_DIAMETER + 1
+                interval = 2 * self.node_size
+
+                # Determine how many holes fit
+                # Ensure at least one node_size distance from the end
+                usable_length = total_length - self.node_size
+                count = int(usable_length // interval)
+                if count < 1:
+                    # Nothing to cut
+                    continue
+
+                # Compute absolute distances along the curve
+                distances = [interval * i for i in range(1, count + 1)]
+
+                # Sample full Locations (position + orientation)
+                locations = segment.path.locations(
+                    distances,
+                    position_mode=PositionMode.LENGTH,
+                    frame_method=FrameMethod.FRENET,
+                )
+
+                # Create and subtract holes at each sampled location
+                for loc in locations:
+                    with BuildPart() as cutting_cylinder:
+                        # Sketch circle in local XY of the part
+                        with BuildSketch():
+                            Circle(hole_size / 2)
+                        extrude(
+                            amount=self.node_size / 2 + self.node_size * 0.1, both=True
+                        )
+
+                    # Align and position in one step
+                    # Rotate cylinder axis to align with local normal (Y axis)
+                    cutting_cylinder.part = loc * Rot(0, -90, 0) * cutting_cylinder.part
+
+                    # Subtract from bodies
+                    if segment.path_body and segment.path_body.part.is_valid():
+                        segment.path_body.part -= cutting_cylinder.part
+                    if segment.support_body:
+                        segment.support_body.part -= cutting_cylinder.part
 
     def determine_path_profile_angle(
         self,
