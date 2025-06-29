@@ -204,7 +204,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                 angular_range=angle_range,
             ):
                 Box(
-                    width=self.node_size - 0.01,
+                    width=self.node_size - 0.05,
                     length=self.node_size * 2 - 2.1,  # TODO Hardcoded, bad
                     height=self.mounting_bridge_height - tolerance,
                 )

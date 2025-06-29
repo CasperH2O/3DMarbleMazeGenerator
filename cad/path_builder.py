@@ -11,7 +11,9 @@ from build123d import (
     Circle,
     Face,
     FrameMethod,
+    Keep,
     Line,
+    Mode,
     Part,
     Plane,
     Polyline,
@@ -26,6 +28,8 @@ from build123d import (
     add,
     extrude,
     loft,
+    make_hull,
+    split,
     sweep,
 )
 
@@ -73,6 +77,9 @@ class PathBuilder:
 
         # Create the paths based provided segments from path architect
         self.build_segments()
+
+        # Create the finish box based on the last segment path profile hull
+        self.build_finish_box()
 
         # Make holes in O-shaped path segments
         self.cut_holes_in_o_shape_path_profile_segments()
@@ -1014,6 +1021,84 @@ class PathBuilder:
         )
 
         return 0
+
+    def build_finish_box(self):
+        # Use last segment to create a finish box
+        last_segment = self.path_architect.segments[-1]
+
+        # Determine extension length based on nozzle diameter
+        extension_length = Config.Manufacturing.NOZZLE_DIAMETER * 3
+
+        # Compute the normalized start parameter so that we keep only the final extension_length
+        start_param = 1.0 - (extension_length / last_segment.path.length)
+
+        # Generate sweep at the end of the segment to close it
+        with BuildPart() as finish_box_closure:
+            # Trim the last segment path to only the final bit
+            with BuildLine() as closure_line:
+                add(last_segment.path.trim(start_param, 1.0))
+            with BuildSketch(closure_line.line ^ 0) as closure_sketch:
+                # Create profile depending on shape type
+                # TODO calculate angles as needed
+                path_line_angle = -90
+                profile_angle = 180
+
+                # Retrieve the parameters for the profile type
+                path_parameters = self.path_profile_type_parameters.get(
+                    last_segment.path_profile_type.value, {}
+                )
+                # Retrieve the function to create the profile shape
+                path_profile_function = PROFILE_TYPE_FUNCTIONS.get(
+                    last_segment.path_profile_type, create_u_shape
+                )
+                # Create the profile and assign it to the segment
+                path_profile = path_profile_function(
+                    **path_parameters,
+                    rotation_angle=path_line_angle + profile_angle,
+                )
+                # Add the created profile to the sketch
+                add(path_profile)
+
+                make_hull()
+
+            sweep(transition=Transition.RIGHT)
+
+        # If the profile type is O_SHAPE, create an additinal hole set
+        if last_segment.path_profile_type == PathProfileType.O_SHAPE:
+            with BuildPart() as o_shape_finish_box_cut_out:
+                # Hole to get ball out
+                with BuildSketch():
+                    Circle(Config.Puzzle.BALL_DIAMETER / 2 + 0.5)
+                extrude(amount=self.node_size / 2 + self.node_size * 0.1)
+                # Hole to hold ball
+                with BuildSketch():
+                    Circle(Config.Puzzle.BALL_DIAMETER / 2 - 0.5)
+                extrude(amount=-self.node_size / 2 - self.node_size * 0.1)
+
+            # Move the cut out to the second last node position
+            o_shape_finish_box_cut_out.part.position = (
+                last_segment.nodes[-2].x,
+                last_segment.nodes[-2].y,
+                last_segment.nodes[-2].z,
+            )
+
+            self.path_architect.segments[
+                -1
+            ].path_body.part -= o_shape_finish_box_cut_out.part
+
+            if self.path_architect.segments[-1].support_body:
+                self.path_architect.segments[
+                    -1
+                ].support_body.part -= o_shape_finish_box_cut_out.part
+
+        # Combine the finish box with the last segment path body and remove from accent and support
+        self.path_architect.segments[-1].path_body.part += finish_box_closure.part
+        if self.path_architect.segments[-1].accent_body:
+            self.path_architect.segments[-1].accent_body.part -= finish_box_closure.part
+        if self.path_architect.segments[-1].support_body:
+            self.path_architect.segments[
+                -1
+            ].support_body.part -= finish_box_closure.part
 
 
 def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) -> bool:

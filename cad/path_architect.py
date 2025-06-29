@@ -531,80 +531,65 @@ class PathArchitect:
             start_segment.path_profile_type = PathProfileType.U_SHAPE
 
     def create_finish_box(self):
-        # This method adds a closing shape at the end of the path to close off the route.
-        # It does this by extending the path in the opposite direction of the last segment.
-
-        # Find the segment that contains the node with puzzle end node
+        # Locate the segment + index of the puzzle_end node
         end_segment = None
-        end_node_index = None
-        for segment in self.segments:
-            for i, node in enumerate(segment.nodes):
-                if node.puzzle_end:
-                    end_segment = segment
-                    end_node_index = i
+        end_idx = None
+        for seg in self.segments:
+            for i, n in enumerate(seg.nodes):
+                if n.puzzle_end:
+                    end_segment = seg
+                    end_idx = i
                     break
             if end_segment:
                 break
-
-        if end_segment is None or end_node_index is None:
-            # No end node found, so nothing to do
+        # Nothing to do if we didn’t find a proper end with at least two nodes
+        if end_segment is None or end_idx is None or end_idx < 1:
             return
 
-        # Ensure there are at least two nodes to calculate the direction
-        if end_node_index >= 1:
-            # Get last node (end node) and second last node
-            last_node = end_segment.nodes[end_node_index]
-            second_last_node = end_segment.nodes[end_node_index - 1]
+        # Grab the two last nodes
+        last_node = end_segment.nodes[end_idx]
+        prev_node = end_segment.nodes[end_idx - 1]
 
-            # Compute the vector from second last node to last node
-            vec_last = Vector(last_node.x, last_node.y, last_node.z)
-            vec_second_last = Vector(
-                second_last_node.x, second_last_node.y, second_last_node.z
-            )
-            direction_vector = (vec_last - vec_second_last).normalized()
+        # Compute the direction, depending on circular or rectangular nodes
+        P = Vector(prev_node.x, prev_node.y, prev_node.z)
+        Q = Vector(last_node.x, last_node.y, last_node.z)
 
-            # Compute opposite direction
-            opposite_direction = -direction_vector
-
-            # Determine length of extension (use nozzle diameter)
-            extension_length = self.nozzle_diameter * 3
-
-            # Create new node extending from last node in opposite direction
-            extension_vector = opposite_direction * extension_length
-            new_point = vec_last + extension_vector
-            new_node = Node(new_point.X, new_point.Y, new_point.Z)
-
-            # Create new segment consisting of last_node and new_node
-            new_segment_nodes = [new_node, last_node]
-
-            # Create new PathSegment for the closing shape
-            new_segment = PathSegment(
-                nodes=new_segment_nodes,
-                main_index=self.main_index_counter,
-                secondary_index=0,
-            )
-
-            # Set the profile type to rectangle shape for the closing shape
-            new_segment.curve_model = PathCurveModel.SINGLE
-            # TODO instead of a rectangle, wrap the path profile type shape
-            new_segment.path_profile_type = PathProfileType.RECTANGLE_SHAPE
-            new_segment.curve_type = PathCurveType.STRAIGHT
-            new_segment.transition_type = end_segment.transition_type
-
-            # Append new_segment to self.segments
-            self.segments.append(new_segment)
-
-            # Increment main_index_counter
-            self.main_index_counter += 1
-
-            # Ensure that the path profile type of the segment containing the last node is u shaped
-            end_segment.path_profile_type = PathProfileType.U_SHAPE
-
-            # Update the end segment last node to the location
-            end_segment.nodes[-1] = new_node
+        if NodeGridType.CIRCULAR.value in getattr(
+            prev_node, "grid_type", []
+        ) and NodeGridType.CIRCULAR.value in getattr(last_node, "grid_type", []):
+            # on a circle → true tangent
+            R = Vector(Q.X, Q.Y, 0)
+            tangent = Vector(-R.Y, R.X, 0).normalized()
+            travel = (Q - P).normalized()
+            if travel.dot(tangent) < 0:
+                tangent = -tangent
         else:
-            # Not enough nodes to compute direction
-            pass
+            tangent = (Q - P).normalized()
+
+        # Extend by half the node size
+        ext_len = self.node_size / 2.0
+        Q_ext = Q + tangent * ext_len
+
+        # Clear old end-flags, update new flags
+        last_node.puzzle_end = False
+        last_node.segment_end = False
+
+        new_node = Node(Q_ext.X, Q_ext.Y, Q_ext.Z)
+        new_node.puzzle_end = True
+        new_node.segment_end = True
+
+        # Build a new path segment for at the end
+        ext_segment = PathSegment(
+            [last_node, new_node],
+            main_index=end_segment.main_index,
+            secondary_index=end_segment.secondary_index + 1,
+        )
+        ext_segment.copy_attributes_from(end_segment)
+        ext_segment.curve_model = PathCurveModel.COMPOUND
+        ext_segment.curve_type = PathCurveType.STRAIGHT
+        ext_segment.transition_type = end_segment.transition_type
+
+        self.segments.append(ext_segment)
 
     def reindex_segments(self):
         new_main_index_counter = 1
