@@ -275,6 +275,9 @@ class PathArchitect:
                 segment.transition_type = Transition.ROUND
             elif any(node.mounting for node in segment.nodes):
                 segment.transition_type = Transition.RIGHT
+            elif segment.curve_model == PathCurveModel.SINGLE:
+                # Make spline SINGLE connection segments more fluent
+                segment.transition_type = Transition.ROUND
             else:
                 # Alternately choose between 'right' and 'round'
                 segment.transition_type = next_transition
