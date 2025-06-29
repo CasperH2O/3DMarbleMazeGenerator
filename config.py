@@ -39,7 +39,7 @@ class Manufacturing:
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.
-    DIVIDE_PATHS_IN = 1
+    DIVIDE_PATHS_IN = 0
 
 
 # Sphere case configuration
@@ -90,8 +90,11 @@ class Path:
 
     # Map a segment main index to a forced profile type
     PATH_PROFILE_TYPE_OVERRIDES = {
-        2: PathProfileType.L_SHAPE_MIRRORED,
-        5: PathProfileType.V_SHAPE,
+        2: PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+        3: PathProfileType.L_SHAPE_MIRRORED,
+        4: PathProfileType.V_SHAPE,
+        6: PathProfileType.O_SHAPE,
+        7: PathProfileType.U_SHAPE,
         8: PathProfileType.O_SHAPE,
     }
 
