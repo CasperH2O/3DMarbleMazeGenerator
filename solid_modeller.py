@@ -63,8 +63,9 @@ def main() -> None:
                 label = part.label
                 color = part.color
 
-                # TODO, combine all paths into one object, then subtract the cut shape from it
-                case_parts[idx] = part - standard_paths[0]
+                # Subtract all paths from the mounting ring
+                case_parts[idx] = case_parts[idx] - standard_paths
+
                 # Extract and sort the solids by volume
                 sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
 
@@ -80,8 +81,9 @@ def main() -> None:
                 label = part.label
                 color = part.color
 
-                # TODO, combine all paths into one object, then subtract the cut shape from it
-                case_parts[idx] = part - standard_paths[0]
+                # Subtract all paths from the internal bridge parts
+                case_parts[idx] -= standard_paths
+
                 # Extract and sort the solids by volume
                 sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
 
