@@ -530,23 +530,36 @@ class PathBuilder:
             try:
                 # print(f"Sweeping for segment {segment.main_index}.{segment.secondary_index}")
 
-                # Sweep for the main path body
-                with BuildPart() as segment.path_body:
-                    with BuildLine() as segment_path_line:
-                        add(segment.path)
-                    with BuildSketch(
-                        segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
-                    ) as s1:
-                        add(segment.path_profile)
-                    with BuildSketch(
-                        segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
-                    ) as s2:
-                        add(path_profile_end)
-                    sweep(
-                        sections=[s1.sketch, s2.sketch],
-                        path=segment_path_line.line,
-                        multisection=True,
+                # Sweep for the main path body, use regular sweep in case of o shape due to internal edges
+                # otherwise, use multi sweep
+                # This is to handle internal edges not being swept by kernel (issue?)
+                if segment.path_profile_type == PathProfileType.O_SHAPE:
+                    segment.path_body = sweep_single_profile(
+                        segment=segment,
+                        profile=segment.path_profile,
+                        transition_type=Transition.RIGHT,
                     )
+                else:
+                    with BuildPart() as segment.path_body:
+                        with BuildLine() as segment_path_line:
+                            add(segment.path)
+                        with BuildSketch(
+                            segment.path.location_at(
+                                0, frame_method=FrameMethod.CORRECTED
+                            )
+                        ) as s1:
+                            add(segment.path_profile)
+                        with BuildSketch(
+                            segment.path.location_at(
+                                1, frame_method=FrameMethod.CORRECTED
+                            )
+                        ) as s2:
+                            add(path_profile_end)
+                        sweep(
+                            sections=[s1.sketch, s2.sketch],
+                            path=segment_path_line.line,
+                            multisection=True,
+                        )
 
                 # Check if bodies are valid
                 if not segment.path_body.part.is_valid():
@@ -612,27 +625,34 @@ class PathBuilder:
                         **support_path_parameters, rotation_angle=angle_sketch_2_final
                     )
 
-                    # Sweep for the support body
-                    with BuildPart() as segment.support_body:
-                        with BuildLine() as segment_path_line:
-                            add(segment.path)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                0, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s1:
-                            add(segment.support_profile)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                1, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s2:
-                            add(path_profile_end)
-                        sweep(
-                            [s1.sketch, s2.sketch],
-                            segment_path_line.line,
-                            multisection=True,
+                    if segment.support_profile_type == PathProfileType.O_SHAPE_SUPPORT:
+                        segment.support_body = sweep_single_profile(
+                            segment=segment,
+                            profile=segment.support_profile,
+                            transition_type=Transition.RIGHT,
                         )
+                    else:
+                        # Sweep for the support body
+                        with BuildPart() as segment.support_body:
+                            with BuildLine() as segment_path_line:
+                                add(segment.path)
+                            with BuildSketch(
+                                segment.path.location_at(
+                                    0, frame_method=FrameMethod.CORRECTED
+                                )
+                            ) as s1:
+                                add(segment.support_profile)
+                            with BuildSketch(
+                                segment.path.location_at(
+                                    1, frame_method=FrameMethod.CORRECTED
+                                )
+                            ) as s2:
+                                add(path_profile_end)
+                            sweep(
+                                [s1.sketch, s2.sketch],
+                                segment_path_line.line,
+                                multisection=True,
+                            )
 
                 # If we reach this point, the sweep succeeded, return segment
 
