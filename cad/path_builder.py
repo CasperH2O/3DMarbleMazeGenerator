@@ -537,10 +537,11 @@ class PathBuilder:
             try:
                 # print(f"Sweeping for segment {segment.main_index}.{segment.secondary_index}")
 
-                # Sweep for the main path body, use regular sweep in case of o shape due to internal edges
+                # Sweep for the main path body, use regular sweep in case of internal inner wires
                 # otherwise, use multi sweep
-                # This is to handle internal edges not being swept by kernel (issue?)
-                if segment.path_profile_type == PathProfileType.O_SHAPE:
+                # This is to handle OCCT sweep functionality (BRepOffsetAPI_MakePipeShell)
+                # doesn't support holes and only takes a Wire
+                if len(path_profile_end.faces()[0].inner_wires()) > 0:
                     segment.path_body = sweep_single_profile(
                         segment=segment,
                         profile=segment.path_profile,
@@ -632,7 +633,9 @@ class PathBuilder:
                         **support_path_parameters, rotation_angle=angle_sketch_2_final
                     )
 
-                    if segment.support_profile_type == PathProfileType.O_SHAPE_SUPPORT:
+                    # This is to handle OCCT sweep functionality (BRepOffsetAPI_MakePipeShell)
+                    # doesn't support holes and only takes a Wire
+                    if len(path_profile_end.faces()[0].inner_wires()) > 0:
                         segment.support_body = sweep_single_profile(
                             segment=segment,
                             profile=segment.support_profile,
