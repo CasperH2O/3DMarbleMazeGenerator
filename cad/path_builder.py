@@ -1042,9 +1042,28 @@ class PathBuilder:
                 add(last_segment.path.trim(start_param, 1.0))
             with BuildSketch(closure_line.line ^ 0) as closure_sketch:
                 # Create profile depending on shape type
-                # TODO calculate angles as needed
-                path_line_angle = -90
-                profile_angle = 180
+
+                # Determine path line angle difference between the
+                # current segment and the previous segment for rotation
+                # Should always be 0... ?
+                loc1 = last_segment.path ^ 1
+                loc2 = closure_line.line ^ 1
+                path_angle_delta = loc2.y_axis.direction.get_signed_angle(
+                    loc1.y_axis.direction, loc2.z_axis.direction
+                )
+                path_line_angle = 90 * round(path_angle_delta / 90.0)
+
+                # Need a segment to determine angle,
+                # edge needs to be reversed for determine angle method
+                # later as we go in the opposite direction
+                place_holder_segment = PathSegment([(0, 0, 0)], main_index=0)
+                place_holder_segment.path = closure_line.edges()[0].reversed()
+
+                # Determine the angle of the profile based on the previous segment
+                # Rotate opposite direction by multiplying with -1
+                profile_angle = -1 * self.determine_path_profile_angle(
+                    last_segment, place_holder_segment, path_line_angle
+                )
 
                 # Retrieve the parameters for the profile type
                 path_parameters = self.path_profile_type_parameters.get(
