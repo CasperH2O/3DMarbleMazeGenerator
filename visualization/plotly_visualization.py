@@ -82,9 +82,10 @@ def visualize_path_architect(nodes: Node, segments: list[PathSegment], casing: C
         # Create hover text for the segment.
         segment_name = (
             f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
-            f"Path Curve Model: {segment.curve_model}<br>"
+            f"Transition Type: {segment.transition_type}<br>"
+            f"Path Curve Model: {segment.curve_model.value}<br>"
             f"Curve Type: {segment.curve_type}<br>"
-            f"Path Profile Type: {segment.path_profile_type}"
+            f"Path Profile Type: {segment.path_profile_type.value}"
         )
 
         # Determine the method to generate the segment curve.

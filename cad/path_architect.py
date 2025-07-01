@@ -259,7 +259,7 @@ class PathArchitect:
 
     def assign_path_transition_types(self):
         # Initialize the transition tracker
-        next_transition = Transition.ROUND  # Starting with 'round'
+        transition = Transition.ROUND  # Starting with 'round'
 
         for segment in self.segments:
             # Check if segment already has a transition type, skip if so
@@ -273,20 +273,20 @@ class PathArchitect:
                 PathProfileType.O_SHAPE,
             ]:
                 segment.transition_type = Transition.ROUND
-            elif any(node.mounting for node in segment.nodes):
-                segment.transition_type = Transition.RIGHT
             elif segment.curve_model == PathCurveModel.SINGLE:
                 # Make spline SINGLE connection segments more fluent
                 segment.transition_type = Transition.ROUND
             else:
+                # Flip the next_transition for the subsequent else case,
+                # only for first secondary index ie 0 as that determines it for the whole segment
+                if segment.secondary_index == 0:
+                    transition = (
+                        Transition.ROUND
+                        if transition == Transition.RIGHT
+                        else Transition.RIGHT
+                    )
                 # Alternately choose between 'right' and 'round'
-                segment.transition_type = next_transition
-                # Flip the next_transition for the subsequent else case
-                next_transition = (
-                    Transition.ROUND
-                    if next_transition == Transition.RIGHT
-                    else Transition.RIGHT
-                )
+                segment.transition_type = transition
 
     def detect_curves_and_adjust_segments(self):
         i = 0
