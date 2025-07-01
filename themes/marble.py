@@ -8,7 +8,7 @@ def apply_overrides(
     """
     Set wood, white marble, and brass theme specific configurations
     """
-    puzzle.BALL_COLOR = "#FFFFFF"  # White (Marble)
+    puzzle.BALL_COLOR = "#000000"  # Black (Marble)
     puzzle.PATH_COLORS = [
         "#D4D2D1",
         "#D4D2D1",

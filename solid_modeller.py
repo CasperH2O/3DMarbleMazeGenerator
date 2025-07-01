@@ -213,7 +213,7 @@ def ball_and_path_indicators(puzzle):
     node_positions = [(node.x, node.y, node.z) for node in cad_nodes]
 
     # Ball at the start
-    with BuildPart(Pos(node_positions[1])) as ball:
+    with BuildPart(Pos(node_positions[2])) as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
     ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
@@ -247,7 +247,6 @@ def ball_and_path_indicators(puzzle):
 
     ball_path.part.label = "Ball Path"
     ball_path.part.color = Config.Puzzle.BALL_COLOR
-    # FIXME color's no longer seem to apply?!
 
     return ball.part, ball_path.part
 
