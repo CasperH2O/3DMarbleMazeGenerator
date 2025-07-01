@@ -501,7 +501,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         self.mounting_ring_bottom.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         self.start_indicator.part.label = CasePart.START_INDICATOR.value
-        self.start_indicator.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        self.start_indicator.part.color = Config.Puzzle.TEXT_COLOR
 
         self.internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
         self.internal_path_bridges.part.color = Config.Puzzle.PATH_COLORS[0]
