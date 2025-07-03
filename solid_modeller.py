@@ -3,7 +3,9 @@
 import os
 from typing import Optional
 
+import numpy as np
 from build123d import (
+    Align,
     BuildLine,
     BuildPart,
     BuildSketch,
@@ -19,9 +21,16 @@ from build123d import (
     export_stl,
     sweep,
 )
-from build123d.build_enums import Align
-from ocp_vscode import Camera, set_defaults, set_viewer_config, show_object, status
+from ocp_vscode import (
+    Animation,
+    Camera,
+    set_defaults,
+    set_viewer_config,
+    show_object,
+    status,
+)
 
+from cad.base import create_circular_base
 from cad.cases.case import CasePart
 from cad.cases.case_box import CaseBox
 from cad.cases.case_sphere import CaseSphere
@@ -54,6 +63,10 @@ def main() -> None:
 
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
+
+    # Create the base
+    base = create_circular_base()
+    case_parts.append(base)
 
     if standard_paths:
         for idx, part in enumerate(case_parts):
@@ -301,6 +314,21 @@ def set_viewer():
     }
 
     set_viewer_config(states=new_config)
+
+    # Rotating animation
+    animation = Animation(Part())
+    times = np.linspace(0, 6, 33)  # 4 seconds split in 0.2 intervals
+    values = np.linspace(0, -360, 33)  # as many positions as times
+
+    # Get all the groups for animation
+    all_groups = current_states.keys()
+    # add all groups to animation tracks except for the base
+    for grp in all_groups:
+        if grp == "/Group/Base":
+            continue  # skip the Base group
+        animation.add_track(grp, "rz", times, values)
+
+    animation.animate(1)
 
 
 def export_all(case_parts, additional_parts=None):
