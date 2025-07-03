@@ -456,9 +456,11 @@ class PathBuilder:
             )
 
             # Debug statement indicating sweep attempt
+            '''
             print(
                 f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}"
             )
+            '''
 
             # Start with -90 angle to orientate the profile sketch "right way up"
             angle_path_line_previous = -90
@@ -951,8 +953,11 @@ class PathBuilder:
                     # Subtract from bodies
                     if segment.path_body and segment.path_body.part.is_valid():
                         segment.path_body.part -= cutting_cylinder.part
+                    
+                    # TODO this rarely needs to be done, but commenting out breaks down the line
                     if segment.support_body:
                         segment.support_body.part -= cutting_cylinder.part
+                    
 
     def determine_path_profile_angle(
         self,

@@ -35,7 +35,7 @@ class Puzzle:
 class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
-    EXPORT_STL = False
+    EXPORT_STL = True
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.

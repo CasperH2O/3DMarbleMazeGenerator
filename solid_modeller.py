@@ -15,6 +15,7 @@ from build123d import (
     Part,
     Polyline,
     Pos,
+    ShapeList,
     SortBy,
     Sphere,
     Transition,
@@ -331,6 +332,15 @@ def set_viewer():
     animation.animate(1)
 
 
+def safe_export(to_export, file_path, **kwargs):
+    """
+    Ensure we always pass a proper Shape/Part to export_stl.
+    If to_export is a ShapeList, wrap it in a Part.
+    """
+    if isinstance(to_export, ShapeList):
+        to_export = Part(to_export)
+    export_stl(to_export=to_export, file_path=file_path, **kwargs)
+
 def export_all(case_parts, additional_parts=None):
     """
     Export all case parts as STLs for 3D print manufacturing.
@@ -347,7 +357,7 @@ def export_all(case_parts, additional_parts=None):
     # Export each case part to STL format
     for case_part in case_parts:
         stl_file_path = os.path.join(export_path, f"{case_part.label}.stl")
-        export_stl(to_export=case_part, file_path=stl_file_path)
+        safe_export(case_part, stl_file_path)
 
     # Export additional objects, if any.
     if additional_parts:
@@ -361,7 +371,7 @@ def export_all(case_parts, additional_parts=None):
 
         for part in _flatten(additional_parts):
             stl_file_path = os.path.join(export_path, f"{part.label}.stl")
-            export_stl(to_export=part, file_path=stl_file_path)
+            safe_export(part, stl_file_path)
 
 
 if __name__ == "__main__":
