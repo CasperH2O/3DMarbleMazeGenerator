@@ -1,36 +1,72 @@
+from build123d import *
 from build123d import (
     Axis,
     BuildPart,
-    BuildSketch,
-    Circle,
+    Keep,
     Mode,
+    Plane,
     Sphere,
     chamfer,
-    extrude,
+    split,
 )
+from ocp_vscode import show
 
 import config
 
 sphere_diameter = config.Sphere.SPHERE_DIAMETER
-extrusion_amount = -1 * (sphere_diameter / 2 + 5)
+extrusion_amount = -1 * (sphere_diameter / 2 + 7)
 
 
 # Create a basic circular base with a sphere cut out based on enclosure size
 def create_circular_base():
     with BuildPart() as base:
-        # Base cylinder
-        with BuildSketch():
-            Circle(radius=30)
-        extrude(amount=extrusion_amount)
-        # Hold in cylinder
-        with BuildSketch():
-            Circle(radius=15)
-        extrude(amount=extrusion_amount, mode=Mode.SUBTRACT)
+        # Base cylinder, aligned so its MAX-Z face is at Z=0
+        Cylinder(
+            radius=30,
+            height=-extrusion_amount,
+            align=(Align.CENTER, Align.CENTER, Align.MAX),
+        )
+        # Hole in cylinder, same alignment, subtractive
+        Cylinder(
+            radius=15,
+            height=-extrusion_amount,
+            align=(Align.CENTER, Align.CENTER, Align.MAX),
+            mode=Mode.SUBTRACT,
+        )
+        # Subtract the puzzle casing sphere
         Sphere(radius=sphere_diameter / 2, mode=Mode.SUBTRACT)
         chamfer(base.edges().group_by(Axis.Z)[0], length=2)
         chamfer(base.edges().group_by(Axis.Z)[-1], length=2)
 
-        base.part.label = "Base"
-        base.part.color = config.Puzzle.PATH_COLORS[0]
+    base_foot = split(
+        objects=base.part,
+        bisect_by=Plane.XY.offset(extrusion_amount + 5),
+        keep=Keep.BOTTOM,
+    )
+    base_edge = split(
+        objects=base.part,
+        bisect_by=Plane.XY.offset(extrusion_amount + 6.5),
+        keep=Keep.BOTTOM,
+    )
 
-    return base.part
+    # Subtract from one another
+    base.part -= base_foot
+    base.part -= base_edge
+    base_edge -= base_foot
+
+    # Colors and labels
+    base.part.label = "Base Top"
+    base.part.color = config.Puzzle.PATH_COLORS[0]
+
+    base_foot.label = "Base Bottom"
+    base_foot.color = config.Puzzle.MOUNTING_RING_COLOR
+
+    base_edge.label = "Base Edge"
+    base_edge.color = config.Puzzle.PATH_ACCENT_COLOR
+
+    return [base.part, base_foot, base_edge]
+
+
+if __name__ == "__main__":
+    base = create_circular_base()
+    show(base)
