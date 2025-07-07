@@ -1,14 +1,17 @@
 # obstacles/obstacle.py
 
 
+import random
 from abc import ABC, abstractmethod
-from random import random
 from typing import List, Optional, Tuple
 
+import plotly.graph_objects as go
 from build123d import Location, Part, Pos, Rotation, Vector
 
-from config import Config
+import config
+from puzzle.casing import SphereCasing
 from puzzle.node import Node
+from visualization.plotly_helpers import plot_casing_plotly, plot_nodes_plotly
 
 
 class Obstacle(ABC):
@@ -28,7 +31,9 @@ class Obstacle(ABC):
         """
         self.name: str = name
         # Placement attributes (to be set by the manager/placer)
-        self.location: Optional[Location] = None  # Position and orientation
+        self.location: Optional[Location] = Location(
+            Pos(Vector(0, 0, 0))
+        )  # Position and orientation
 
         # Connection points (to be determined after placement)
         # These should correspond to specific nodes in the main grid
@@ -37,10 +42,10 @@ class Obstacle(ABC):
 
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
-        self._occupied_node_coords: Optional[List[Vector]] = None
+        self._occupied_nodes: Optional[List[Node]] = None
 
         # Set the random seed for reproducibility if needed internally
-        random.seed(Config.Puzzle.SEED)
+        random.seed(config.Puzzle.SEED)
 
     @abstractmethod
     def create_obstacle_geometry(self) -> Part:
@@ -92,29 +97,27 @@ class Obstacle(ABC):
         # Apply the location transform
         return self._part.located(self.location)
 
-    def get_placed_occupied_coords(self, node_size: float) -> Optional[List[Vector]]:
+    def get_placed_occupied_coords(self, node_size: float) -> Optional[List[Node]]:
         """
-        Calculates the absolute world coordinates of occupied nodes after placement.
-        Caches the relative coordinates calculation.
+        Transforms the local Node list in-place to world coordinates.
+        Updates each Node.x, Node.y, Node.z without creating new Node instances.
         """
         if self.location is None:
-            # print(f"Warning: Cannot get placed coords for {self.name} without location.")
             return None
 
-        if self._occupied_node_coords is None:
-            self._occupied_node_coords = self.get_relative_occupied_coords(node_size)
+        # Lazy-load local Node list
+        if self._occupied_nodes is None:
+            self._occupied_nodes = self.get_relative_occupied_coords(node_size)
 
-        # Transform relative coords using the obstacle's location
-        placed_coords = []
-        if self._occupied_node_coords:
-            relative_vectors = [Location(coord) for coord in self._occupied_node_coords]
-            placed_locations = [self.location * vec for vec in relative_vectors]
-            placed_coords = [
-                (loc.position.X, loc.position.Y, loc.position.Z)
-                for loc in placed_locations
-            ]
+        # Update each node in-place
+        for node in self._occupied_nodes:
+            rel_loc = Location(Pos(Vector(node.x, node.y, node.z)))
+            abs_loc = self.location * rel_loc
+            node.x = abs_loc.position.X
+            node.y = abs_loc.position.Y
+            node.z = abs_loc.position.Z
 
-        return placed_coords
+        return self._occupied_nodes
 
     def get_placed_entry_exit_coords(self) -> Optional[Tuple[Vector, Vector]]:
         """Calculates the absolute world coordinates of entry/exit points after placement."""
@@ -168,3 +171,28 @@ class Obstacle(ABC):
         else:
             # If not placed yet, initialize location with translation
             self.location = Location(Pos(vector))
+
+    def visualize(self):
+        """
+        Plot this obstacle's occupied nodes and the puzzle casing
+        using Plotly helper functions.
+        """
+        placed_nodes = self.get_placed_occupied_coords(config.Puzzle.NODE_SIZE)
+        if not placed_nodes:
+            raise RuntimeError(
+                f"{self.name!r} has no placement; call set_placement() first."
+            )
+
+        fig = go.Figure()
+        for trace in plot_nodes_plotly(placed_nodes):
+            fig.add_trace(trace)
+
+        casing = SphereCasing(
+            diameter=config.Sphere.SPHERE_DIAMETER,
+            shell_thickness=config.Sphere.SHELL_THICKNESS,
+        )
+        for trace in plot_casing_plotly(casing):
+            fig.add_trace(trace)
+
+        fig.update_layout(title=f"{self.name} obstacle view", template="plotly_dark")
+        fig.show()
