@@ -12,6 +12,7 @@ from build123d import (
     Plane,
     Rectangle,
     Vector,
+    add,
     sweep,
 )
 from ocp_vscode import show
@@ -28,17 +29,30 @@ class Spiral(Obstacle):
     def __init__(self):
         super().__init__(name="Spiral")
 
-        # occupied nodes, a 2 x 2 x 2 cube
+        # occupied nodes, roughly a 3 x 3 x 3 cube
         # raw grid coordinates (unit steps)
         raw_coords = [
-            (0, 0, 0),
-            (1, 0, 0),
-            (0, 1, 0),
-            (1, 1, 0),
-            (0, 0, 1),
-            (1, 0, 1),
-            (0, 1, 1),
-            (1, 1, 1),
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (-1.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (-1.0, -1.0, 1.0),
+            (0.0, -1.0, 1.0),
+            (1.0, -1.0, 1.0),
+            (-1.0, 0.0, 1.0),
+            (0.0, 0.0, 1.0),
+            (1.0, 0.0, 1.0),
+            (-1.0, 1.0, 1.0),
+            (0.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+            (-1.0, -1.0, 2.0),
+            (0.0, -1.0, 2.0),
+            (1.0, -1.0, 2.0),
+            (-1.0, 0.0, 2.0),
+            (0.0, 0.0, 2.0),
+            (1.0, 0.0, 2.0),
         ]
         self.node_size = config.Puzzle.NODE_SIZE
 
@@ -53,20 +67,39 @@ class Spiral(Obstacle):
             for x, y, z in raw_coords
         ]
 
-    def create_obstacle_geometry(self) -> Part:
+        # Generate the required geometry on obstacle initialization
+        self.create_obstacle_geometry()
+
+        # Sample points along path segment edge for visualization
+        self.sample_obstacle_path()
+
+    def create_obstacle_geometry(self):
         """Generates the geometry for the obstacle."""
 
-        with BuildPart() as obstacle:
-            with BuildLine() as helix_path:
+        with BuildPart():
+            with BuildLine() as obstacle_line:
                 Helix(
                     pitch=2 * self.node_size,
                     height=2 * self.node_size,
                     radius=self.node_size,
                 )
 
-            with BuildSketch(helix_path.line ^ 0) as profile:
-                Rectangle(4, self.node_size)
+        self.path_segment.path = obstacle_line.line
+
+    def model_solid(self):
+        """
+        Solid model the obstacle, but used for, determining
+        occupied nodes, debug and overview.
+        """
+
+        with BuildPart() as obstacle:
+            with BuildLine() as line:
+                add(self.path_segment.path)
+            with BuildSketch(line.line ^ 0):
+                Rectangle(self.node_size - 1, self.node_size - 1)
             sweep(is_frenet=True)
+
+        obstacle.part.label = f"{self.name} Obstacle Solid"
 
         return obstacle.part
 
@@ -92,10 +125,11 @@ register_obstacle("Spiral", Spiral)
 
 if __name__ == "__main__":
     # Visualization
-    spiral = Spiral()
-    spiral.translate(Vector(X=20, Y=20, Z=-10))
-    spiral.visualize()
+    obstacle = Spiral()
+    # obstacle._occupied_nodes = obstacle.determine_occupied_nodes(print_node_xyz=True)
+    obstacle.visualize()
 
     # Solid model
-    obstacle = spiral.create_obstacle_geometry()
-    show(obstacle)
+    obstacle_solid = obstacle.model_solid()
+    cubes = obstacle.create_occupied_node_cubes()
+    show(obstacle_solid, cubes)

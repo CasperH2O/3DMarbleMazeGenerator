@@ -8,11 +8,11 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Line,
-    Part,
     Polyline,
     Rot,
     Spline,
     Vector,
+    add,
     make_face,
     sweep,
 )
@@ -30,17 +30,118 @@ class OverhandKnotObstacle(Obstacle):
     def __init__(self):
         super().__init__(name="OverhandKnot")
 
-        # Occupied nodes, a 2 x 2 x 2 cube
+        # Occupied nodes,
         # raw grid coordinates (unit steps)
-        raw_coords = [
-            (0, 0, 0),
-            (1, 0, 0),
-            (2, 0, 0),
-            (3, 0, 0),
-            (0, 0, 1),
-            (1, 0, 1),
-            (2, 0, 1),
-            (3, 0, 1),
+        # Runtime calculation takes 30 seconds, thus hardcoded
+        raw_node_coordinates = [
+            (-1.0, -2.0, -2.0),
+            (-1.0, -1.0, -2.0),
+            (2.0, -1.0, -2.0),
+            (2.0, 0.0, -2.0),
+            (3.0, 0.0, -2.0),
+            (0.0, 2.0, -2.0),
+            (1.0, 2.0, -2.0),
+            (-1.0, -4.0, -1.0),
+            (0.0, -4.0, -1.0),
+            (-2.0, -3.0, -1.0),
+            (-1.0, -3.0, -1.0),
+            (0.0, -3.0, -1.0),
+            (-2.0, -2.0, -1.0),
+            (-1.0, -2.0, -1.0),
+            (0.0, -2.0, -1.0),
+            (-2.0, -1.0, -1.0),
+            (-1.0, -1.0, -1.0),
+            (0.0, -1.0, -1.0),
+            (1.0, -1.0, -1.0),
+            (2.0, -1.0, -1.0),
+            (3.0, -1.0, -1.0),
+            (-2.0, 0.0, -1.0),
+            (-1.0, 0.0, -1.0),
+            (0.0, 0.0, -1.0),
+            (1.0, 0.0, -1.0),
+            (2.0, 0.0, -1.0),
+            (3.0, 0.0, -1.0),
+            (-1.0, 1.0, -1.0),
+            (0.0, 1.0, -1.0),
+            (1.0, 1.0, -1.0),
+            (2.0, 1.0, -1.0),
+            (3.0, 1.0, -1.0),
+            (0.0, 2.0, -1.0),
+            (1.0, 2.0, -1.0),
+            (2.0, 2.0, -1.0),
+            (3.0, 2.0, -1.0),
+            (-1.0, -4.0, 0.0),
+            (0.0, -4.0, 0.0),
+            (1.0, -4.0, 0.0),
+            (-1.0, -3.0, 0.0),
+            (0.0, -3.0, 0.0),
+            (1.0, -3.0, 0.0),
+            (-2.0, -2.0, 0.0),
+            (-1.0, -2.0, 0.0),
+            (0.0, -2.0, 0.0),
+            (1.0, -2.0, 0.0),
+            (2.0, -2.0, 0.0),
+            (-2.0, -1.0, 0.0),
+            (-1.0, -1.0, 0.0),
+            (0.0, -1.0, 0.0),
+            (1.0, -1.0, 0.0),
+            (2.0, -1.0, 0.0),
+            (-2.0, 0.0, 0.0),
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (2.0, 0.0, 0.0),
+            (3.0, 0.0, 0.0),
+            (-2.0, 1.0, 0.0),
+            (-1.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (2.0, 1.0, 0.0),
+            (3.0, 1.0, 0.0),
+            (-1.0, 2.0, 0.0),
+            (0.0, 2.0, 0.0),
+            (1.0, 2.0, 0.0),
+            (2.0, 2.0, 0.0),
+            (3.0, 2.0, 0.0),
+            (2.0, 3.0, 0.0),
+            (3.0, 3.0, 0.0),
+            (0.0, -4.0, 1.0),
+            (1.0, -4.0, 1.0),
+            (0.0, -3.0, 1.0),
+            (1.0, -3.0, 1.0),
+            (2.0, -3.0, 1.0),
+            (-2.0, -2.0, 1.0),
+            (-1.0, -2.0, 1.0),
+            (0.0, -2.0, 1.0),
+            (1.0, -2.0, 1.0),
+            (2.0, -2.0, 1.0),
+            (-2.0, -1.0, 1.0),
+            (-1.0, -1.0, 1.0),
+            (0.0, -1.0, 1.0),
+            (1.0, -1.0, 1.0),
+            (2.0, -1.0, 1.0),
+            (-2.0, 0.0, 1.0),
+            (-1.0, 0.0, 1.0),
+            (0.0, 0.0, 1.0),
+            (1.0, 0.0, 1.0),
+            (2.0, 0.0, 1.0),
+            (-1.0, 1.0, 1.0),
+            (0.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+            (2.0, 1.0, 1.0),
+            (3.0, 1.0, 1.0),
+            (-1.0, 2.0, 1.0),
+            (0.0, 2.0, 1.0),
+            (1.0, 2.0, 1.0),
+            (2.0, 2.0, 1.0),
+            (3.0, 2.0, 1.0),
+            (0.0, 3.0, 1.0),
+            (1.0, 3.0, 1.0),
+            (2.0, 3.0, 1.0),
+            (1.0, -2.0, 2.0),
+            (0.0, 2.0, 2.0),
+            (1.0, 2.0, 2.0),
+            (2.0, 2.0, 2.0),
         ]
         self.node_size = config.Puzzle.NODE_SIZE
 
@@ -51,17 +152,23 @@ class OverhandKnotObstacle(Obstacle):
                 z * self.node_size,
                 occupied=True,
             )
-            for (x, y, z) in raw_coords
+            for (x, y, z) in raw_node_coordinates
         ]
 
-    def create_obstacle_geometry(self) -> Part:
+        # Generate the required geometry on obstacle initialization
+        self.create_obstacle_geometry()
+
+        # Sample points along path segment edge for visualization
+        self.sample_obstacle_path()
+
+    def create_obstacle_geometry(self):
         """Generates the geometry for the overhand knot."""
 
         # Knot parameters
         t0 = pi / 3
         t1 = 4 * pi / 3
         samples = 200
-        scale = self.node_size * 0.6  # scale knot to grid size
+        scale = self.node_size * 1  # scale knot to grid size
 
         # Generate points for the knot
         knot_points = [
@@ -73,8 +180,21 @@ class OverhandKnotObstacle(Obstacle):
             for t in range(int(t0), int(t1 * samples))
         ]
 
+        with BuildLine() as obstacle_line:
+            spline = Spline(knot_points)
+            Line(spline @ 1, spline @ 1 + 2 * self.node_size * (spline % 1))
+            Line(spline @ 0, spline @ 0 - 2 * self.node_size * (spline % 0))
+
+        self.path_segment.path = obstacle_line.line
+
+    def model_solid(self):
+        """
+        Solid model the obstacle, but used for, determining
+        occupied nodes, debug and overview.
+        """
+
         # Define profile (e.g., L-shape)
-        height_width = self.node_size * 0.6
+        height_width = self.node_size
         wall_thickness = self.node_size * 0.12
         half_w = height_width / 2
         inner = half_w - wall_thickness
@@ -88,19 +208,18 @@ class OverhandKnotObstacle(Obstacle):
             (-half_w, half_w),
         ]
 
-        with BuildPart() as knot_part:
+        with BuildPart() as obstacle:
             with BuildLine() as line:
-                spline = Spline(knot_points)
-                Line(spline @ 1, spline @ 1 + 4 * self.node_size * (spline % 1))
-                Line(spline @ 0, spline @ 0 - 4 * self.node_size * (spline % 0))
-
+                add(self.path_segment.path)
             with BuildSketch(line.line ^ 0):
                 with BuildLine(Rot(Z=-90)):
                     Polyline(l_shape)
                 make_face()
             sweep()
 
-        return knot_part.part
+        obstacle.part.label = f"{self.name} Obstacle Solid"
+
+        return obstacle.part
 
     def get_relative_occupied_coords(self) -> List[Node]:
         """
@@ -122,10 +241,12 @@ register_obstacle("OverhandKnot", OverhandKnotObstacle)
 
 if __name__ == "__main__":
     # Visualization
-    spiral = OverhandKnotObstacle()
-    spiral.translate(Vector(X=20, Y=20, Z=-10))
-    #spiral.visualize()
+    obstacle = OverhandKnotObstacle()
+    # obstacle._occupied_nodes = obstacle.determine_occupied_nodes(print_node_xyz=True)
+    # obstacle.translate(Vector(X=20, Y=20, Z=-10))
+    obstacle.visualize()
 
     # Solid model
-    obstacle = spiral.create_obstacle_geometry()
-    show(obstacle)
+    obstacle_solid = obstacle.model_solid()
+    cubes = obstacle.create_occupied_node_cubes()
+    show(obstacle_solid, cubes)

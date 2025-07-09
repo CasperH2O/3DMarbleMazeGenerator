@@ -243,3 +243,74 @@ def plot_box_casing_plotly(casing: BoxCasing):
     )
 
     return [box_trace]
+
+
+def plot_node_cubes_plotly(nodes: list[Node], node_size: float):
+    """
+    Draw a little wire-frame cube (edge length=node_size) centered on each node.
+    Returns a list of Scatter3d traces.
+    """
+    d = node_size / 2.0
+    # all 8 corner offsets
+    corner_offsets = [
+        (dx, dy, dz) for dx in (-d, d) for dy in (-d, d) for dz in (-d, d)
+    ]
+    # edges between corner indices
+    edges = [
+        (0, 1),
+        (1, 3),
+        (3, 2),
+        (2, 0),  # bottom
+        (4, 5),
+        (5, 7),
+        (7, 6),
+        (6, 4),  # top
+        (0, 4),
+        (1, 5),
+        (2, 6),
+        (3, 7),  # verticals
+    ]
+
+    traces = []
+    for node in nodes:
+        x0, y0, z0 = node.x, node.y, node.z
+        # build the 8 absolute corners
+        verts = [(x0 + dx, y0 + dy, z0 + dz) for dx, dy, dz in corner_offsets]
+        # for each edge, make a 3d line trace
+        for i, j in edges:
+            x1, y1, z1 = verts[i]
+            x2, y2, z2 = verts[j]
+            traces.append(
+                go.Scatter3d(
+                    x=[x1, x2],
+                    y=[y1, y2],
+                    z=[z1, z2],
+                    mode="lines",
+                    line=dict(width=1, color="gray"),
+                    opacity=0.5,
+                    showlegend=False,
+                )
+            )
+    return traces
+
+
+def plot_raw_obstacle_path_plotly(path: list, name: str = "Raw Path"):
+    """
+    Given a list of vector like objects (.X/.Y/.Z),
+    return a single Scatter3d trace plotting them in order as a line.
+    """
+    xs, ys, zs = [], [], []
+    for p in path:
+        xs.append(p.X)
+        ys.append(p.Y)
+        zs.append(p.Z)
+    trace = go.Scatter3d(
+        x=xs,
+        y=ys,
+        z=zs,
+        mode="lines",
+        name=name,
+        line=dict(color="white", width=2),
+        showlegend=True,
+    )
+    return [trace]
