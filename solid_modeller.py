@@ -66,8 +66,7 @@ def main() -> None:
     ball, ball_path = ball_and_path_indicators(puzzle)
 
     # Create the base
-    base = create_circular_base()
-    case_parts.append(base)
+    base_parts = create_circular_base()
 
     if standard_paths:
         for idx, part in enumerate(case_parts):
@@ -107,14 +106,14 @@ def main() -> None:
                 ]
 
                 # Convert it to a Part
-                case_parts[idx] = remaining_path_bridge_pieces
+                case_parts[idx] = Part(remaining_path_bridge_pieces)
                 case_parts[idx].label = label
                 case_parts[idx].color = color
                 break
 
     # Display all case, puzzle and additional parts
     display_parts(
-        case_parts, standard_paths, support_path, coloring_path, ball, ball_path
+        case_parts, base_parts, standard_paths, support_path, coloring_path, ball, ball_path
     )
 
     # Set viewer configuration
@@ -126,7 +125,7 @@ def main() -> None:
         support_path,
         coloring_path,
     ]
-    export_all(case_parts, additional_parts)
+    export_all(case_parts, base_parts, additional_parts)
 
 
 def puzzle_casing():
@@ -207,10 +206,10 @@ def path(puzzle, cut_shape: Part):
         support_path.color = Config.Puzzle.SUPPORT_MATERIAL_COLOR
 
     if path_bodies[PathTypes.ACCENT_COLOR]:
-        coloring_path = path_bodies[PathTypes.ACCENT_COLOR]
-        coloring_path = coloring_path + (
-            start_area[1].part - cut_shape.part
-        )  # combine with second start area
+        accent_seg = path_bodies[PathTypes.ACCENT_COLOR]
+        funnel_part = start_area[1].part - cut_shape.part
+        combined = accent_seg + funnel_part
+        coloring_path = Part(combined)
         coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
 
@@ -266,7 +265,7 @@ def ball_and_path_indicators(puzzle):
 
 
 def display_parts(
-    case_parts, standard_paths, support_path, coloring_path, ball, ball_path
+    case_parts, base_parts, standard_paths, support_path, coloring_path, ball, ball_path
 ):
     """
     Display all puzzle physical objects.
@@ -277,6 +276,10 @@ def display_parts(
     # Display each part from the case
     for part in case_parts:
         show_object(part)
+
+    # Display each part from the base
+    for part in base_parts:
+        show_object(part)        
 
     # The paths, standard paths, support path and coloring path
     for standard_path in standard_paths:
@@ -332,16 +335,7 @@ def set_viewer():
     animation.animate(1)
 
 
-def safe_export(to_export, file_path, **kwargs):
-    """
-    Ensure we always pass a proper Shape/Part to export_stl.
-    If to_export is a ShapeList, wrap it in a Part.
-    """
-    if isinstance(to_export, ShapeList):
-        to_export = Part(to_export)
-    export_stl(to_export=to_export, file_path=file_path, **kwargs)
-
-def export_all(case_parts, additional_parts=None):
+def export_all(case_parts, base_parts, additional_parts=None):
     """
     Export all case parts as STLs for 3D print manufacturing.
     """
@@ -357,7 +351,12 @@ def export_all(case_parts, additional_parts=None):
     # Export each case part to STL format
     for case_part in case_parts:
         stl_file_path = os.path.join(export_path, f"{case_part.label}.stl")
-        safe_export(case_part, stl_file_path)
+        export_stl(to_export=case_part, file_path=stl_file_path)
+
+    # Export each base part to STL format
+    for base_part in base_parts:
+        stl_file_path = os.path.join(export_path, f"{base_part.label}.stl")
+        export_stl(to_export=base_part, file_path=stl_file_path)
 
     # Export additional objects, if any.
     if additional_parts:
@@ -371,7 +370,8 @@ def export_all(case_parts, additional_parts=None):
 
         for part in _flatten(additional_parts):
             stl_file_path = os.path.join(export_path, f"{part.label}.stl")
-            safe_export(part, stl_file_path)
+            export_stl(to_export=part, file_path=stl_file_path)
+
 
 
 if __name__ == "__main__":

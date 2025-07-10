@@ -464,23 +464,23 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         mounting_ring_clip_single = copy(self.mounting_ring_clips)
 
         # Get the clip with the lowest volume (start indicator hole)
-        mounting_ring_clip_start.part = self.mounting_ring_clips.part.solids().sort_by(
+        mounting_ring_clip_start.part = Part(self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
-        )[0:1]
+        )[0:1])
         mounting_ring_clip_start.part.label = CasePart.MOUNTING_RING_CLIP_START.value
         mounting_ring_clip_start.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         # Single clip for printing
-        mounting_ring_clip_single.part = self.mounting_ring_clips.part.solids().sort_by(
+        mounting_ring_clip_single.part = Part(self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
-        )[-1:]
+        )[-1:])
         mounting_ring_clip_single.part.label = CasePart.MOUNTING_RING_CLIP_SINGLE.value
         mounting_ring_clip_single.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         # Remaining clips after extracting first and last
-        self.mounting_ring_clips.part = self.mounting_ring_clips.part.solids().sort_by(
+        self.mounting_ring_clips.part = Part(self.mounting_ring_clips.part.solids().sort_by(
             SortBy.VOLUME
-        )[1:-1]
+        )[1:-1])
         self.mounting_ring_clips.part.label = CasePart.MOUNTING_RING_CLIPS.value
         self.mounting_ring_clips.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
