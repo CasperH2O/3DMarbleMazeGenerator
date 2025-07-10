@@ -101,14 +101,14 @@ def create_mirrored_l_shape_path_color(
     inner_half_width = half_width - wall_thickness
     inner_half_height = half_height - wall_thickness
 
-    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+    accent_height = 2 * config.Manufacturing.NOZZLE_DIAMETER
 
     l_shape_path_color_points = [
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-inner_half_width, -inner_half_height + accent_height),  # 1
         (-inner_half_width, -inner_half_height),  # 2
         (half_width, -inner_half_height),  # 3
-        (half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
+        (half_width, -inner_half_height + accent_height),  # 4
+        (-inner_half_width, -inner_half_height + accent_height),  # close
     ]
 
     with BuildSketch(Plane.XY) as l_shape_adjusted_height_path_color_sketch:
@@ -191,14 +191,14 @@ def create_l_shape_adjusted_height_path_color(
     inner_half_width = half_width - wall_thickness
     inner_half_height = half_height - wall_thickness
 
-    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+    accent_height = 2 * config.Manufacturing.NOZZLE_DIAMETER
 
     l_shape_path_color_points = [
-        (-half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-half_width, -inner_half_height + accent_height),  # 1
         (-half_width, -inner_half_height),  # 2
         (inner_half_width, -inner_half_height),  # 3
-        (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-half_width, -inner_half_height + nozzle_diameter),  # close
+        (inner_half_width, -inner_half_height + accent_height),  # 4
+        (-half_width, -inner_half_height + accent_height),  # close
     ]
 
     with BuildSketch(Plane.XY) as l_shape_adjusted_height_path_color_sketch:
@@ -345,14 +345,14 @@ def create_u_shape_path_color(
     inner_half_width = half_width - wall_thickness
     inner_half_height = half_height - wall_thickness
 
-    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+    accent_height = 2 * config.Manufacturing.NOZZLE_DIAMETER
 
     u_shape_path_color_points = [
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-inner_half_width, -inner_half_height + accent_height),  # 1
         (-inner_half_width, -inner_half_height),  # 2
         (inner_half_width, -inner_half_height),  # 3
-        (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
+        (inner_half_width, -inner_half_height + accent_height),  # 4
+        (-inner_half_width, -inner_half_height + accent_height),  # close
     ]
 
     with BuildSketch(Plane.XY) as u_shape_path_color_sketch:
@@ -439,14 +439,14 @@ def create_u_shape_adjusted_height_path_color(
     inner_half_width = half_width - wall_thickness
     inner_half_height = half_height - wall_thickness
 
-    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+    accent_height = 2 * config.Manufacturing.NOZZLE_DIAMETER
 
     u_shape_path_color_points = [
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # 1
+        (-inner_half_width, -inner_half_height + accent_height),  # 1
         (-inner_half_width, -inner_half_height),  # 2
         (inner_half_width, -inner_half_height),  # 3
-        (inner_half_width, -inner_half_height + nozzle_diameter),  # 4
-        (-inner_half_width, -inner_half_height + nozzle_diameter),  # close
+        (inner_half_width, -inner_half_height + accent_height),  # 4
+        (-inner_half_width, -inner_half_height + accent_height),  # close
     ]
 
     with BuildSketch(Plane.XY) as u_shape_adjusted_height_path_color_sketch:
@@ -511,17 +511,17 @@ def create_v_shape_path_color(
     Returns:
     - A face object representing the colored path area of the V-shape.
     """
-    nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
+    accent_height = 2 * config.Manufacturing.NOZZLE_DIAMETER
 
     v_shape_path_color_points = [
         (-wall_thickness, -height_width / 2 + wall_thickness),  # 1
         (
-            -wall_thickness - nozzle_diameter,
-            -height_width / 2 + wall_thickness + nozzle_diameter,
+            -wall_thickness - accent_height,
+            -height_width / 2 + wall_thickness + accent_height,
         ),  # 2
         (
-            wall_thickness + nozzle_diameter,
-            -height_width / 2 + wall_thickness + nozzle_diameter,
+            wall_thickness + accent_height,
+            -height_width / 2 + wall_thickness + accent_height,
         ),  # 3
         (wall_thickness, -height_width / 2 + wall_thickness),  # 4
         (-wall_thickness, -height_width / 2 + wall_thickness),  # close
