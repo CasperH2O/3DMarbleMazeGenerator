@@ -15,7 +15,6 @@ from build123d import (
     Part,
     Polyline,
     Pos,
-    ShapeList,
     SortBy,
     Sphere,
     Transition,
@@ -113,7 +112,13 @@ def main() -> None:
 
     # Display all case, puzzle and additional parts
     display_parts(
-        case_parts, base_parts, standard_paths, support_path, coloring_path, ball, ball_path
+        case_parts,
+        base_parts,
+        standard_paths,
+        support_path,
+        coloring_path,
+        ball,
+        ball_path,
     )
 
     # Set viewer configuration
@@ -279,7 +284,7 @@ def display_parts(
 
     # Display each part from the base
     for part in base_parts:
-        show_object(part)        
+        show_object(part)
 
     # The paths, standard paths, support path and coloring path
     for standard_path in standard_paths:
@@ -342,25 +347,62 @@ def export_all(case_parts, base_parts, additional_parts=None):
     if not Config.Manufacturing.EXPORT_STL:
         return
 
+    # root export folder
     folder_name = f"Case-{Config.Puzzle.CASE_SHAPE}-Seed-{Config.Puzzle.SEED}"
-    export_path = os.path.join("export", "stl", folder_name)
+    export_root = os.path.join("export", "stl", folder_name)
+    os.makedirs(export_root, exist_ok=True)
 
-    if not os.path.exists(export_path):
-        os.makedirs(export_path)
+    # create the four categories for folder sorting
+    folders = {
+        "Puzzle": os.path.join(export_root, "Puzzle"),
+        "Mounting": os.path.join(export_root, "Mounting"),
+        "Base": os.path.join(export_root, "Base"),
+        "Extra": os.path.join(export_root, "Extra"),
+    }
+    for p in folders.values():
+        os.makedirs(p, exist_ok=True)
 
-    # Export each case part to STL format
-    for case_part in case_parts:
-        stl_file_path = os.path.join(export_path, f"{case_part.label}.stl")
-        export_stl(to_export=case_part, file_path=stl_file_path)
+    # export each case part to STL format
+    puzzle_case = {
+        CasePart.MOUNTING_RING.value,
+        CasePart.INTERNAL_PATH_BRIDGES.value,
+        CasePart.START_INDICATOR.value,
+    }
+    mounting_case = {
+        CasePart.MOUNTING_RING_TOP.value,
+        CasePart.MOUNTING_RING_BOTTOM.value,
+        CasePart.MOUNTING_RING_CLIP_START.value,
+        CasePart.MOUNTING_RING_CLIP_SINGLE.value,
+        CasePart.MOUNTING_RING_CLIPS.value,
+    }
+    extra_case = {
+        CasePart.DOME_TOP.value,
+        CasePart.DOME_BOTTOM.value,
+        CasePart.CASING.value,
+    }
 
-    # Export each base part to STL format
-    for base_part in base_parts:
-        stl_file_path = os.path.join(export_path, f"{base_part.label}.stl")
-        export_stl(to_export=base_part, file_path=stl_file_path)
+    for part in case_parts:
+        label = part.label
+        if label in puzzle_case:
+            dst = folders["Puzzle"]
+        elif label in mounting_case:
+            dst = folders["Mounting"]
+        elif label in extra_case:
+            dst = folders["Extra"]
+        else:
+            # anything un‐matched goes to Extra
+            dst = folders["Extra"]
+        export_stl(to_export=part, file_path=os.path.join(dst, f"{label}.stl"))
 
-    # Export additional objects, if any.
+    # export puzzle stand base
+    for part in base_parts:
+        label = part.label
+        dst = folders["Base"]
+        export_stl(to_export=part, file_path=os.path.join(dst, f"{label}.stl"))
+
+    # export additional objects, the paths, if any.
     if additional_parts:
-        # flatten nested lists,  for split body paths
+        # flatten nested lists, for split body paths
         def _flatten(parts):
             for item in parts:
                 if isinstance(item, list):
@@ -368,10 +410,11 @@ def export_all(case_parts, base_parts, additional_parts=None):
                 else:
                     yield item
 
+        # all these go into the puzzle folder
         for part in _flatten(additional_parts):
-            stl_file_path = os.path.join(export_path, f"{part.label}.stl")
-            export_stl(to_export=part, file_path=stl_file_path)
-
+            label = part.label
+            dst = folders["Puzzle"]
+            export_stl(to_export=part, file_path=os.path.join(dst, f"{label}.stl"))
 
 
 if __name__ == "__main__":

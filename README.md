@@ -26,12 +26,12 @@ Results in an HTML file which opens in the browser to showcase the enclosure sha
 
 <img src="resources/path_visualization_large.png" alt="Path Visualization Large" width="400"/></p>
 
-**Solid modeller**
+**Solid modeler**
 
-The 3D shape objects, physical enclosure are generated and visualized through the solid modeller. A puzzle is generated from which the to be made physical shapes are created by running:
+The 3D shape objects, physical enclosure are generated and visualized through the solid modeler. A puzzle is generated from which the to be made physical shapes are created by running:
 
 ```Python
-solid_modeller.py
+solid_modeler.py
 ```
 
 Results in a 3D model made out of separate solid bodies for the enclosure, path, path accent, support material and a marble path indicator:
