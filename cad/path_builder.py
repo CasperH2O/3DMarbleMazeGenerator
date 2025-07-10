@@ -11,9 +11,7 @@ from build123d import (
     Circle,
     Face,
     FrameMethod,
-    Keep,
     Line,
-    Mode,
     Part,
     Plane,
     Polyline,
@@ -29,7 +27,6 @@ from build123d import (
     extrude,
     loft,
     make_hull,
-    split,
     sweep,
 )
 
@@ -953,10 +950,6 @@ class PathBuilder:
                     # Subtract from bodies
                     if segment.path_body and segment.path_body.part.is_valid():
                         segment.path_body.part -= cutting_cylinder.part
-                    
-                    # TODO this rarely needs to be done, but commenting out breaks down the line
-                    if segment.support_body:
-                        segment.support_body.part -= cutting_cylinder.part
                     
 
     def determine_path_profile_angle(

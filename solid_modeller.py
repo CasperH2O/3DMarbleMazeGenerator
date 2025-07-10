@@ -200,7 +200,7 @@ def path(puzzle, cut_shape: Part):
             standard_path_bodies.append(final_obj)
 
     if path_bodies[PathTypes.SUPPORT]:
-        support_path = path_bodies[PathTypes.SUPPORT]
+        support_path = Part(path_bodies[PathTypes.SUPPORT])
         support_path = support_path - cut_shape.part
         support_path.label = PathTypes.SUPPORT.value
         support_path.color = Config.Puzzle.SUPPORT_MATERIAL_COLOR
