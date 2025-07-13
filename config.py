@@ -88,15 +88,21 @@ class Path:
         PathProfileType.V_SHAPE,
     ]
 
-    # Map a segment main index to a forced profile type
-    PATH_PROFILE_TYPE_OVERRIDES = {
-        2: PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
-        3: PathProfileType.L_SHAPE_MIRRORED,
-        4: PathProfileType.V_SHAPE,
-        6: PathProfileType.O_SHAPE,
-        7: PathProfileType.U_SHAPE,
-        8: PathProfileType.O_SHAPE,
-    }
+    # Map a segment main index to a forced profile type, optionally
+    ENABLE_OVERRIDES = True
+
+    PATH_PROFILE_TYPE_OVERRIDES = (
+        {
+            2: PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+            3: PathProfileType.L_SHAPE_MIRRORED,
+            4: PathProfileType.V_SHAPE,
+            6: PathProfileType.O_SHAPE,
+            7: PathProfileType.U_SHAPE,
+            8: PathProfileType.O_SHAPE,
+        }
+        if ENABLE_OVERRIDES
+        else {}
+    )
 
     # Tight corner sweep tolerance
     sweep_tolerance = 0.001
