@@ -888,6 +888,12 @@ class PathBuilder:
                     if adjusted_idx % n != 0:
                         continue  # Skip this node
 
+                    # Skip puzzle end, finish box cut's it's own hole
+                    # FIXME puzzle end is apparently not found here
+                    if node.puzzle_end:
+                        print("Node puzzle end found!")
+                        continue
+
                     # Create the cutting cylinder based on work plane direction
                     with BuildPart() as cutting_cylinder:
                         with BuildSketch(work_plane):
