@@ -10,7 +10,9 @@ from build123d import (
     Helix,
     Part,
     Plane,
+    Polyline,
     Rectangle,
+    Spline,
     Vector,
     add,
     sweep,
@@ -32,6 +34,7 @@ class Spiral(Obstacle):
         # occupied nodes, roughly a 3 x 3 x 3 cube
         # raw grid coordinates (unit steps)
         raw_coords = [
+            (1.0, -1.0, 0.0),
             (-1.0, 0.0, 0.0),
             (0.0, 0.0, 0.0),
             (1.0, 0.0, 0.0),
@@ -53,6 +56,7 @@ class Spiral(Obstacle):
             (-1.0, 0.0, 2.0),
             (0.0, 0.0, 2.0),
             (1.0, 0.0, 2.0),
+            (1.0, 1.0, 2.0),
         ]
         self.node_size = config.Puzzle.NODE_SIZE
 
@@ -77,12 +81,39 @@ class Spiral(Obstacle):
         """Generates the geometry for the obstacle."""
 
         with BuildPart():
-            with BuildLine() as obstacle_line:
+            with BuildLine() as start_line:
+                Polyline(
+                    (self.node_size, -1 * self.node_size, 0), (self.node_size, 0, 0)
+                )
+            with BuildLine() as end_line:
+                Polyline(
+                    (self.node_size, 0, 2 * self.node_size),
+                    (self.node_size, 1 * self.node_size, 2 * self.node_size),
+                )
+            with BuildLine() as helper_helix:
                 Helix(
                     pitch=2 * self.node_size,
                     height=2 * self.node_size,
                     radius=self.node_size,
                 )
+            with BuildLine() as middle_spline:
+                Spline(
+                    [
+                        start_line.line @ 1,
+                        helper_helix.line @ 0.25,
+                        helper_helix.line @ 0.35,
+                        helper_helix.line @ 0.5,
+                        helper_helix.line @ 0.65,
+                        helper_helix.line @ 0.75,
+                        end_line.line @ 0,
+                    ],
+                    tangents=[start_line.line % 1, end_line.line % 0],
+                    tangent_scalars=[1.25, 1.25],
+                )
+            with BuildLine() as obstacle_line:
+                add(start_line)
+                add(helper_helix)
+                add(end_line)
 
         self.path_segment.path = obstacle_line.line
 
@@ -126,8 +157,8 @@ register_obstacle("Spiral", Spiral)
 if __name__ == "__main__":
     # Visualization
     obstacle = Spiral()
-    # obstacle._occupied_nodes = obstacle.determine_occupied_nodes(print_node_xyz=True)
-    obstacle.visualize()
+    #obstacle._occupied_nodes = obstacle.determine_occupied_nodes(print_node_xyz=True)
+    # obstacle.visualize()
 
     # Solid model
     obstacle_solid = obstacle.model_solid()
