@@ -1,8 +1,10 @@
 # obstacles/obstacle.py
 
+import json
 import random
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import plotly.graph_objects as go
@@ -54,7 +56,10 @@ class Obstacle(ABC):
             nodes=[(0, 0, 0)], main_index=0, secondary_index=0
         )
 
+        self._raw_unit_coords = [(0, 0, 0)]
         self.raw_path: Optional[List[Node]] = None
+
+        self.node_size = config.Puzzle.NODE_SIZE
 
         # Set the random seed for reproducibility if needed internally
         random.seed(config.Puzzle.SEED)
@@ -70,31 +75,53 @@ class Obstacle(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_relative_occupied_coords(self, node_size: float) -> List[Vector]:
+    def get_relative_occupied_coords(self) -> List[Node]:
         """
-        Determines the coordinates of the grid nodes that this obstacle would
-        occupy, relative to its origin (0,0,0), *before* placement.
-
-        Parameters:
-            node_size (float): The spacing of the puzzle grid.
-
-        Returns:
-            List[Coordinate]: A list of (x, y, z) tuples relative to the obstacle origin.
+        Provides the list of occupied nodes.
+        Tries to load from a cache file first. If not found, it computes
+        them and saves the result to a cache file.
+        Scales from and to node size accordingly.
         """
-        pass
+        cache_dir = Path("obstacles/catalogue/cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
 
-    @abstractmethod
-    def get_relative_entry_exit_coords(self) -> Tuple[Vector, Vector]:
-        """
-        Returns the relative coordinates for the entry and exit points
-        of the obstacle, before placement. These points should align with
-        potential node locations in the grid.
+        # Sanitize name for filename
+        sanitized_name = self.name.replace(" ", "_").lower()
+        cache_file = cache_dir / f"{sanitized_name}_nodes.json"
 
-        Returns:
-            Tuple[Coordinate, Coordinate]: (entry_coord, exit_coord) relative to origin.
-        """
-        pass
+        if cache_file.exists():
+            # Load the full data document
+            with open(cache_file, "r") as f:
+                data = json.load(f)
+            coords_list = data.get("occupied_nodes", [])
+        else:
+            print(f"Cache not found. Calculating nodes for {self.name}...")
+            # Calculate occupied nodes (world coords)
+            node_list = self.determine_occupied_nodes()
+
+            # Convert to unit-space dicts
+            coords_list = [
+                {
+                    "x": n.x / self.node_size,
+                    "y": n.y / self.node_size,
+                    "z": n.z / self.node_size,
+                }
+                for n in node_list
+            ]
+            # Wrap in an object, extendable
+            with open(cache_file, "w") as f:
+                json.dump({"occupied_nodes": coords_list}, f, indent=4)
+
+        # Rebuild Node objects in world-space
+        return [
+            Node(
+                c["x"] * self.node_size,
+                c["y"] * self.node_size,
+                c["z"] * self.node_size,
+                occupied=True,
+            )
+            for c in coords_list
+        ]
 
     @abstractmethod
     def model_solid(self) -> Part:
@@ -233,8 +260,7 @@ class Obstacle(ABC):
     def determine_occupied_nodes(
         self,
         grid_count: int = 30,
-        visualize: bool = False,
-        print_node_xyz: bool = False,
+        show_3d: bool = False,
     ) -> list[Node]:
         """
         Build a grid of `grid_count^3` cubes of side `node_size`, centered at the world origin,
@@ -291,7 +317,7 @@ class Obstacle(ABC):
                     if (cube & obstacle_solid).solids():
                         occupied.append(Node(x, y, z, occupied=True))
 
-        if visualize:
+        if show_3d:
             # build one combined debug Part
             with BuildPart() as dbg:
                 # padded bbox as a big box
@@ -306,24 +332,6 @@ class Obstacle(ABC):
 
             dbg.part.color = "#25F3FA36"
             show((dbg.part, obstacle_solid))
-
-        # optional print of raw grid indices
-        if print_node_xyz:
-            # snap to clean floats, then cast to int
-            raw = [
-                (
-                    snap(n.x / node_size),
-                    snap(n.y / node_size),
-                    snap(n.z / node_size),
-                )
-                for n in occupied
-            ]
-            # dedupe & sort by (z,y,x)
-            unique = sorted(set(raw), key=lambda t: (t[2], t[1], t[0]))
-            print("raw_coords = [")
-            for x, y, z in unique:
-                print(f"    ({x}, {y}, {z}),")
-            print("]")
 
         elapsed = time.perf_counter() - start_time
         print(
@@ -360,7 +368,10 @@ class Obstacle(ABC):
         return cubes
 
     def sample_obstacle_path(self):
-        # Sample line and get raw points
-        samples = 50
-        ts = linspace(0.0, 1.0, samples)
-        self.raw_path: list[Vector] = [self.path_segment.path @ t for t in ts]
+        if self.path_segment.path is None:
+            self.raw_path = [Vector(X=0, Y=0, Z=0)]
+        else:
+            # Sample line and get raw points
+            samples = 50
+            ts = linspace(0.0, 1.0, samples)
+            self.raw_path: list[Vector] = [self.path_segment.path @ t for t in ts]

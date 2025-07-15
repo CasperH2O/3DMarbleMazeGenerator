@@ -1,8 +1,7 @@
 # obstacles/obstacle_placeholder2.py
 
-from typing import List, Tuple
-
-from build123d import BuildPart, Cylinder, Part, Vector
+from build123d import BuildPart, Cylinder, Part
+from ocp_vscode import show
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
@@ -12,39 +11,42 @@ class ObstaclePlaceHolder2(Obstacle):
     """An obstacle."""
 
     def __init__(self):
-        # TODO, double check if this is the approach I want
-        super().__init__(name="ObstaclePlaceHolder1")
+        super().__init__(name="ObstaclePlaceHolder2")
+
+        # Generate the required geometry on obstacle initialization
+        self.create_obstacle_geometry()
+
+        # Sample points along path segment edge for visualization
+        self.sample_obstacle_path()
+
+        # Determine occupied nodes or load from cach
+        self._occupied_nodes = self.get_relative_occupied_coords()
 
     def create_obstacle_geometry(self) -> Part:
         """Generates the geometry for the obstacle."""
 
         with BuildPart() as obstacle:
-            Cylinder(radius=5, height=10)
+            Cylinder(radius=self.node_size / 2, height=self.node_size)
 
         return obstacle.part
 
-    def get_relative_occupied_coords(self, node_size: float) -> List[Vector]:
+    def model_solid(self) -> Part:
         """
-        Determine occupied nodes for this obstacle.
+        Solid model the obstacle, but used for, determining
+        occupied nodes, debug and overview.
         """
-
-        # Harcoded values for this obstacle shape, scale with node size
-        occupied_relative_coords = []
-
-        print(
-            f"Found {len(occupied_relative_coords)} relative occupied coords for {self.name}"
-        )
-        return list(occupied_relative_coords)
-
-    def get_relative_entry_exit_coords(self) -> Tuple[Vector, Vector]:
-        """Define entry/exit points relative to the obstacle's geometry."""
-
-        entry_coord = (0, 0, 0)
-        exit_coord = (0, 0, 0)
-
-        print(f"{self.name} relative entry: {entry_coord}, exit: {exit_coord}")
-        return entry_coord, exit_coord
+        return self.create_obstacle_geometry()
 
 
 # Register the obstacle
 register_obstacle("ObstaclePlaceHolder2", ObstaclePlaceHolder2)
+
+if __name__ == "__main__":
+    # Visualization
+    obstacle = ObstaclePlaceHolder2()
+    obstacle.visualize()
+
+    # Solid model
+    obstacle_solid = obstacle.model_solid()
+    cubes = obstacle.create_occupied_node_cubes()
+    show(obstacle_solid, cubes)

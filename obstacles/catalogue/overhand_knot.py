@@ -8,6 +8,7 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Line,
+    Part,
     Polyline,
     Rot,
     Spline,
@@ -18,10 +19,8 @@ from build123d import (
 )
 from ocp_vscode import show
 
-import config
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
-from puzzle.node import Node
 
 
 class OverhandKnotObstacle(Obstacle):
@@ -30,136 +29,14 @@ class OverhandKnotObstacle(Obstacle):
     def __init__(self):
         super().__init__(name="OverhandKnot")
 
-        # Occupied nodes,
-        # raw grid coordinates (unit steps)
-        # Runtime calculation takes 30 seconds, thus hardcoded
-        raw_node_coordinates = [
-            (-1.0, -2.0, -2.0),
-            (-1.0, -1.0, -2.0),
-            (2.0, -1.0, -2.0),
-            (2.0, 0.0, -2.0),
-            (3.0, 0.0, -2.0),
-            (0.0, 2.0, -2.0),
-            (1.0, 2.0, -2.0),
-            (-1.0, -4.0, -1.0),
-            (0.0, -4.0, -1.0),
-            (-2.0, -3.0, -1.0),
-            (-1.0, -3.0, -1.0),
-            (0.0, -3.0, -1.0),
-            (-2.0, -2.0, -1.0),
-            (-1.0, -2.0, -1.0),
-            (0.0, -2.0, -1.0),
-            (-2.0, -1.0, -1.0),
-            (-1.0, -1.0, -1.0),
-            (0.0, -1.0, -1.0),
-            (1.0, -1.0, -1.0),
-            (2.0, -1.0, -1.0),
-            (3.0, -1.0, -1.0),
-            (-2.0, 0.0, -1.0),
-            (-1.0, 0.0, -1.0),
-            (0.0, 0.0, -1.0),
-            (1.0, 0.0, -1.0),
-            (2.0, 0.0, -1.0),
-            (3.0, 0.0, -1.0),
-            (-1.0, 1.0, -1.0),
-            (0.0, 1.0, -1.0),
-            (1.0, 1.0, -1.0),
-            (2.0, 1.0, -1.0),
-            (3.0, 1.0, -1.0),
-            (0.0, 2.0, -1.0),
-            (1.0, 2.0, -1.0),
-            (2.0, 2.0, -1.0),
-            (3.0, 2.0, -1.0),
-            (-1.0, -4.0, 0.0),
-            (0.0, -4.0, 0.0),
-            (1.0, -4.0, 0.0),
-            (-1.0, -3.0, 0.0),
-            (0.0, -3.0, 0.0),
-            (1.0, -3.0, 0.0),
-            (-2.0, -2.0, 0.0),
-            (-1.0, -2.0, 0.0),
-            (0.0, -2.0, 0.0),
-            (1.0, -2.0, 0.0),
-            (2.0, -2.0, 0.0),
-            (-2.0, -1.0, 0.0),
-            (-1.0, -1.0, 0.0),
-            (0.0, -1.0, 0.0),
-            (1.0, -1.0, 0.0),
-            (2.0, -1.0, 0.0),
-            (-2.0, 0.0, 0.0),
-            (-1.0, 0.0, 0.0),
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
-            (3.0, 0.0, 0.0),
-            (-2.0, 1.0, 0.0),
-            (-1.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (1.0, 1.0, 0.0),
-            (2.0, 1.0, 0.0),
-            (3.0, 1.0, 0.0),
-            (-1.0, 2.0, 0.0),
-            (0.0, 2.0, 0.0),
-            (1.0, 2.0, 0.0),
-            (2.0, 2.0, 0.0),
-            (3.0, 2.0, 0.0),
-            (2.0, 3.0, 0.0),
-            (3.0, 3.0, 0.0),
-            (0.0, -4.0, 1.0),
-            (1.0, -4.0, 1.0),
-            (0.0, -3.0, 1.0),
-            (1.0, -3.0, 1.0),
-            (2.0, -3.0, 1.0),
-            (-2.0, -2.0, 1.0),
-            (-1.0, -2.0, 1.0),
-            (0.0, -2.0, 1.0),
-            (1.0, -2.0, 1.0),
-            (2.0, -2.0, 1.0),
-            (-2.0, -1.0, 1.0),
-            (-1.0, -1.0, 1.0),
-            (0.0, -1.0, 1.0),
-            (1.0, -1.0, 1.0),
-            (2.0, -1.0, 1.0),
-            (-2.0, 0.0, 1.0),
-            (-1.0, 0.0, 1.0),
-            (0.0, 0.0, 1.0),
-            (1.0, 0.0, 1.0),
-            (2.0, 0.0, 1.0),
-            (-1.0, 1.0, 1.0),
-            (0.0, 1.0, 1.0),
-            (1.0, 1.0, 1.0),
-            (2.0, 1.0, 1.0),
-            (3.0, 1.0, 1.0),
-            (-1.0, 2.0, 1.0),
-            (0.0, 2.0, 1.0),
-            (1.0, 2.0, 1.0),
-            (2.0, 2.0, 1.0),
-            (3.0, 2.0, 1.0),
-            (0.0, 3.0, 1.0),
-            (1.0, 3.0, 1.0),
-            (2.0, 3.0, 1.0),
-            (1.0, -2.0, 2.0),
-            (0.0, 2.0, 2.0),
-            (1.0, 2.0, 2.0),
-            (2.0, 2.0, 2.0),
-        ]
-        self.node_size = config.Puzzle.NODE_SIZE
-
-        self._occupied_nodes: List[Node] = [
-            Node(
-                x * self.node_size,
-                y * self.node_size,
-                z * self.node_size,
-                occupied=True,
-            )
-            for (x, y, z) in raw_node_coordinates
-        ]
-
         # Generate the required geometry on obstacle initialization
         self.create_obstacle_geometry()
 
         # Sample points along path segment edge for visualization
         self.sample_obstacle_path()
+
+        # Determine occupied nodes or load from cach
+        self._occupied_nodes = self.get_relative_occupied_coords()
 
     def create_obstacle_geometry(self):
         """Generates the geometry for the overhand knot."""
@@ -187,7 +64,7 @@ class OverhandKnotObstacle(Obstacle):
 
         self.path_segment.path = obstacle_line.line
 
-    def model_solid(self):
+    def model_solid(self) -> Part:
         """
         Solid model the obstacle, but used for, determining
         occupied nodes, debug and overview.
@@ -221,20 +98,6 @@ class OverhandKnotObstacle(Obstacle):
 
         return obstacle.part
 
-    def get_relative_occupied_coords(self) -> List[Node]:
-        """
-        Return occupied Node instances, already scaled to world units.
-        """
-        print(f"Found {len(self._occupied_nodes)} occupied nodes for {self.name}")
-        return list(self._occupied_nodes)
-
-    def get_relative_entry_exit_coords(self) -> Tuple[Vector, Vector]:
-        """Define entry/exit points relative to the knot's geometry."""
-        entry = Vector(0, 0, 0) * self.node_size
-        exit = Vector(0, 0, 0) * self.node_size
-        print(f"{self.name} relative entry: {entry}, exit: {exit}")
-        return entry, exit
-
 
 # Register obstacle
 register_obstacle("OverhandKnot", OverhandKnotObstacle)
@@ -242,8 +105,6 @@ register_obstacle("OverhandKnot", OverhandKnotObstacle)
 if __name__ == "__main__":
     # Visualization
     obstacle = OverhandKnotObstacle()
-    # obstacle._occupied_nodes = obstacle.determine_occupied_nodes(print_node_xyz=True)
-    # obstacle.translate(Vector(X=20, Y=20, Z=-10))
     obstacle.visualize()
 
     # Solid model
