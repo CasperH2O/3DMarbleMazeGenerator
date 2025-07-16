@@ -393,16 +393,15 @@ class Obstacle(ABC):
         node_size = config.Puzzle.NODE_SIZE
         cubes: list[Part] = []
 
-        for node in nodes:  # Node.x, .y, .z are world coords
-            # build a node cube at the node
+        # Create each cube
+        for idx, node in enumerate(nodes, start=1):
             with BuildPart() as cube_bp:
                 Box(node_size, node_size, node_size)
-            cube_bp.part.position = Vector(node.x, node.y, node.z)
-            cube_part = cube_bp.part
-            # label & color metadata on the Part
-            cube_part.label = name
-            cube_part.color = color
-            cubes.append(cube_part)
+            cube = cube_bp.part
+            cube.position = Vector(node.x, node.y, node.z)
+            cube.label = f"{name} {idx}"
+            cube.color = color
+            cubes.append(cube)
 
         return cubes
 
@@ -414,3 +413,35 @@ class Obstacle(ABC):
             samples = 50
             ts = linspace(0.0, 1.0, samples)
             return [self.path_segment.path @ t for t in ts]
+
+    def show_solid_model(self):
+        """
+        Build the obstacle solid, its occupied and
+        overlap node cubes, and show them.
+        """
+        self.create_obstacle_geometry()
+        obstacle_solid = self.model_solid()
+
+        # cubes
+        occupied_cubes = self.solid_model_node_cubes(
+            nodes=self.occupied_nodes,
+            name="Occupied Node",
+            color="#40004947",
+        )
+        overlap_cubes = self.solid_model_node_cubes(
+            nodes=self.overlap_nodes,
+            name="Overlap Node",
+            color="#00444900",
+        )
+
+        # show everything with custom group names
+        show(
+            obstacle_solid,
+            occupied_cubes,
+            overlap_cubes,
+            names=[
+                f"{self.name} Solid",
+                "Occupied Nodes",
+                "Overlap Nodes",
+            ],
+        )

@@ -12,7 +12,6 @@ from build123d import (
     add,
     sweep,
 )
-from ocp_vscode import show
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
@@ -95,17 +94,11 @@ class Spiral(Obstacle):
 register_obstacle("Spiral", Spiral)
 
 if __name__ == "__main__":
-    # Visualization
+    # Create
     obstacle = Spiral()
+
+    # Visualization
     obstacle.visualize()
 
     # Solid model
-    obstacle.create_obstacle_geometry()
-    obstacle_solid = obstacle.model_solid()
-    overlap_cubes = obstacle.solid_model_node_cubes(
-        nodes=obstacle.overlap_nodes, name="Overlap Node", color="#00444900"
-    )
-    occupied_cubes = obstacle.solid_model_node_cubes(
-        nodes=obstacle.occupied_nodes, name="Occupied Node", color="#40004947"
-    )
-    show(obstacle_solid, occupied_cubes, overlap_cubes)
+    obstacle.show_solid_model()
