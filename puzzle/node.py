@@ -20,7 +20,14 @@ class Node:
     Represents a node in the 3D maze grid.
     """
 
-    def __init__(self, x: float, y: float, z: float, occupied: bool = False) -> None:
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        occupied: bool = False,
+        overlap_allowed: bool = False,
+    ) -> None:
         """
         Initializes a Node instance.
 
@@ -35,6 +42,7 @@ class Node:
         self.z: float = z
 
         self.occupied: bool = occupied  # Indicates if node is used for the puzzle
+        self.overlap_allowed: bool = overlap_allowed  # Obstacle overlap
         self.waypoint: bool = False  # Waypoint along the puzzle path
         self.puzzle_start: bool = False  # Start of the puzzle
         self.puzzle_end: bool = False  # End of the puzzle

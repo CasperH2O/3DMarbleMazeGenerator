@@ -23,6 +23,7 @@ def plot_nodes_plotly(nodes: list[Node]):
         ("segment_end", "Segment End"),
         ("occupied", "Occupied"),
         ("circular", "Circular"),
+        ("overlap_allowed", "Overlap"),
     ]
 
     groups = {}  # key: primary flag; value: dict with x, y, z lists and hover texts
@@ -46,6 +47,8 @@ def plot_nodes_plotly(nodes: list[Node]):
             labels.append("Occupied")
         if NodeGridType.CIRCULAR.value in node.grid_type:
             labels.append("Circular")
+        if node.overlap_allowed:
+            labels.append("Overlap")
         if not labels:
             labels.append("Regular")
 
@@ -90,6 +93,7 @@ def plot_nodes_plotly(nodes: list[Node]):
         "Segment End": "white",
         "Occupied": "red",
         "Circular": "orange",
+        "Overlap": "grey",
         "Regular": "green",
     }
     size_map = {
@@ -101,6 +105,7 @@ def plot_nodes_plotly(nodes: list[Node]):
         "Segment End": 4,
         "Occupied": 3,
         "Circular": 1,
+        "Overlap": 1,
         "Regular": 1,
     }
 

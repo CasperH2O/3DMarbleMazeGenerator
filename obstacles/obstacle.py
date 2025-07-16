@@ -16,7 +16,6 @@ import config
 from cad.path_segment import PathSegment
 from puzzle.casing import SphereCasing
 from puzzle.node import Node
-from puzzle.node_creator import frange, snap
 from visualization.plotly_helpers import (
     plot_casing_plotly,
     plot_node_cubes_plotly,
@@ -44,20 +43,20 @@ class Obstacle(ABC):
             Pos(Vector(0, 0, 0))
         )  # Position and orientation
 
-        # Connection points (to be determined after placement)
-        # These should correspond to specific nodes in the main grid
+        # Connection points (to be determined after CAD design)
+        # Should correspond to specific nodes in the main grid
         self.entry_node: Optional[Node] = None
         self.exit_node: Optional[Node] = None
 
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
-        self._occupied_nodes: Optional[List[Node]] = None
+        self.occupied_nodes: Optional[List[Node]] = None
+        self.overlap_nodes: Optional[List[Node]] = None
         self.path_segment: Optional[PathSegment] = PathSegment(
             nodes=[(0, 0, 0)], main_index=0, secondary_index=0
         )
 
         self._raw_unit_coords = [(0, 0, 0)]
-        self.raw_path: Optional[List[Node]] = None
 
         self.node_size = config.Puzzle.NODE_SIZE
 
@@ -75,60 +74,85 @@ class Obstacle(ABC):
         """
         pass
 
-    def get_relative_occupied_coords(self) -> List[Node]:
-        """
-        Provides the list of occupied nodes.
-        Tries to load from a cache file first. If not found, it computes
-        them and saves the result to a cache file.
-        Scales from and to node size accordingly.
-        """
-        cache_dir = Path("obstacles/catalogue/cache")
-        cache_dir.mkdir(parents=True, exist_ok=True)
-
-        # Sanitize name for filename
-        sanitized_name = self.name.replace(" ", "_").lower()
-        cache_file = cache_dir / f"{sanitized_name}_nodes.json"
-
-        if cache_file.exists():
-            # Load the full data document
-            with open(cache_file, "r") as f:
-                data = json.load(f)
-            coords_list = data.get("occupied_nodes", [])
-        else:
-            print(f"Cache not found. Calculating nodes for {self.name}...")
-            # Calculate occupied nodes (world coords)
-            node_list = self.determine_occupied_nodes()
-
-            # Convert to unit-space dicts
-            coords_list = [
-                {
-                    "x": n.x / self.node_size,
-                    "y": n.y / self.node_size,
-                    "z": n.z / self.node_size,
-                }
-                for n in node_list
-            ]
-            # Wrap in an object, extendable
-            with open(cache_file, "w") as f:
-                json.dump({"occupied_nodes": coords_list}, f, indent=4)
-
-        # Rebuild Node objects in world-space
-        return [
-            Node(
-                c["x"] * self.node_size,
-                c["y"] * self.node_size,
-                c["z"] * self.node_size,
-                occupied=True,
-            )
-            for c in coords_list
-        ]
-
     @abstractmethod
     def model_solid(self) -> Part:
         """
         Returns solid model of obstacle
         """
         pass
+
+    def determine_entry_exit_nodes(self):
+        # Only proceed if we have a path
+        if self.path_segment.path is None:
+            print("Unable to determine entry and exit node from None path")
+            return
+
+        # Create start and end nodes
+        start_location = self.path_segment.path @ 0
+        end_location = self.path_segment.path @ 1
+        self.entry_node = Node(
+            x=start_location.X, y=start_location.Y, z=start_location.Z, occupied=True
+        )
+        self.exit_node_node = Node(
+            x=end_location.X, y=end_location.Y, z=end_location.Z, occupied=True
+        )
+
+    def load_relative_node_coords(self):
+        cache_dir = Path("obstacles/catalogue/cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        fn = cache_dir / f"{self.name.replace(' ', '_').lower()}_nodes.json"
+        if fn.exists():
+            with open(fn) as f:
+                data = json.load(f)
+            occ = data.get("occupied_nodes", [])
+            overlap = data.get("overlap_allowed", [])
+        else:
+            self.create_obstacle_geometry()
+
+            occ_nodes = self.determine_occupied_nodes()
+            occ = [
+                dict(
+                    x=n.x / self.node_size,
+                    y=n.y / self.node_size,
+                    z=n.z / self.node_size,
+                )
+                for n in occ_nodes
+            ]
+            # 2) compute overlap_allowed in unit‐space
+            overlap_nodes = self.determine_overlap_allowed_nodes(occ_nodes)
+            overlap = [
+                dict(
+                    x=n.x / self.node_size,
+                    y=n.y / self.node_size,
+                    z=n.z / self.node_size,
+                )
+                for n in overlap_nodes
+            ]
+            with open(fn, "w") as f:
+                json.dump(
+                    {"occupied_nodes": occ, "overlap_allowed": overlap}, f, indent=2
+                )
+
+        # rebuild Node objects in world‐space
+        self.occupied_nodes = [
+            Node(
+                c["x"] * self.node_size,
+                c["y"] * self.node_size,
+                c["z"] * self.node_size,
+                occupied=True,
+            )
+            for c in occ
+        ]
+        self.overlap_nodes = [
+            Node(
+                c["x"] * self.node_size,
+                c["y"] * self.node_size,
+                c["z"] * self.node_size,
+                overlap_allowed=True,
+            )
+            for c in overlap
+        ]
+        return self.occupied_nodes
 
     def get_placed_part(self) -> Optional[Part]:
         """
@@ -143,27 +167,20 @@ class Obstacle(ABC):
         # Apply the location transform
         return self._part.located(self.location)
 
-    def get_placed_occupied_coords(self, node_size: float) -> Optional[List[Node]]:
+    def get_placed_node_coordinates(self, nodes: List[Node]) -> List[Node]:
         """
         Transforms the local Node list in-place to world coordinates.
         Updates each Node.x, Node.y, Node.z without creating new Node instances.
         """
         if self.location is None:
-            return None
-
-        # Lazy-load local Node list
-        if self._occupied_nodes is None:
-            self._occupied_nodes = self.get_relative_occupied_coords(node_size)
+            return nodes
 
         # Update each node in-place
-        for node in self._occupied_nodes:
-            rel_loc = Location(Pos(Vector(node.x, node.y, node.z)))
-            abs_loc = self.location * rel_loc
-            node.x = abs_loc.position.X
-            node.y = abs_loc.position.Y
-            node.z = abs_loc.position.Z
+        for n in nodes:
+            loc = self.location * Location(Pos(Vector(n.x, n.y, n.z)))
+            n.x, n.y, n.z = loc.position.X, loc.position.Y, loc.position.Z
 
-        return self._occupied_nodes
+        return nodes
 
     def get_placed_entry_exit_coords(self) -> Optional[Tuple[Vector, Vector]]:
         """Calculates the absolute world coordinates of entry/exit points after placement."""
@@ -181,10 +198,8 @@ class Obstacle(ABC):
 
         return entry_coord, exit_coord
 
-    # Basic translate/rotate methods - might need more complex logic if
-    # internal state depends on orientation. These just update the location.
     def set_placement(self, location: Location):
-        """Directly sets the obstacle's placement location."""
+        """TODO Directly sets the obstacle's placement location."""
         self.location = location
         # Clear caches as placement changed
         self._part = None
@@ -223,28 +238,29 @@ class Obstacle(ABC):
         Plot this obstacle's occupied nodes, basic puzzle casing and raw path
         using Plotly helper functions.
         """
-        placed_nodes = self.get_placed_occupied_coords(config.Puzzle.NODE_SIZE)
-        if not placed_nodes:
-            raise RuntimeError(
-                f"{self.name!r} has no placement; call set_placement() first."
-            )
-
         fig = go.Figure()
+        # Occupied nodes and cubes
+        occupied_nodes = self.get_placed_node_coordinates(self.occupied_nodes)
+        for t in plot_nodes_plotly(occupied_nodes):
+            fig.add_trace(t)
+        for t in plot_node_cubes_plotly(occupied_nodes, self.node_size):
+            fig.add_trace(t)
 
-        # Occupied nodes
-        for trace in plot_nodes_plotly(placed_nodes):
+        # Overlap nodes and cubes
+        overlap_nodes = self.get_placed_node_coordinates(self.overlap_nodes)
+        for t in plot_nodes_plotly(overlap_nodes):
+            fig.add_trace(t)
+        for t in plot_node_cubes_plotly(overlap_nodes, self.node_size):
+            fig.add_trace(t)
+
+        # Sample points along path segment edge for visualization
+        self.create_obstacle_geometry()
+        path = self.sample_obstacle_path()
+        for trace in plot_raw_obstacle_path_plotly(path, name=f"{self.name} Raw Path"):
             fig.add_trace(trace)
 
-        # Occupied node cubes
-        for trace in plot_node_cubes_plotly(placed_nodes, config.Puzzle.NODE_SIZE):
-            fig.add_trace(trace)
-
-        # Raw path
-        if self.raw_path:
-            for trace in plot_raw_obstacle_path_plotly(
-                self.raw_path, name=f"{self.name} Raw Path"
-            ):
-                fig.add_trace(trace)
+        # TODO add entry and exit nodes to visualize
+        self.determine_entry_exit_nodes()
 
         # Casing
         casing = SphereCasing(
@@ -340,38 +356,61 @@ class Obstacle(ABC):
 
         return occupied
 
-    def create_occupied_node_cubes(self) -> list[Part]:
+    def determine_overlap_allowed_nodes(self, occupied: List[Node]) -> List[Node]:
+        # cardinal 6‐neigh offsets in world coords
+        offs = [
+            (self.node_size, 0, 0),
+            (-self.node_size, 0, 0),
+            (0, self.node_size, 0),
+            (0, -self.node_size, 0),
+            (0, 0, self.node_size),
+            (0, 0, -self.node_size),
+        ]
+        s = {(n.x, n.y, n.z) for n in occupied}
+        shell = set()
+        for x, y, z in s:
+            for dx, dy, dz in offs:
+                nb = (x + dx, y + dy, z + dz)
+                if nb not in s:
+                    shell.add(nb)
+        return [
+            Node(x, y, z, occupied=False, overlap_allowed=True) for x, y, z in shell
+        ]
+
+    def solid_model_node_cubes(
+        self, nodes: List[Node], name="Node", color="#FFFFFF1D"
+    ) -> list[Part]:
         """
-        For each Node in self._occupied_nodes, build a cube of size node_size
-        centered at (node.x, node.y, node.z). Tag each Part with:
-        • part.label = "occupied_node"
-        • part.color = semi-transparent blue (alpha = 0.2)
+        For each Node provided, build a cube Part of size node_size
+        centered at (node.x, node.y, node.z).
+
+        Tag each Part with label and color
         Returns the list of these Parts.
         """
-        if not self._occupied_nodes:
+        if not nodes:
             return []
 
         node_size = config.Puzzle.NODE_SIZE
         cubes: list[Part] = []
 
-        for node in self._occupied_nodes:  # Node.x, .y, .z are world coords
-            # build a little cube at the node
+        for node in nodes:  # Node.x, .y, .z are world coords
+            # build a node cube at the node
             with BuildPart() as cube_bp:
                 Box(node_size, node_size, node_size)
             cube_bp.part.position = Vector(node.x, node.y, node.z)
             cube_part = cube_bp.part
             # label & color metadata on the Part
-            cube_part.label = "Occupied Node"
-            cube_part.color = "#7000741C"
+            cube_part.label = name
+            cube_part.color = color
             cubes.append(cube_part)
 
         return cubes
 
-    def sample_obstacle_path(self):
+    def sample_obstacle_path(self) -> list[Vector]:
         if self.path_segment.path is None:
             self.raw_path = [Vector(X=0, Y=0, Z=0)]
         else:
             # Sample line and get raw points
             samples = 50
             ts = linspace(0.0, 1.0, samples)
-            self.raw_path: list[Vector] = [self.path_segment.path @ t for t in ts]
+            return [self.path_segment.path @ t for t in ts]

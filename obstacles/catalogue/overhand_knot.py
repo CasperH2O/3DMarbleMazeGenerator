@@ -1,7 +1,6 @@
 # obstacles/catalogue/overhand_knot.py
 
 from math import cos, pi, sin
-from typing import List, Tuple
 
 from build123d import (
     BuildLine,
@@ -29,14 +28,14 @@ class OverhandKnotObstacle(Obstacle):
     def __init__(self):
         super().__init__(name="OverhandKnot")
 
-        # Generate the required geometry on obstacle initialization
-        self.create_obstacle_geometry()
+        # TODO for laterupon creation, do location/orientation
 
-        # Sample points along path segment edge for visualization
-        self.sample_obstacle_path()
+        # Load occupied nodes from cache or determine
+        self.load_relative_node_coords()
 
-        # Determine occupied nodes or load from cach
-        self._occupied_nodes = self.get_relative_occupied_coords()
+        # From obstacle geometry, determine entry and exit nodes
+        # TODO move to better place, either on usage of obstacle or on visualization
+        self.determine_entry_exit_nodes()
 
     def create_obstacle_geometry(self):
         """Generates the geometry for the overhand knot."""
@@ -108,6 +107,12 @@ if __name__ == "__main__":
     obstacle.visualize()
 
     # Solid model
+    obstacle.create_obstacle_geometry()
     obstacle_solid = obstacle.model_solid()
-    cubes = obstacle.create_occupied_node_cubes()
-    show(obstacle_solid, cubes)
+    overlap_cubes = obstacle.solid_model_node_cubes(
+        nodes=obstacle.overlap_nodes, name="Overlap Node", color="#00444900"
+    )
+    occupied_cubes = obstacle.solid_model_node_cubes(
+        nodes=obstacle.occupied_nodes, name="Occupied Node", color="#40004947"
+    )
+    show(obstacle_solid, occupied_cubes, overlap_cubes)
