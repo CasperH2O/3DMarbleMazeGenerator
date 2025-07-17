@@ -516,6 +516,10 @@ class PathArchitect:
     def create_start_ramp(self):
         # This method finds the segment containing the start node and creates the start ramp
 
+        # TODO this method does so little after update, could set U shape is path assignment?
+        # Setting the path profile here is only an indicator for the puzzle, as the path builder
+        # uses hardcoded values
+
         # Find the segment that contains the puzzle start node
         start_segment = None
         for segment in self.segments:

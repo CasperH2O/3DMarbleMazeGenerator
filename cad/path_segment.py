@@ -465,13 +465,6 @@ class PathSegment:
             end_node.occupied = True
             end_node.segment_end = True
             self.nodes[-1].segment_end = False
-            # propagate “circular” if either end is circular
-            # FIXME this works only if it gets set to circular, but technically that's wrong.
-            if (
-                NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
-                or NodeGridType.CIRCULAR.value in next_start_node.grid_type
-            ):
-                end_node.grid_type.append(NodeGridType.CIRCULAR.value)
             self.nodes.append(end_node)
             return True
 

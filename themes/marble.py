@@ -18,7 +18,6 @@ def apply_overrides(
         "#D4D2D1",
         "#D4D2D1",
         "#D4D2D1",
-        "#D4D2D1",
         "#F4C131",
         "#F4C131",
         "#F4C131",
