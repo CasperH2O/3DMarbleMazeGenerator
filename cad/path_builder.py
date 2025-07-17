@@ -453,11 +453,11 @@ class PathBuilder:
             )
 
             # Debug statement indicating sweep attempt
-            '''
+            """
             print(
                 f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}"
             )
-            '''
+            """
 
             # Start with -90 angle to orientate the profile sketch "right way up"
             angle_path_line_previous = -90
@@ -709,7 +709,6 @@ class PathBuilder:
         accent_color_body = None
 
         # TODO first combine all segments with the same main_index, for example spline segments consists of sets of threes
-        # TODO, when DIVIDE_PATHS_IN is 0, keep all paths seperate
         # TODO, seperate method to create inner bridge cut and addition to the path bodies to connect them
 
         for segment in self.path_architect.segments:
@@ -735,8 +734,8 @@ class PathBuilder:
                 if standard_bodies[bucket_idx] is None:
                     standard_bodies[bucket_idx] = segment.path_body.part
                 else:
-                    standard_bodies[bucket_idx] = (
-                        standard_bodies[bucket_idx] + segment.path_body.part
+                    standard_bodies[bucket_idx] = standard_bodies[bucket_idx].fuse(
+                        segment.path_body.part
                     )
                     counter += 1
 
@@ -745,14 +744,14 @@ class PathBuilder:
                 if support_body is None:
                     support_body = segment.support_body.part
                 else:
-                    support_body = support_body + segment.support_body.part
+                    support_body = support_body.fuse(segment.support_body.part)
 
             # Check if the segment has a (optional) color accent body
             if hasattr(segment, "accent_body") and segment.accent_body is not None:
                 if accent_color_body is None:
                     accent_color_body = segment.accent_body.part
                 else:
-                    accent_color_body = accent_color_body + segment.accent_body.part
+                    accent_color_body = accent_color_body.fuse(segment.accent_body.part)
 
         return {
             PathTypes.STANDARD: [body for body in standard_bodies if body is not None],
@@ -956,7 +955,6 @@ class PathBuilder:
                     # Subtract from bodies
                     if segment.path_body and segment.path_body.part.is_valid():
                         segment.path_body.part -= cutting_cylinder.part
-                    
 
     def determine_path_profile_angle(
         self,
