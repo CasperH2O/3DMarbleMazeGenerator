@@ -93,7 +93,7 @@ def plot_nodes_plotly(nodes: list[Node]):
         "Segment End": "white",
         "Occupied": "red",
         "Circular": "orange",
-        "Overlap": "grey",
+        "Overlap": "pink",
         "Regular": "green",
     }
     size_map = {
@@ -104,8 +104,8 @@ def plot_nodes_plotly(nodes: list[Node]):
         "Segment Start": 4,
         "Segment End": 4,
         "Occupied": 3,
+        "Overlap": 3,
         "Circular": 1,
-        "Overlap": 1,
         "Regular": 1,
     }
 
