@@ -698,65 +698,64 @@ class PathBuilder:
         return segment
 
     def combine_final_path_bodies(self):
-        # Combine sepereate segment path bodies depending on divide options
-
-        # Prepare for n standard path bodies
+        # Combine separate segment path bodies depending on divide options
         num_divisions = Config.Manufacturing.DIVIDE_PATHS_IN
-        standard_bodies = [None] * num_divisions
-        counter = 0
 
-        support_body = None
-        accent_color_body = None
-
-        # TODO first combine all segments with the same main_index, for example spline segments consists of sets of threes
-        # TODO, seperate method to create inner bridge cut and addition to the path bodies to connect them
-
+        # Collect all the path bodies by main_index
+        groups: Dict[int, List[Part]] = {}
         for segment in self.path_architect.segments:
-            # Skip segments with a start node.
+            # skip the “start” funnel
             if any(node.puzzle_start for node in segment.nodes):
                 continue
-
-            # Skip segments that have no body.
-            if not hasattr(segment, "path_body") or segment.path_body is None:
-                print(
-                    f"Segment at {segment.main_index}-{segment.secondary_index} has no body."
-                )
+            # skip missing or empty path bodies
+            if not segment.path_body or not segment.path_body.part:
                 continue
+            path_part = segment.path_body.part
 
-            # Standard body processing:
-            if num_divisions == 0:
-                # If number of divisions is zero, do not combine: store each path body separately.
-                standard_bodies.append(segment.path_body.part)
-            else:
-                # If number of divisions > 0, use cyclic bucket combination.
-                bucket_idx = counter % num_divisions
+            groups.setdefault(segment.main_index, []).append(path_part)
 
-                if standard_bodies[bucket_idx] is None:
-                    standard_bodies[bucket_idx] = segment.path_body.part
-                else:
-                    standard_bodies[bucket_idx] = standard_bodies[bucket_idx].fuse(
-                        segment.path_body.part
-                    )
-                    counter += 1
+        # Fuse each group into one Part using a multi-union
+        fused_by_main: Dict[int, Part] = {}
+        for main_index, parts in groups.items():
+            fused_by_main[main_index] = Part() + parts
 
-            # Check if the segment has a (optional) support body
-            if hasattr(segment, "support_body") and segment.support_body is not None:
-                if support_body is None:
-                    support_body = segment.support_body.part
-                else:
-                    support_body = support_body.fuse(segment.support_body.part)
+        # Distribute into buckets based on division count
+        if num_divisions == 0:
+            # special case: keep each main_index separate
+            standard_list = list(fused_by_main.values())
+        else:
+            # Prepare empty buckets for each division
+            buckets: List[List[Part]] = [[] for _ in range(num_divisions)]
+            bucket_counter = 0
+            for main_index in sorted(fused_by_main):
+                current_part = fused_by_main[main_index]
+                bucket_index = bucket_counter % num_divisions
+                buckets[bucket_index].append(current_part)
+                bucket_counter += 1
+            # Union each bucket in one go
+            standard_list = [Part() + bucket for bucket in buckets if bucket]
 
-            # Check if the segment has a (optional) color accent body
-            if hasattr(segment, "accent_body") and segment.accent_body is not None:
-                if accent_color_body is None:
-                    accent_color_body = segment.accent_body.part
-                else:
-                    accent_color_body = accent_color_body.fuse(segment.accent_body.part)
+        # Combine accent and support bodies all at once
+        all_support_bodies: List[Part] = []
+        all_accent_bodies: List[Part] = []
+        for segment in self.path_architect.segments:
+            # skip the “start” funnel
+            if any(node.puzzle_start for node in segment.nodes):
+                continue
+            # support bodies
+            if segment.support_body:
+                all_support_bodies.append(segment.support_body.part)
+            # accent bodies
+            if segment.accent_body:
+                all_accent_bodies.append(segment.accent_body.part)
+
+        support_body = Part() + all_support_bodies if all_support_bodies else None
+        accent_body = Part() + all_accent_bodies if all_accent_bodies else None
 
         return {
-            PathTypes.STANDARD: [body for body in standard_bodies if body is not None],
+            PathTypes.STANDARD: standard_list,
             PathTypes.SUPPORT: support_body,
-            PathTypes.ACCENT_COLOR: accent_color_body,
+            PathTypes.ACCENT_COLOR: accent_body,
         }
 
     def create_start_area_funnel(self, segment: PathSegment):
@@ -1042,7 +1041,7 @@ class PathBuilder:
             # Trim the last segment path to only the final bit
             with BuildLine() as closure_line:
                 add(last_segment.path.trim(start_param, 1.0))
-            with BuildSketch(closure_line.line ^ 0) as closure_sketch:
+            with BuildSketch(closure_line.line ^ 0):
                 # Create profile depending on shape type
 
                 # Determine path line angle difference between the

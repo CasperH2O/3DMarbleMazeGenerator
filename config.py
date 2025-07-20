@@ -39,7 +39,7 @@ class Manufacturing:
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.
-    DIVIDE_PATHS_IN = 0
+    DIVIDE_PATHS_IN = 1
 
 
 # Sphere case configuration
