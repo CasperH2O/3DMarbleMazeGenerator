@@ -18,6 +18,7 @@ from build123d import (
     SortBy,
     Sphere,
     Transition,
+    Vector,
     export_stl,
     sweep,
 )
@@ -340,7 +341,7 @@ def set_viewer():
     animation.animate(1)
 
 
-def export_all(case_parts, base_parts, additional_parts=None):
+def export_all(case_parts: list[Part], base_parts: list[Part], additional_parts=None):
     """
     Export all case parts as STLs for 3D print manufacturing.
     """
@@ -348,7 +349,7 @@ def export_all(case_parts, base_parts, additional_parts=None):
         return
 
     # root export folder
-    folder_name = f"Case-{Config.Puzzle.CASE_SHAPE}-Seed-{Config.Puzzle.SEED}"
+    folder_name = f"Case-{Config.Puzzle.CASE_SHAPE.value}-Seed-{Config.Puzzle.SEED}"
     export_root = os.path.join("export", "stl", folder_name)
     os.makedirs(export_root, exist_ok=True)
 
@@ -366,20 +367,34 @@ def export_all(case_parts, base_parts, additional_parts=None):
     puzzle_case = {
         CasePart.MOUNTING_RING.value,
         CasePart.INTERNAL_PATH_BRIDGES.value,
-        CasePart.START_INDICATOR.value,
     }
     mounting_case = {
         CasePart.MOUNTING_RING_TOP.value,
         CasePart.MOUNTING_RING_BOTTOM.value,
         CasePart.MOUNTING_RING_CLIP_START.value,
         CasePart.MOUNTING_RING_CLIP_SINGLE.value,
-        CasePart.MOUNTING_RING_CLIPS.value,
+        CasePart.START_INDICATOR.value,
     }
     extra_case = {
         CasePart.DOME_TOP.value,
         CasePart.DOME_BOTTOM.value,
         CasePart.CASING.value,
+        CasePart.MOUNTING_RING_CLIPS.value,
     }
+
+    # Adjust some orienation to prepare for 3D printing plate
+    for part in case_parts:
+        match part.label:
+            # Rotate mounting ring top upside down
+            case CasePart.MOUNTING_RING_TOP.value:
+                part.orientation = Vector(0, 180, 0)
+            # Rotate mounting clips
+            case (
+                CasePart.START_INDICATOR.value
+                | CasePart.MOUNTING_RING_CLIP_START.value
+                | CasePart.MOUNTING_RING_CLIP_SINGLE.value
+            ):
+                part.orientation = Vector(90, 0, 0)
 
     for part in case_parts:
         label = part.label
