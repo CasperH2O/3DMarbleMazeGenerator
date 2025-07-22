@@ -36,6 +36,7 @@ from cad.path_profile_type_shapes import (
     create_u_shape,
     create_u_shape_path_color,
 )
+from cad.solid_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.puzzle import Node, Puzzle
 
@@ -562,6 +563,7 @@ class PathBuilder:
                             )
                         ) as s2:
                             add(path_profile_end)
+
                         sweep(
                             sections=[s1.sketch, s2.sketch],
                             path=segment_path_line.line,
@@ -573,6 +575,14 @@ class PathBuilder:
                     print(
                         f"Check segment {segment.main_index}.{segment.secondary_index} has an invalid path body?"
                     )
+
+                # Check if body is valid, try other approach if faces intersect
+                if do_faces_intersect(segment.path_body.part):
+                    print(
+                        f"Option {opt_idx}, spline self-intersection on body segment "
+                        f"{segment.main_index}.{segment.secondary_index}"
+                    )
+                    continue
 
                 # Create the accent profile if the segment has an accent profile type
                 if segment.accent_profile_type is not None:
@@ -613,6 +623,16 @@ class PathBuilder:
                             segment_path_line.line,
                             multisection=True,
                         )
+
+                    # Check if body is valid, try other approach if faces intersect
+                    if segment.accent_body and do_faces_intersect(
+                        segment.accent_body.part
+                    ):
+                        print(
+                            f"Option {opt_idx}, accent body self-intersection on segment "
+                            f"{segment.main_index}.{segment.secondary_index}"
+                        )
+                        continue
 
                 # Create the support profile if the segment has a support profile type
                 if segment.support_profile_type is not None:
@@ -663,6 +683,16 @@ class PathBuilder:
                                 multisection=True,
                             )
 
+                    # Check if body is valid, try other approach if faces intersect
+                    if segment.support_body and do_faces_intersect(
+                        segment.support_body.part
+                    ):
+                        print(
+                            f"Option {opt_idx}, support body self-intersection on segment "
+                            f"{segment.main_index}.{segment.secondary_index}"
+                        )
+                        continue
+
                 # If we reach this point, the sweep succeeded, return segment
 
                 """        
@@ -693,7 +723,9 @@ class PathBuilder:
         segment.curve_model = PathCurveModel.COMPOUND
 
         # Create the segment as standard curve model instead of a spline
-        segment = self.create_standard_segment(previous_segment, segment)
+        segment = self.sweep_standard_segment(
+            segment=segment, previous_segment=previous_segment
+        )
 
         return segment
 
