@@ -1,6 +1,6 @@
 from itertools import combinations
 
-from build123d import Edge, Part, Shape, Vertex
+from build123d import Edge, Shape
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Section
 from OCP.TopAbs import TopAbs_EDGE
 from OCP.TopExp import TopExp_Explorer

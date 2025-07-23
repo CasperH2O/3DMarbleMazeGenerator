@@ -579,7 +579,7 @@ class PathBuilder:
                 # Check if body is valid, try other approach if faces intersect
                 if do_faces_intersect(segment.path_body.part):
                     print(
-                        f"Option {opt_idx}, spline self-intersection on body segment "
+                        f"Spline option {opt_idx}, main body self-intersection on segment "
                         f"{segment.main_index}.{segment.secondary_index}"
                     )
                     continue
@@ -629,7 +629,7 @@ class PathBuilder:
                         segment.accent_body.part
                     ):
                         print(
-                            f"Option {opt_idx}, accent body self-intersection on segment "
+                            f"Spline option {opt_idx}, accent body self-intersection on segment "
                             f"{segment.main_index}.{segment.secondary_index}"
                         )
                         continue
@@ -688,7 +688,7 @@ class PathBuilder:
                         segment.support_body.part
                     ):
                         print(
-                            f"Option {opt_idx}, support body self-intersection on segment "
+                            f"Spline option {opt_idx}, support body self-intersection on segment "
                             f"{segment.main_index}.{segment.secondary_index}"
                         )
                         continue
@@ -899,6 +899,7 @@ class PathBuilder:
                     continue  # Skip this segment
 
                 # Skip segments that are not straight
+                # FIXME, this no longer works for compound
                 if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
                     continue  # Skip this segment
 
