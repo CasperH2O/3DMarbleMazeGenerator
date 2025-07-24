@@ -22,6 +22,7 @@ from build123d import (
     Spline,
     Transition,
     Vector,
+    Vertex,
     Wire,
     add,
     extrude,
@@ -195,6 +196,7 @@ class PathBuilder:
                 )
                 new_segment.curve_model = PathCurveModel.COMPOUND
                 new_segment.path = combined_wire
+                new_segment.path_edge_only = all_edges
                 # Inherit additional attributes (like profile type and transition) from the first segment.
                 new_segment.copy_attributes_from(seg_list_sorted[0])
                 combined_segments.append(new_segment)
@@ -898,11 +900,6 @@ class PathBuilder:
                 ):
                     continue  # Skip this segment
 
-                # Skip segments that are not straight
-                # FIXME, this no longer works for compound
-                if segment.curve_type not in [PathCurveType.STRAIGHT, None]:
-                    continue  # Skip this segment
-
                 hole_size = Config.Puzzle.BALL_DIAMETER + 1
                 total_nodes = len(segment.nodes)
 
@@ -924,6 +921,12 @@ class PathBuilder:
                     if node.puzzle_end:
                         print("Node puzzle end found!")
                         continue
+
+                    # Skip nodes that do not lie on the path, ie on curves
+                    hole_vertex = Vertex(Vector(node.x, node.y, node.z))
+                    common = segment.path.intersect(hole_vertex)
+                    if not common:
+                        continue  # off the path, omit this hole
 
                     # Create the cutting cylinder based on work plane direction
                     with BuildPart() as cutting_cylinder:

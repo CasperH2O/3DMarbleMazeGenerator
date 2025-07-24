@@ -19,7 +19,11 @@ all_edges = []
 for segment in line_segments:
     all_edges.extend(segment.edges())
 
-combined_wire = Wire._make_wire(all_edges)
+combined_wire = Wire(all_edges)
+edges = combined_wire.wires()
+
+for i, edge in enumerate(edges):
+    print(f"Edge {i}: {edge.geom_type}")
 
 # Visualize the result
 show(combined_wire)
