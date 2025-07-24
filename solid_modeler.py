@@ -31,7 +31,7 @@ from ocp_vscode import (
     status,
 )
 
-from cad.base import create_circular_base
+from cad.base import create_box_base, create_circular_base
 from cad.cases.case import CasePart
 from cad.cases.case_box import CaseBox
 from cad.cases.case_sphere import CaseSphere
@@ -65,8 +65,11 @@ def main() -> None:
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
 
-    # Create the base
-    base_parts = create_circular_base()
+    # Create the base, it's either a box or any of the sphere shapes
+    if puzzle.case_shape == CaseShape.BOX:
+        base_parts = create_box_base()
+    else:
+        base_parts = create_circular_base()
 
     if standard_paths:
         for idx, part in enumerate(case_parts):

@@ -1,12 +1,18 @@
-from build123d import *
 from build123d import (
+    Align,
     Axis,
     BuildPart,
+    BuildSketch,
+    Cylinder,
     Keep,
+    Location,
     Mode,
     Plane,
+    Pos,
+    Rectangle,
     Sphere,
     chamfer,
+    extrude,
     split,
 )
 from ocp_vscode import show
@@ -17,7 +23,7 @@ sphere_diameter = config.Sphere.SPHERE_DIAMETER
 extrusion_amount = -1 * (sphere_diameter / 2 + 7)
 
 
-# Create a basic circular base with a sphere cut out based on enclosure size
+# Create a circular base with a sphere cut out based on enclosure size
 def create_circular_base():
     with BuildPart() as base:
         # Base cylinder, aligned so its MAX-Z face is at Z=0
@@ -67,6 +73,34 @@ def create_circular_base():
     return [base.part, base_foot, base_edge]
 
 
+# Create a rectangular base, based on puzzle dimensions
+def create_box_base():
+    node_size = config.Puzzle.NODE_SIZE
+    length = config.Box.LENGTH
+    width = config.Box.WIDTH
+    tolerance = 0.5
+
+    with BuildPart() as base:
+        with BuildSketch():
+            Rectangle(
+                height=length + node_size,
+                width=width + node_size,
+            )
+        extrude(amount=-node_size * 2, taper=-6)
+        with BuildSketch():
+            Rectangle(
+                height=length + tolerance,
+                width=width + tolerance,
+            )
+        extrude(amount=-node_size, mode=Mode.SUBTRACT)
+
+    base.part.position = (0, 0, -config.Box.HEIGHT * 0.5 + node_size)
+    base.part.label = "Base"
+    base.part.color = config.Puzzle.PATH_COLORS[0]
+
+    return [base.part]
+
+
 if __name__ == "__main__":
-    base = create_circular_base()
+    base = create_box_base()
     show(base)
