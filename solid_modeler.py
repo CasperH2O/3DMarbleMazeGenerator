@@ -96,7 +96,7 @@ def main() -> None:
             # Cut internal path bridges to be flush with paths,
             # merge each flush‐bridge fragment with it's respective connected path
             if part.label == CasePart.INTERNAL_PATH_BRIDGES.value:
-                # Use bridge separate solids
+                # Use bridge solids separate
                 bridge_solids = case_parts[idx].solids()
 
                 # Match bridge with standard path
@@ -104,7 +104,10 @@ def main() -> None:
                     matched_sp_idx = None
                     for standard_path_idx, standard_path in enumerate(standard_paths):
                         # Check overlap, can only be with one, break once found
-                        if (standard_path & bridge).solids():
+                        overlap = standard_path & bridge
+                        if overlap is None:
+                            continue  # Check next combination
+                        if overlap.solids():
                             matched_sp_idx = standard_path_idx
                             break
 
