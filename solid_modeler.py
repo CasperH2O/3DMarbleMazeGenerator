@@ -92,26 +92,49 @@ def main() -> None:
                 case_parts[idx] = largest_solid
                 case_parts[idx].label = label
                 case_parts[idx].color = color
-            # Cut internal patch bridges to be flush with paths
+
+            # Cut internal path bridges to be flush with paths,
+            # merge each flush‐bridge fragment with it's respective connected path
             if part.label == CasePart.INTERNAL_PATH_BRIDGES.value:
-                label = part.label
-                color = part.color
+                # Use bridge separate solids
+                bridge_solids = case_parts[idx].solids()
 
-                # Subtract all paths from the internal bridge parts
-                case_parts[idx] -= standard_paths
+                # Match bridge with standard path
+                for bridge in bridge_solids:
+                    matched_sp_idx = None
+                    for standard_path_idx, standard_path in enumerate(standard_paths):
+                        # Check overlap, can only be with one, break once found
+                        if (standard_path & bridge).solids():
+                            matched_sp_idx = standard_path_idx
+                            break
 
-                # Extract and sort the solids by volume
-                sorted_solids = case_parts[idx].solids().sort_by(SortBy.VOLUME)
+                    # If we can't find a match, something went wrong
+                    # and bridge does not connect to path.
+                    # Probably a path profile at a wrong orientation
+                    if matched_sp_idx is None:
+                        print("Unable to match bridge with standard path segment.")
+                        continue
 
-                # Get the n mounting points path amount smallest solids
-                remaining_path_bridge_pieces = sorted_solids[
-                    : Config.Sphere.NUMBER_OF_MOUNTING_POINTS - 1
-                ]
+                    # Subtract the standard path from the bridge, to make it flush
+                    # Sort by volume, as we later use the smallest of the two
+                    fragments = (
+                        (bridge - standard_paths[matched_sp_idx])
+                        .solids()
+                        .sort_by(SortBy.VOLUME)
+                    )
 
-                # Convert it to a Part
-                case_parts[idx] = Part(remaining_path_bridge_pieces)
-                case_parts[idx].label = label
-                case_parts[idx].color = color
+                    if not fragments:
+                        continue  # nothing left once subtracted
+
+                    # Take the smallest remaining fragment and merge it back
+                    smallest_fragment = fragments[0]
+                    standard_paths[matched_sp_idx] = (
+                        standard_paths[matched_sp_idx] + smallest_fragment
+                    )
+
+                # Remove the original bridge part from case_parts,
+                # since its absorbed into standard_paths
+                case_parts.pop(idx)
                 break
 
     # Display all case, puzzle and additional parts
