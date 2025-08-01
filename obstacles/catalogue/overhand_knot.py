@@ -25,7 +25,7 @@ class OverhandKnotObstacle(Obstacle):
     """An overhand knot shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="OverhandKnot")
+        super().__init__(name="Overhand Knot")
 
         # TODO for laterupon creation, do location/orientation
 

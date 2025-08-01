@@ -8,6 +8,7 @@ import numpy as np
 
 from cad.path_architect import PathArchitect
 from config import CaseShape, Config
+from obstacles.obstacle_manager import ObstacleManager
 
 from .casing import BoxCasing, SphereCasing
 from .node import Node, NodeGridType
@@ -73,7 +74,10 @@ class Puzzle:
         # Node neighbor connectivity sanity-check,
         self._check_node_connectivity()
 
-        # Randomly occupy nodes within the casing as obstacles
+        # Populate puzzle with obstacles
+        self.obstacle_manager: ObstacleManager = ObstacleManager(self.nodes)
+
+        # Randomly occupy nodes within the casing as road blocks
         self.randomly_occupy_nodes(min_percentage=0, max_percentage=0)
 
         # Randomly select waypoints
