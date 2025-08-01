@@ -1,8 +1,17 @@
 # obstacles/obstacle_registry.py
 
+"""
+Registry for all obstacle types. Obstacles register themselves via register_obstacle().
+To populate the registry, import the catalogue package:
+
+    import obstacles.catalogue
+
+which will trigger module-level registrations.
+"""
+
 from typing import Dict, List, Type
 
-from obstacles.obstacle import Obstacle  # Use the correct path
+from obstacles.obstacle import Obstacle
 
 # Registry to hold the mapping from obstacle name (string) to the Obstacle class
 OBSTACLE_REGISTRY: Dict[str, Type[Obstacle]] = {}

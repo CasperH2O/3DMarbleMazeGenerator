@@ -188,7 +188,9 @@ class Obstacle(ABC):
             # print(f"Warning: Cannot get placed entry/exit for {self.name} without location.")
             return None
 
-        relative_entry, relative_exit = self.get_relative_entry_exit_coords()
+        # relative_entry, relative_exit = self.get_relative_entry_exit_coords()
+        # FIXME
+        relative_entry, relative_exit = Vector(0, 0, 0), Vector(0, 0, 0)
 
         entry_loc = self.location * Location(relative_entry)
         exit_loc = self.location * Location(relative_exit)
