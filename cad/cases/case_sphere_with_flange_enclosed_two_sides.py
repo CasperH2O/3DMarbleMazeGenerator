@@ -286,7 +286,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             mounting_ring_bottom,
         )
 
-    def create_mounting_ring_clips(self, tolerance: bool):
+    def create_mounting_ring_clips(self, use_tolerance: bool):
         """
         Create mounting ring clips for both the physical parts and the cut-out pattern,
         applying an additional clearance tolerance where needed.
@@ -300,7 +300,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
 
         # Set tolerance to 0.1 mm, if tolerance is requested,
         # get's multiplied for proper distance where applicable
-        if tolerance:
+        if use_tolerance:
             tolerance = 0.1
         else:
             tolerance = 0.0
@@ -323,7 +323,8 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                         self.mounting_ring_clips_width,
                         self.mounting_ring_clips_length + 4 * tolerance,
                     )
-            extrude(amount=mounting_clip_height / 2, both=True)
+            # Extrude with extra clearance
+            extrude(amount=(mounting_clip_height + 0.8) / 2, both=True)
 
             # Remove the outer curved shape from the blocks
             with BuildSketch():
@@ -334,7 +335,11 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                     self.sphere_flange_radius + self.mounting_ring_clips_thickness,
                     mode=Mode.SUBTRACT,
                 )
-            extrude(amount=mounting_clip_height / 2, mode=Mode.SUBTRACT, both=True)
+            extrude(
+                amount=mounting_clip_height,
+                mode=Mode.SUBTRACT,
+                both=True,
+            )
 
             # Cut out the inner area to create a U-shape with chamfered edges
             with BuildSketch(Plane.XZ) as sketch_inner_cut:
@@ -342,8 +347,8 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                     self.sphere_flange_radius,
                     mounting_clip_height
                     - 2 * self.mounting_ring_clips_thickness
-                    - 4 * tolerance
-                    + 0.4,
+                    + 0.8  # Extra clearance
+                    - 8 * tolerance,  # Compensate clearance in case of tolerance part
                     align=(Align.MIN, Align.CENTER),
                 )
                 chamfer(sketch_inner_cut.vertices(), 1.5 + 2 * tolerance)
@@ -353,7 +358,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             with BuildSketch(Plane.XZ):
                 Rectangle(
                     self.sphere_inner_radius,
-                    mounting_clip_height,
+                    mounting_clip_height * 2,
                     align=(Align.MIN, Align.CENTER),
                 )
             revolve(mode=Mode.SUBTRACT)
@@ -464,23 +469,23 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         mounting_ring_clip_single = copy(self.mounting_ring_clips)
 
         # Get the clip with the lowest volume (start indicator hole)
-        mounting_ring_clip_start.part = Part(self.mounting_ring_clips.part.solids().sort_by(
-            SortBy.VOLUME
-        )[0:1])
+        mounting_ring_clip_start.part = Part(
+            self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[0:1]
+        )
         mounting_ring_clip_start.part.label = CasePart.MOUNTING_RING_CLIP_START.value
         mounting_ring_clip_start.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         # Single clip for printing
-        mounting_ring_clip_single.part = Part(self.mounting_ring_clips.part.solids().sort_by(
-            SortBy.VOLUME
-        )[-1:])
+        mounting_ring_clip_single.part = Part(
+            self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[-1:]
+        )
         mounting_ring_clip_single.part.label = CasePart.MOUNTING_RING_CLIP_SINGLE.value
         mounting_ring_clip_single.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         # Remaining clips after extracting first and last
-        self.mounting_ring_clips.part = Part(self.mounting_ring_clips.part.solids().sort_by(
-            SortBy.VOLUME
-        )[1:-1])
+        self.mounting_ring_clips.part = Part(
+            self.mounting_ring_clips.part.solids().sort_by(SortBy.VOLUME)[1:-1]
+        )
         self.mounting_ring_clips.part.label = CasePart.MOUNTING_RING_CLIPS.value
         self.mounting_ring_clips.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
