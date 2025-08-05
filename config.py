@@ -21,7 +21,7 @@ class Puzzle:
     SEED = 46  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
-    OBSTACLES = True  # Place obstacles in puzzle
+    OBSTACLES = False  # Place obstacles in puzzle
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
     PATH_COLORS = ["#FFD700FF", "#00E4EBFF", "#EB009FFF"]  # Gold, Cyan, Magenta

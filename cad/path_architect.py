@@ -491,7 +491,7 @@ class PathArchitect:
                                 for n in pair
                             )
                             new_segments.append(
-                                self._make_circular_run(segment, pair, is_circ)
+                                self.make_circular_run(segment, pair, is_circ)
                             )
 
                         # substitute the original with the new chain
@@ -685,7 +685,7 @@ class PathArchitect:
 
         return new_segments
 
-    def _make_circular_run(
+    def make_circular_run(
         self, original: PathSegment, run_nodes: List[Node], is_circ: bool
     ) -> PathSegment:
         """

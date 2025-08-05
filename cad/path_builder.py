@@ -37,12 +37,13 @@ from cad.path_profile_type_shapes import (
     create_u_shape,
     create_u_shape_path_color,
 )
+from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from cad.solid_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
+from puzzle.node import NodeGridType
 from puzzle.puzzle import Node, Puzzle
 
 from .path_architect import PathArchitect
-from .path_segment import PathSegment, _node_to_vector, is_same_location
 
 
 class PathTypes(Enum):
@@ -715,21 +716,36 @@ class PathBuilder:
                 )
                 continue
 
-        # Fallback option, change the curve model to POLYLINE and include all nodes
+        # Fallback, build as a COMPOUND of standard sub‐segments
         print(
-            f"Falling back to POLYLINE for segment {segment.main_index}.{segment.secondary_index}"
+            f"Falling back to COMPOUND for segment "
+            f"{segment.main_index}.{segment.secondary_index}, spline not possible"
         )
 
-        # Create the path as standard curve model with all nodes and set curve model to POLYLINE
-        segment.path = Polyline(sub_path_points)
-        segment.curve_model = PathCurveModel.COMPOUND
+        # Handle different node grid types, create sub segments
+        sub_segments = []
+        for n1, n2 in zip(segment.nodes[:-1], segment.nodes[1:]):
+            is_circ = (
+                NodeGridType.CIRCULAR.value in n1.grid_type
+                and NodeGridType.CIRCULAR.value in n2.grid_type
+            )
+            sub_segment = self.path_architect.make_circular_run(
+                segment, [n1, n2], is_circ
+            )
 
-        # Create the segment as standard curve model instead of a spline
-        segment = self.sweep_standard_segment(
-            segment=segment, previous_segment=previous_segment
-        )
+            # Let your normal polylines/arcs get built
+            sub_segment = self.define_standard_segment_path(sub_segment)
+            sub_segments.append(sub_segment)
 
-        return segment
+        # Stitch sub segment paths back into one path
+        combined = self._combine_compound_segments_for_path(sub_segments)
+        # Combine returns a list, but there’s only one group for this main_index
+        new_seg = combined[0]
+        # Restore the original secondary index
+        new_seg.secondary_index = segment.secondary_index
+
+        # Sweep as a standard compound segment
+        return self.sweep_standard_segment(new_seg, previous_segment)
 
     def combine_final_path_bodies(self):
         # Combine separate segment path bodies depending on divide options

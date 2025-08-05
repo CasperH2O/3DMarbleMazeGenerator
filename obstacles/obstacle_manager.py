@@ -48,10 +48,6 @@ class ObstacleManager:
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        print(
-            f"ObstacleManager init: OBSTACLES={Config.Puzzle.OBSTACLES}, SEED={self.seed}"
-        )
-
         # Place obstacles if enabled
         if Config.Puzzle.OBSTACLES:
             types = get_available_obstacles()
