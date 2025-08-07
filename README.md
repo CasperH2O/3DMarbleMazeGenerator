@@ -8,6 +8,12 @@ Software application, written in Python to generate 3D printable design files (S
     <img src="resources/physical_result.jpg" alt="Physical Result" width="200"/>
 </p>
 
+<p float="left">
+    <img src="resources/path_visualization-2.png" alt="Path Visualization 2" width="200"/>
+    <img src="resources/3d-2.png" alt="3D Image 2" width="200"/>
+    <img src="resources/physical_result-2.jpg" alt="Physical Result 2" width="200"/>
+</p>
+
 ## Usage
 
 For practicality, the application can be run in separate parts. A puzzle generation with paths and plot visualization and a 3D solid modeller that generates a puzzle and then creates and visualizes the 3D model for export. Both rely on the parameters set in the config.py file
@@ -50,6 +56,36 @@ path_profiles_overview.py
 This results in an overview with all path profiles, including their path accent color and support material swep along a straight line. A red color color is used to indicate the path does not have any adjustments yet in the configuration:
 
 <img src="resources/path_profiles_overview.png" alt="Path Profiles Overview" width="400"/>
+
+**Obstacles**
+
+⚠️ Obstacles are work in progress, disabled by default
+
+Obstacled can be randomly selected and placed (xyz and orientation) in the puzzle. The obstacles feature as start and end node that can be connected with paths. Through the usage of a node grid, collisions and occupancy can be handled.
+
+For quick visualization and debugging, all the obstacles currently in the obstacle catalogue can be 3D modelled by running:
+
+```Python
+obstacle_overview.py
+```
+
+This results in the following overview:
+
+<img src="resources/obstacle_overview.png" alt="Obstacle Overview" width="400"/>
+
+Individual obstacles can be both plotted and 3D modelled by running their individual obstacle files in /obstacles/catalogue for example, spiral.py can be run by:
+
+```Python
+python -m obstacles.catalogue.spiral
+```
+
+This results in a 3D model, including the occupied and overlap nodes:
+
+<img src="resources/obstacle-spiral-3d.png" alt="Obstacle Spiral 3D" width="400"/>
+
+This also results in a plot, with a sampled path, occupied and overlap nodes:
+
+<img src="resources/obstacle-spiral-plot.png" alt="Obstacle Spiral plot" width="400"/>
 
 ## Requirements
 
