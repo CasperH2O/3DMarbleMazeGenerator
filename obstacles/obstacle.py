@@ -60,9 +60,6 @@ class Obstacle(ABC):
 
         self.node_size = config.Puzzle.NODE_SIZE
 
-        # Set the random seed for reproducibility if needed internally
-        random.seed(config.Puzzle.SEED)
-
     @abstractmethod
     def create_obstacle_geometry(self):
         """
