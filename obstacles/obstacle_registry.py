@@ -1,17 +1,18 @@
 # obstacles/obstacle_registry.py
 
 """
-Registry for all obstacle types. Obstacles register themselves via register_obstacle().
-To populate the registry, import the catalogue package:
-
-    import obstacles.catalogue
-
-which will trigger module-level registrations.
+Registry for all obstacle types.
 """
 
+# obstacles/obstacle_registry.py
+import importlib
+import pkgutil
 from typing import Dict, List, Type
 
 from obstacles.obstacle import Obstacle
+
+# Lazy-load guard
+_CATALOGUE_LOADED = False
 
 # Registry to hold the mapping from obstacle name (string) to the Obstacle class
 OBSTACLE_REGISTRY: Dict[str, Type[Obstacle]] = {}
@@ -29,8 +30,24 @@ def register_obstacle(name: str, cls: Type[Obstacle]):
     OBSTACLE_REGISTRY[name] = cls
 
 
+def _load_all_catalogue_obstacles_once():
+    """Import all modules in obstacles.catalogue once"""
+    global _CATALOGUE_LOADED
+    if _CATALOGUE_LOADED:
+        return
+    import obstacles.catalogue as catalogue_pkg
+
+    # find all submodules in obstacles.catalogue and import them
+    for modinfo in pkgutil.iter_modules(
+        catalogue_pkg.__path__, catalogue_pkg.__name__ + "."
+    ):
+        importlib.import_module(modinfo.name)
+    _CATALOGUE_LOADED = True
+
+
 def get_obstacle_class(name: str) -> Type[Obstacle]:
     """Retrieves an obstacle class from the registry by name."""
+    _load_all_catalogue_obstacles_once()
     cls = OBSTACLE_REGISTRY.get(name)
     if cls is None:
         raise ValueError(
@@ -41,4 +58,5 @@ def get_obstacle_class(name: str) -> Type[Obstacle]:
 
 def get_available_obstacles() -> List[str]:
     """Returns a list of names of all registered obstacles."""
+    _load_all_catalogue_obstacles_once()
     return list(OBSTACLE_REGISTRY.keys())
