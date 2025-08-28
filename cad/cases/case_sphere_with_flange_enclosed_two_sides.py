@@ -204,7 +204,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                 angular_range=angle_range,
             ):
                 Box(
-                    width=self.node_size - 0.05,
+                    width=self.node_size - Config.Manufacturing.NOZZLE_DIAMETER,
                     length=self.node_size * 2 - 2.1,  # TODO Hardcoded, bad
                     height=self.mounting_bridge_height - tolerance,
                 )
@@ -233,7 +233,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                 angular_range=angle_range,
             ):
                 Box(
-                    width=self.node_size - 4 * printing_nozzle_diameter,
+                    width=self.node_size - 6 * printing_nozzle_diameter,
                     length=self.node_size * 2 + 4 * printing_nozzle_diameter - 1.3,
                     height=self.mounting_bridge_height - printing_layer_thickness * 8,
                 )
