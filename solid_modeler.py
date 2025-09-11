@@ -1,6 +1,8 @@
 # solid_modeller.py
 
+import colorsys
 import os
+import random
 from typing import Optional
 
 import numpy as np
@@ -25,9 +27,11 @@ from build123d import (
 from ocp_vscode import (
     Animation,
     Camera,
+    ColorMap,
     set_defaults,
     set_viewer_config,
     show_object,
+    show_objects,
     status,
 )
 
@@ -42,6 +46,7 @@ from cad.cases.case_sphere_with_flange_enclosed_two_sides import (
 from cad.path_builder import PathBuilder, PathTypes
 from config import CaseShape, Config
 from puzzle.puzzle import Puzzle
+from puzzle.utils.enums import Theme
 
 
 def main() -> None:
@@ -299,6 +304,55 @@ def ball_and_path_indicators(puzzle):
     return ball.part, ball_path.part
 
 
+def _is_transparent(color: str) -> bool:
+    """True if color is '#RRGGBBAA' with AA != 'FF' (i.e., not fully opaque)."""
+    if not isinstance(color, str) or not color.startswith("#"):
+        return False  # treat unknown/absent as opaque
+    if len(color) == 9:  # '#RRGGBBAA'
+        return color[-2:].upper() != "FF"
+    return False  # '#RRGGBB' (no alpha) -> opaque
+
+
+def _apply_generic_distinct_colors_per_part(
+    parts: list, seed: int | None = None
+) -> None:
+    """
+    Update part colors for maximum contrast with evenly spaced HSV space, skip transparent, shuffle colors
+    """
+    if not parts:
+        return
+
+    # Remove transparent parts in-place
+    i = 0
+    while i < len(parts):
+        c = getattr(parts[i], "color", None)
+        if _is_transparent(c):
+            parts.pop(i)
+        else:
+            i += 1
+
+    n = len(parts)
+    if n == 0:
+        return
+
+    # Build evenly spaced HSV colors
+    colors = []
+    for idx in range(n):
+        h = idx / n
+        r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
+        colors.append(
+            f"#{int(round(r * 255)):02X}{int(round(g * 255)):02X}{int(round(b * 255)):02X}FF"
+        )
+
+    # Shuffle colors
+    rng = random.Random(Config.Puzzle.SEED)
+    rng.shuffle(colors)
+
+    # Assign colors to parts
+    for p, c in zip(parts, colors):
+        p.color = c
+
+
 def display_parts(
     case_parts, base_parts, standard_paths, support_path, coloring_path, ball, ball_path
 ):
@@ -308,7 +362,20 @@ def display_parts(
     # Set the default camera position, to not adjust on new show
     set_defaults(reset_camera=Camera.KEEP)
 
-    # Display each part from the case
+    # Build the list of parts to recolor (skip ball and ball path)
+    parts_to_color = []
+    parts_to_color.extend(case_parts or [])
+    parts_to_color.extend(base_parts or [])
+    parts_to_color.extend(standard_paths or [])
+    if support_path:
+        parts_to_color.append(support_path)
+    if coloring_path:
+        parts_to_color.append(coloring_path)
+
+    # If Generic theme, assign distinct HSV colors per part
+    if Config.Puzzle.THEME == Theme.GENERIC:
+        _apply_generic_distinct_colors_per_part(parts_to_color)
+
     for part in case_parts:
         show_object(part)
 
