@@ -163,7 +163,13 @@ class ObstacleManager:
 
     def _occupy_nodes_for_obstacle(self, obstacle: Obstacle):
         """Marks grid nodes as occupied based on the obstacle's placement."""
-        for n in obstacle.occupied_nodes:
+        # Transform local to world
+        occ_local = [
+            Node(n.x, n.y, n.z, occupied=True) for n in (obstacle.occupied_nodes or [])
+        ]
+        occ_world = obstacle.get_placed_node_coordinates(occ_local)
+
+        for n in occ_world:
             x = _quantize_coord(n.x, Config.Puzzle.NODE_SIZE)
             y = _quantize_coord(n.y, Config.Puzzle.NODE_SIZE)
             z = _quantize_coord(n.z, Config.Puzzle.NODE_SIZE)
