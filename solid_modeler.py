@@ -27,11 +27,9 @@ from build123d import (
 from ocp_vscode import (
     Animation,
     Camera,
-    ColorMap,
     set_defaults,
     set_viewer_config,
     show_object,
-    show_objects,
     status,
 )
 

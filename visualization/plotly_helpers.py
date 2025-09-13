@@ -319,3 +319,26 @@ def plot_raw_obstacle_path_plotly(path: list, name: str = "Raw Path"):
         showlegend=True,
     )
     return [trace]
+
+
+def plot_puzzle_path_plotly(path_nodes: list[Node], name: str = "Puzzle Path"):
+    """
+    Plot the full puzzle path (list of Nodes) as a single line.
+    Hidden by default; toggle via legend.
+    """
+    xs = [n.x for n in path_nodes]
+    ys = [n.y for n in path_nodes]
+    zs = [n.z for n in path_nodes]
+    trace = go.Scatter3d(
+        x=xs,
+        y=ys,
+        z=zs,
+        mode="lines",
+        name=name,
+        line=dict(width=4),
+        showlegend=True,
+        visible="legendonly",
+        hoverinfo="skip",
+        legendgroup=name,
+    )
+    return [trace]

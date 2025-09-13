@@ -15,10 +15,13 @@ from puzzle.node import Node, NodeGridType
 from .plotly_helpers import (  # Import shared helper functions
     plot_casing_plotly,
     plot_nodes_plotly,
+    plot_puzzle_path_plotly,
 )
 
 
-def visualize_path_architect(nodes: Node, segments: list[PathSegment], casing: Case):
+def visualize_path_architect(
+    nodes: Node, segments: list[PathSegment], casing: Case, puzzle_path: list[Node]
+):
     """
     Visualizes the nodes and path segments as defined by path architect.
     """
@@ -216,6 +219,10 @@ def visualize_path_architect(nodes: Node, segments: list[PathSegment], casing: C
                 showlegend=True,
             )
         )
+
+    # Add puzzle path (hidden by default; toggle in legend)
+    for trace in plot_puzzle_path_plotly(puzzle_path):
+        fig.add_trace(trace)
 
     # Add casing traces.
     for trace in plot_casing_plotly(casing):

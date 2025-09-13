@@ -403,7 +403,8 @@ class AStarPathFinder:
                 self._verify_mounting_waypoints_visited(
                     initial_mounting, visited_waypoints, start_node
                 )  # Report missed mounting WPs
-                return []  # Return empty path to indicate failure
+                # return what we have thus far for debugging
+                return total_path
 
         # --- 4. Final Checks and Cleanup ---
 
