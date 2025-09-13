@@ -279,13 +279,13 @@ class SphereGridNodeCreator(NodeCreator):
         for dx, dy, dz in cardinal_offsets:
             coord = key3(node.x + dx, node.y + dy, node.z + dz)
             candidate = node_dict.get(coord)
-            if candidate and not candidate.occupied:
+            if candidate:
                 neighbors.append((candidate, node_size))
                 # print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
 
         # Examine all nodes for near-cardinal and diagonal connections.
         for candidate in node_dict.values():
-            if candidate == node or candidate.occupied:
+            if candidate is node:
                 continue
 
             dx = abs(candidate.x - node.x)
@@ -424,6 +424,6 @@ class BoxGridNodeCreator(NodeCreator):
         ]
         for dx, dy, dz in directions:
             neighbor = node_dict.get(key3(node.x + dx, node.y + dy, node.z + dz))
-            if neighbor and not neighbor.occupied:
+            if neighbor:
                 neighbors.append((neighbor, node_size))
         return neighbors
