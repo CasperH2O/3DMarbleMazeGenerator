@@ -180,7 +180,8 @@ class ObstacleManager:
                 self.occupied_positions.add(key)
 
     def _assign_entry_exit_nodes(self, obstacle: Obstacle):
-        """Finds closest nodes to entry/exit and marks them."""
+        """Finds closest nodes to entry/exit and marks them.
+        TODO not sure if this is still required, obstacles are usually designed this way"""
         coords = obstacle.get_placed_entry_exit_coords()
         if not coords:
             print(" No entry/exit coords.")

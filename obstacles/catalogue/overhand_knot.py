@@ -32,10 +32,6 @@ class OverhandKnotObstacle(Obstacle):
         # Load occupied nodes from cache or determine
         self.load_relative_node_coords()
 
-        # From obstacle geometry, determine entry and exit nodes
-        # TODO move to better place, either on usage of obstacle or on visualization
-        self.determine_entry_exit_nodes()
-
     def create_obstacle_geometry(self):
         """Generates the geometry for the overhand knot."""
 

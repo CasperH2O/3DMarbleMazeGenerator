@@ -1,7 +1,6 @@
 # obstacles/obstacle.py
 
 import json
-import random
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -77,22 +76,6 @@ class Obstacle(ABC):
         Returns solid model of obstacle
         """
         pass
-
-    def determine_entry_exit_nodes(self):
-        # Only proceed if we have a path
-        if self.path_segment.path is None:
-            print("Unable to determine entry and exit node from None path")
-            return
-
-        # Create start and end nodes
-        start_location = self.path_segment.path @ 0
-        end_location = self.path_segment.path @ 1
-        self.entry_node = Node(
-            x=start_location.X, y=start_location.Y, z=start_location.Z, occupied=True
-        )
-        self.exit_node_node = Node(
-            x=end_location.X, y=end_location.Y, z=end_location.Z, occupied=True
-        )
 
     def load_relative_node_coords(self):
         cache_dir = Path("obstacles/catalogue/cache")
@@ -179,22 +162,38 @@ class Obstacle(ABC):
 
         return nodes
 
-    def get_placed_entry_exit_coords(self) -> Optional[Tuple[Vector, Vector]]:
-        """Calculates the absolute world coordinates of entry/exit points after placement."""
-        if self.location is None:
-            # print(f"Warning: Cannot get placed entry/exit for {self.name} without location.")
+    def get_relative_entry_exit_coords(self) -> Optional[Tuple[Vector, Vector]]:
+        """
+        Return entry/exit in *local* coordinates (before placement).
+        Uses the start and end of the obstacle's path.
+        """
+        # Ensure the path exists even when node cache made geometry optional
+        if getattr(self.path_segment, "path", None) is None:
+            self.create_obstacle_geometry()
+        if self.path_segment.path is None:
             return None
 
-        # relative_entry, relative_exit = self.get_relative_entry_exit_coords()
-        # FIXME
-        relative_entry, relative_exit = Vector(0, 0, 0), Vector(0, 0, 0)
+        start = self.path_segment.path @ 0
+        end = self.path_segment.path @ 1
+        return Vector(start.X, start.Y, start.Z), Vector(end.X, end.Y, end.Z)
+
+    def get_placed_entry_exit_coords(self) -> Optional[Tuple[tuple, tuple]]:
+        """
+        Entry/exit in *world* coordinates after placement (self.location).
+        """
+        if self.location is None:
+            return None
+
+        rel = self.get_relative_entry_exit_coords()
+        if rel is None:
+            return None
+        relative_entry, relative_exit = rel
 
         entry_loc = self.location * Location(relative_entry)
         exit_loc = self.location * Location(relative_exit)
 
         entry_coord = (entry_loc.position.X, entry_loc.position.Y, entry_loc.position.Z)
         exit_coord = (exit_loc.position.X, exit_loc.position.Y, exit_loc.position.Z)
-
         return entry_coord, exit_coord
 
     def set_placement(self, location: Location):
@@ -257,9 +256,6 @@ class Obstacle(ABC):
         path = self.sample_obstacle_path()
         for trace in plot_raw_obstacle_path_plotly(path, name=f"{self.name} Raw Path"):
             fig.add_trace(trace)
-
-        # TODO add entry and exit nodes to visualize
-        self.determine_entry_exit_nodes()
 
         # Casing
         casing = SphereCasing(
