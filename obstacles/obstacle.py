@@ -401,13 +401,24 @@ class Obstacle(ABC):
         return cubes
 
     def sample_obstacle_path(self) -> list[Vector]:
+        """Local (not placed) sample points along obstacle path"""
+        samples = 50
+
         if self.path_segment.path is None:
-            self.raw_path = [Vector(X=0, Y=0, Z=0)]
-        else:
-            # Sample line and get raw points
-            samples = 50
-            ts = linspace(0.0, 1.0, samples)
-            return [self.path_segment.path @ t for t in ts]
+            return [Vector(0, 0, 0)]
+        ts = linspace(0.0, 1.0, samples)
+        return [self.path_segment.path @ float(t) for t in ts]
+
+    def sample_obstacle_path_world(self) -> list[Vector]:
+        """Sample points in world coordinates ie placed location"""
+        pts = self.sample_obstacle_path()
+        if self.location is None:
+            return pts
+        placed = []
+        for p in pts:
+            loc = self.location * Location(p)
+            placed.append(Vector(loc.position.X, loc.position.Y, loc.position.Z))
+        return placed
 
     def show_solid_model(self):
         """

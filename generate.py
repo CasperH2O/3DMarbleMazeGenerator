@@ -25,7 +25,11 @@ def main() -> None:
 
     # Visualize the path architect
     visualize_path_architect(
-        puzzle.nodes, puzzle.path_architect.segments, puzzle.casing, puzzle.total_path
+        puzzle.nodes,
+        puzzle.path_architect.segments,
+        puzzle.casing,
+        puzzle.total_path,
+        puzzle.obstacle_manager.placed_obstacles,
     )
 
 

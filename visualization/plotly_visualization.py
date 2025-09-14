@@ -10,17 +10,23 @@ from scipy import interpolate
 from cad.cases.case import Case
 from cad.path_segment import PathSegment
 from config import PathCurveModel, PathCurveType
+from obstacles.obstacle import Obstacle
 from puzzle.node import Node, NodeGridType
 
-from .plotly_helpers import (  # Import shared helper functions
+from .plotly_helpers import (
     plot_casing_plotly,
     plot_nodes_plotly,
+    plot_obstacles_raw_paths_plotly,
     plot_puzzle_path_plotly,
 )
 
 
 def visualize_path_architect(
-    nodes: Node, segments: list[PathSegment], casing: Case, puzzle_path: list[Node]
+    nodes: Node,
+    segments: list[PathSegment],
+    casing: Case,
+    puzzle_path: list[Node],
+    obstacles: list[Obstacle],
 ):
     """
     Visualizes the nodes and path segments as defined by path architect.
@@ -227,6 +233,10 @@ def visualize_path_architect(
     # Add casing traces.
     for trace in plot_casing_plotly(casing):
         fig.add_trace(trace)
+
+    if obstacles:
+        for trace in plot_obstacles_raw_paths_plotly(obstacles):
+            fig.add_trace(trace)
 
     # Define camera positions
     camera_views = {

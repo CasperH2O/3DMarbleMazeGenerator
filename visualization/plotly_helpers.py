@@ -321,6 +321,28 @@ def plot_raw_obstacle_path_plotly(path: list, name: str = "Raw Path"):
     return [trace]
 
 
+def plot_obstacles_raw_paths_plotly(obstacles: list):
+    """
+    Build traces for all placed obstacles (in world coordinates)
+    """
+    traces = []
+
+    if not obstacles:
+        return traces
+
+    for obstacle in obstacles:
+        # Plot single obstacle
+        raw_path_points = obstacle.sample_obstacle_path_world()
+
+        obstacle_traces = plot_raw_obstacle_path_plotly(
+            raw_path_points, name=f"{obstacle.name} Raw Path"
+        )
+
+        traces.extend(obstacle_traces)
+
+    return traces
+
+
 def plot_puzzle_path_plotly(path_nodes: list[Node], name: str = "Puzzle Path"):
     """
     Plot the full puzzle path (list of Nodes) as a single line.
