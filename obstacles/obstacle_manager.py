@@ -109,8 +109,9 @@ class ObstacleManager:
                 oy = _quantize_coord(target.y, Config.Puzzle.NODE_SIZE)
                 oz = _quantize_coord(target.z, Config.Puzzle.NODE_SIZE)
                 obstacle._origin = (ox, oy, oz)
-                # Immediately set location precisely snapped
-                obstacle.location = Location(Pos(Vector(ox, oy, oz)))
+                # Move by the delta from current position to snapped position
+                p = obstacle.location.position
+                obstacle.translate(Vector(ox - p.X, oy - p.Y, oz - p.Z))
 
                 print(
                     f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, rot={obstacle._rotation_angles}"
