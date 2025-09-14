@@ -65,6 +65,8 @@ def main() -> None:
     # Build paths associated with the puzzle and cut them from the case
     standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
 
+    obstacles = build_obstacle_path_bodies(puzzle)
+
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
 
@@ -150,6 +152,7 @@ def main() -> None:
         standard_paths,
         support_path,
         coloring_path,
+        obstacles,
         ball,
         ball_path,
     )
@@ -254,6 +257,22 @@ def path(puzzle, cut_shape: Part):
     return standard_path_bodies, support_path, coloring_path
 
 
+def build_obstacle_path_bodies(puzzle: Puzzle) -> list[Part]:
+    parts: list[Part] = []
+
+    for idx, obstacle in enumerate(puzzle.obstacle_manager.placed_obstacles, start=1):
+        placed_part = obstacle.get_placed_part()
+
+        # Label and color individually
+        part = Part(placed_part)
+        part.label = f"Obstacle {idx} - {obstacle.name}"
+        part.color = Config.Puzzle.PATH_COLORS[0]
+
+        parts.append(part)
+
+    return parts
+
+
 def ball_and_path_indicators(puzzle):
     """
     Create and return a ball, its swept path, and
@@ -352,7 +371,14 @@ def _apply_generic_distinct_colors_per_part(
 
 
 def display_parts(
-    case_parts, base_parts, standard_paths, support_path, coloring_path, ball, ball_path
+    case_parts,
+    base_parts,
+    standard_paths,
+    support_path,
+    coloring_path,
+    obstacles,
+    ball,
+    ball_path,
 ):
     """
     Display all puzzle physical objects.
@@ -360,18 +386,21 @@ def display_parts(
     # Set the default camera position, to not adjust on new show
     set_defaults(reset_camera=Camera.KEEP)
 
-    # Build the list of parts to recolor (skip ball and ball path)
-    parts_to_color = []
-    parts_to_color.extend(case_parts or [])
-    parts_to_color.extend(base_parts or [])
-    parts_to_color.extend(standard_paths or [])
-    if support_path:
-        parts_to_color.append(support_path)
-    if coloring_path:
-        parts_to_color.append(coloring_path)
-
     # If Generic theme, assign distinct HSV colors per part
     if Config.Puzzle.THEME == Theme.GENERIC:
+        # Build the list of parts to recolor
+        parts_to_color = []
+        parts_to_color.extend(case_parts or [])
+        parts_to_color.extend(base_parts or [])
+        parts_to_color.extend(standard_paths or [])
+
+        if support_path:
+            parts_to_color.append(support_path)
+        if coloring_path:
+            parts_to_color.append(coloring_path)
+        if obstacles:
+            parts_to_color.append(obstacles)
+
         _apply_generic_distinct_colors_per_part(parts_to_color)
 
     for part in case_parts:
@@ -390,6 +419,9 @@ def display_parts(
 
     if coloring_path:
         show_object(coloring_path)
+
+    for obstacle in obstacles:
+        show_object(obstacle)
 
     # Display the ball and its path
     show_object(ball)

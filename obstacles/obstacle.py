@@ -137,14 +137,17 @@ class Obstacle(ABC):
     def get_placed_part(self) -> Optional[Part]:
         """
         Returns the obstacle's Part, placed according to self.location.
-        Caches the part creation.
+        Caches the unplaced solid once built. The returned Part is a *located copy*,
+        so the cached solid remains in local coordinates.
+        # TODO reavaluate this approach long term
         """
         if self.location is None:
-            # print(f"Warning: Cannot get placed part for {self.name} without location.")
             return None
-        if self._part is None:
-            self._part = self.create_obstacle_geometry()
-        # Apply the location transform
+
+        # Build the local-space solid
+        self._part = self.model_solid()
+
+        # Return a located copy
         return self._part.located(self.location)
 
     def get_placed_node_coordinates(self, nodes: List[Node]) -> List[Node]:
