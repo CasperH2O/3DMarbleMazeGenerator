@@ -241,7 +241,7 @@ def path(puzzle, cut_shape: Part):
             standard_path_bodies.append(final_obj)
 
     if path_bodies[PathTypes.SUPPORT]:
-        support_path = Part(path_bodies[PathTypes.SUPPORT])
+        support_path = Part() + [path_bodies[PathTypes.SUPPORT]]
         support_path = support_path - cut_shape.part
         support_path.label = PathTypes.SUPPORT.value
         support_path.color = Config.Puzzle.SUPPORT_MATERIAL_COLOR
@@ -249,8 +249,7 @@ def path(puzzle, cut_shape: Part):
     if path_bodies[PathTypes.ACCENT_COLOR]:
         accent_seg = path_bodies[PathTypes.ACCENT_COLOR]
         funnel_part = start_area[1].part - cut_shape.part
-        combined = accent_seg + funnel_part
-        coloring_path = Part(combined)
+        coloring_path = Part() + [accent_seg, funnel_part]
         coloring_path.label = PathTypes.ACCENT_COLOR.value
         coloring_path.color = Config.Puzzle.PATH_ACCENT_COLOR
 
