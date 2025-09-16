@@ -230,7 +230,7 @@ class SphereGridNodeCreator(NodeCreator):
         for node in nodes_to_remove:
             nodes.remove(node)
             key = key3(node.x, node.y, node.z)
-            if key in node_dict:
+            if node_dict.get(key) is node:
                 del node_dict[key]
 
         # Define the start node by extending the x-axis in the negative direction
@@ -257,12 +257,10 @@ class SphereGridNodeCreator(NodeCreator):
         Get neighboring nodes for a given node in the spherical grid.
 
         - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
-        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed
-        if the Euclidean distance is <= (node_size + tolerance).
-        - Diagonal moves (exactly two axes differ) are allowed only if both nodes are circular and
-        the Euclidean distance is <= (node_size + tolerance).
+        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed within a certain range
+        - Moves between two circular nodes, closest two
 
-        Each neighbor is returned as a tuple: (neighbor, cost), with non-cardinal moves costing (distance * 2/3).
+        Each neighbor is returned as a tuple: (neighbor, cost), cost being the distance
         """
         neighbors: List[Tuple[Node, float]] = []
         tolerance = node_size * 0.1  # tolerance to decide if coordinates are "the same"
@@ -283,7 +281,7 @@ class SphereGridNodeCreator(NodeCreator):
                 neighbors.append((candidate, node_size))
                 # print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
 
-        # Examine all nodes for near-cardinal and diagonal connections.
+        # Examine all nodes for near-cardinal and closest circular node connections.
         for candidate in node_dict.values():
             if candidate is node:
                 continue
@@ -307,16 +305,31 @@ class SphereGridNodeCreator(NodeCreator):
                     neighbors.append((candidate, cost))
                     # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
 
-            # Diagonal move: exactly two axes differ, allowed only if both nodes are circular.
-            elif diff_count == 2:
+        # If we're on the circular ring, link to the two closest circular neighbors (by straight-line distance).
+        if NodeGridType.CIRCULAR.value in node.grid_type:
+            tol_z = tolerance  # stay on the ring plane
+            circ_candidates: list[tuple[Node, float]] = []
+            for candinate_node in node_dict.values():
+                if candinate_node is node:
+                    continue  # skip same node
+                if NodeGridType.CIRCULAR.value not in candinate_node.grid_type:
+                    continue  # candidate node needs to also be circular
+                if abs(candinate_node.z - node.z) > tol_z:
+                    continue  # ensure same z-plane (circulars are at z=0)
+
+                dx = candinate_node.x - node.x
+                dy = candinate_node.y - node.y
+                dz = candinate_node.z - node.z
+                distance = (dx * dx + dy * dy + dz * dz) ** 0.5
                 if (
-                    NodeGridType.CIRCULAR.value in node.grid_type
-                    and NodeGridType.CIRCULAR.value in candidate.grid_type
-                ):
-                    if distance <= 2 * node_size + tolerance:
-                        cost = distance
-                        neighbors.append((candidate, cost))
-                        # print(f"[DEBUG] Diagonal neighbor (both circular) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+                    distance > tolerance
+                ):  # guard against any accidental duplicates at same coord
+                    circ_candidates.append((candinate_node, distance))
+
+            # Take the two closest circular neighbors
+            circ_candidates.sort(key=lambda t: t[1])
+            for candinate_node, distance in circ_candidates[:2]:
+                neighbors.append((candinate_node, distance))
 
         # print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
         return neighbors
