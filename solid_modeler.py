@@ -387,7 +387,7 @@ def display_parts(
     set_defaults(reset_camera=Camera.KEEP)
 
     # If Generic theme, assign distinct HSV colors per part
-    if Config.Puzzle.THEME == Theme.GENERIC:
+    if Config.Puzzle.THEME == Theme.HIGH_CONTRAST:
         # Build the list of parts to recolor
         parts_to_color = []
         parts_to_color.extend(case_parts or [])
