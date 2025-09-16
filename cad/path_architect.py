@@ -434,14 +434,14 @@ class PathArchitect:
         """
         Align segment end-points
 
-        Special considertation for any arc segment that require a 
+        Special considertation for any arc segment that require a
         new segment in front for bridging
 
         Special considertation for any SINGLE-model segment that mixes
         circular and non-circular nodes.
 
         TODO It's a tad messy to make this adjustment after segments have already split,
-        this code could use a refactor. 
+        this code could use a refactor.
         New segments ie not adjusting existing segments needs to happen somewhere else then in segment adjustment
         """
 
@@ -464,11 +464,12 @@ class PathArchitect:
             # Bridge prior to curved segment
             # If this segment has a curve_type (so it can't be adjusted)
             # but its first node doesn’t line up with previous_end, insert a bridge.
-            # This situation technically only occurs with the first segment 
+            # This situation technically only occurs with the first segment
             # coming outside the circular node ring ie at the start of the puzzle
             if previous_end is not None and segment.curve_type is not None:
-                if not is_same_location(_node_to_vector(previous_end),
-                                        _node_to_vector(segment.nodes[0])):
+                if not is_same_location(
+                    _node_to_vector(previous_end), _node_to_vector(segment.nodes[0])
+                ):
                     bridge = PathSegment(
                         nodes=[previous_end, segment.nodes[0]],
                         main_index=segment.main_index,
@@ -476,7 +477,15 @@ class PathArchitect:
                     )
                     bridge.copy_attributes_from(segment)
                     bridge.curve_model = PathCurveModel.COMPOUND
-                    bridge.curve_type = PathCurveType.STRAIGHT
+
+                    # Decide bridge curve type from the endpoints
+                    a_circ = NodeGridType.CIRCULAR.value in previous_end.grid_type
+                    b_circ = NodeGridType.CIRCULAR.value in segment.nodes[0].grid_type
+                    bridge.curve_type = (
+                        PathCurveType.ARC
+                        if (a_circ and b_circ)
+                        else PathCurveType.STRAIGHT
+                    )
 
                     # Insert the bridge before the current segment
                     self.segments.insert(i, bridge)
@@ -487,10 +496,12 @@ class PathArchitect:
                     previous_curve = bridge.curve_type
 
             # Regular adjustment
-            next_start = (self.segments[i+1].nodes[0]
-                          if i+1 < len(self.segments) else None)
-            next_curve = (self.segments[i+1].curve_type
-                          if i+1 < len(self.segments) else None)
+            next_start = (
+                self.segments[i + 1].nodes[0] if i + 1 < len(self.segments) else None
+            )
+            next_curve = (
+                self.segments[i + 1].curve_type if i + 1 < len(self.segments) else None
+            )
 
             segment.adjust_start_and_endpoints(
                 self.node_size,
