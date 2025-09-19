@@ -30,7 +30,7 @@ class ObstacleManager:
         Initializes the obstacle manager.
 
         Parameters:
-            puzzle nodes: puzzle nodes, for placement of the nodes.
+            nodes: puzzle nodes, for placement of the nodes.
         """
         # Store nodes and build lookup dict
         self.nodes: List[Node] = nodes
@@ -59,13 +59,26 @@ class ObstacleManager:
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        # Place obstacles if enabled
-        if Config.Puzzle.OBSTACLES:
-            types = get_available_obstacles()
-            num_obstacles = len(types)
-            print(f"Available obstacle types ({num_obstacles}): {types}")
+        # Placement
+        if Config.Obstacles.ENABLED:
+            available = get_available_obstacles()
+            # Keep order from config; filter out unknowns gracefully.
+            allowed = [t for t in Config.Obstacles.ALLOWED_TYPES if t in available]
+            if not allowed:
+                print(
+                    f"No allowed obstacle types found from config list "
+                    f"{Config.Obstacles.ALLOWED_TYPES}. Available: {available}"
+                )
+            else:
+                print(f"Allowed obstacle types (ordered): {allowed}")
+
             start_time = time.perf_counter()
-            self.place_obstacles(num_obstacles)
+            self.place_obstacles(
+                num_to_place=Config.Obstacles.MAX_TO_PLACE,
+                allowed_types=allowed if allowed else available,
+                attempts_per_placement=Config.Obstacles.ATTEMPTS_PER_PLACEMENT,
+                per_type_limit=Config.Obstacles.PER_TYPE_LIMIT,
+            )
             end_time = time.perf_counter()
             self.placement_time = end_time - start_time
             self._print_placement_summary()
@@ -74,108 +87,152 @@ class ObstacleManager:
 
     def place_obstacles(
         self,
-        num_obstacles: int,
+        num_to_place: int,
         allowed_types: Optional[List[str]] = None,
-        max_attempts: int = 200,
+        attempts_per_placement: int = 200,
+        per_type_limit: Optional[int] = None,
     ):
         """
-        Selects and places obstacles randomly within the puzzle casing.
-        Adds debug statements to trace placement logic.
+        Round-robin placement:
+        - Cycle through allowed types in order.
+        - For each type, try up to 'attempts_per_placement' random placements.
+        - If placed, move to the next type; repeat cycles until number to place is reached or no progress.
         """
-        if allowed_types is None:
-            types = get_available_obstacles()
-        else:
-            types = allowed_types.copy()
+        types = allowed_types[:] if allowed_types else get_available_obstacles()
+        if not types:
+            print("No obstacle types available.")
+            return
 
+        total_target = max(0, int(num_to_place))
         counts = Counter()
-        print(f"Starting placement: Target={num_obstacles}, MaxAttempts={max_attempts}")
-        for idx in range(num_obstacles):
-            print(f"\nPlacing obstacle {idx + 1}/{num_obstacles}")
-            attempts = 0
-            placed = False
-            while attempts < max_attempts and not placed:
-                available_types = [t for t in types if counts[t] < 3]
-                if not available_types:
-                    print("No available types left (all reached max count)")
+        placed_total = 0
+        cycle_idx = 0
+
+        print(
+            f"Starting placement: Target={total_target}, "
+            f"AttemptsPerPlacement={attempts_per_placement}, "
+            f"PerTypeLimit={per_type_limit}"
+        )
+
+        while placed_total < total_target:
+            cycle_progress = False
+            cycle_idx += 1
+            print(f"\n=== Cycle {cycle_idx} ===")
+
+            for obstacle_name in types:
+                if placed_total >= total_target:
                     break
 
-                obstacle_name = random.choice(available_types)
-                cls = get_obstacle_class(obstacle_name)
-                obstacle = cls()
-                # Random rotation
-                angles = [0, 90, 180, 270]
-                ax = random.choice(angles)
-                ay = random.choice(angles)
-                az = random.choice(angles)
-                obstacle.rotate(Rotation(Axis.X, ax))
-                obstacle.rotate(Rotation(Axis.Y, ay))
-                obstacle.rotate(Rotation(Axis.Z, az))
-                obstacle._rotation_angles = (ax, ay, az)
-
-                # Candidate nodes restricted to interior for this rotation
-                interior_nodes, region = self._interior_candidates(obstacle)
-
-                # Fallback if nothing fits interior (e.g., huge obstacle)
-                pool = interior_nodes if interior_nodes else self.nodes
-
-                # Random translation
-                target = random.choice(pool)
-                obstacle.translate(Vector(target.x, target.y, target.z))
-
-                # Snap origin to grid
-                ox = _quantize_coord(target.x, Config.Puzzle.NODE_SIZE)
-                oy = _quantize_coord(target.y, Config.Puzzle.NODE_SIZE)
-                oz = _quantize_coord(target.z, Config.Puzzle.NODE_SIZE)
-                obstacle._origin = (ox, oy, oz)
-                # Move by the delta from current position to snapped position
-                p = obstacle.location.position
-                obstacle.translate(Vector(ox - p.X, oy - p.Y, oz - p.Z))
-
-                # Debug info
-                if interior_nodes:
-                    xmin, xmax, ymin, ymax, zmin, zmax = region
+                if (
+                    per_type_limit is not None
+                    and counts[obstacle_name] >= per_type_limit
+                ):
                     print(
-                        f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
-                        f"rot={obstacle._rotation_angles} | interior candidates={len(interior_nodes)} "
-                        f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
+                        f" Skipping '{obstacle_name}' (reached per-type limit {per_type_limit})."
                     )
-                else:
-                    print(
-                        f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
-                        f"rot={obstacle._rotation_angles} | no interior fit, using full grid"
-                    )
+                    continue
 
-                valid = self._is_placement_valid(obstacle, debug=True)
-                print(f"  -> Placement valid? {valid}")
-                if valid:
-                    self.placed_obstacles.append(obstacle)
-                    self._occupy_nodes_for_obstacle(obstacle)
-                    self._assign_entry_exit_nodes(obstacle)
-                    counts[obstacle_name] += 1
-                    placed = True
-                else:
-                    attempts += 1
-
-            if not placed:
-                print(
-                    f"Warning: Could not place obstacle {idx + 1} after {max_attempts} attempts"
+                placed = self._try_place_one(
+                    obstacle_name=obstacle_name,
+                    max_attempts=attempts_per_placement,
                 )
+                if placed:
+                    counts[obstacle_name] += 1
+                    placed_total += 1
+                    cycle_progress = True
+                    print(
+                        f" -> Placed '{obstacle_name}'. Totals: placed={placed_total}/{total_target} "
+                        f"(this type={counts[obstacle_name]})"
+                    )
+                else:
+                    print(f" -> Could not place '{obstacle_name}' in this cycle.")
+
+            if not cycle_progress:
+                print("No further placements possible with current constraints.")
+                break
+
+    def _try_place_one(self, obstacle_name: str, max_attempts: int) -> bool:
+        """Try to place a single obstacle instance of the given type. Returns True on success."""
+        cls = get_obstacle_class(obstacle_name)
+        attempts = 0
+
+        while attempts < max_attempts:
+            obstacle = cls()
+
+            # Random rotation (grid-friendly 90° steps)
+            angles = [0, 90, 180, 270]
+            ax = random.choice(angles)
+            ay = random.choice(angles)
+            az = random.choice(angles)
+            obstacle.rotate(Rotation(Axis.X, ax))
+            obstacle.rotate(Rotation(Axis.Y, ay))
+            obstacle.rotate(Rotation(Axis.Z, az))
+            obstacle._rotation_angles = (ax, ay, az)
+
+            # Candidate nodes restricted to interior for this rotation
+            interior_nodes, region = self._interior_candidates(obstacle)
+
+            # Fallback to all nodes if nothing fits interior (e.g., huge obstacle)
+            pool = interior_nodes if interior_nodes else self.nodes
+            target = random.choice(pool)
+
+            # Translate to target & snap origin to grid
+            obstacle.translate(Vector(target.x, target.y, target.z))
+            # Snap origin to grid
+            ox = _quantize_coord(target.x, self.node_size)
+            oy = _quantize_coord(target.y, self.node_size)
+            oz = _quantize_coord(target.z, self.node_size)
+            obstacle._origin = (ox, oy, oz)
+
+            # Move by the delta from current position to snapped position
+            p = obstacle.location.position
+            obstacle.translate(Vector(ox - p.X, oy - p.Y, oz - p.Z))
+
+            # Debug info
+            if interior_nodes:
+                xmin, xmax, ymin, ymax, zmin, zmax = region
+                print(
+                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
+                    f"rot={obstacle._rotation_angles} | interior candidates={len(interior_nodes)} "
+                    f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
+                )
+            else:
+                print(
+                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
+                    f"rot={obstacle._rotation_angles} | no interior fit, using full grid"
+                )
+
+            valid = self._is_placement_valid(obstacle, debug=True)
+            print(f"  -> Placement valid? {valid}")
+            if valid:
+                self.placed_obstacles.append(obstacle)
+                self._occupy_nodes_for_obstacle(obstacle)
+                self._assign_entry_exit_nodes(obstacle)
+                return True
+
+            attempts += 1
+
+        # Exhausted attempts for this type instance
+        return False
 
     def _is_placement_valid(self, obstacle: Obstacle, debug: bool = False) -> bool:
         """Checks if the proposed placement is valid (inside grid, no collisions)."""
         # Transform and quantize nodes
-        occ = [Node(n.x, n.y, n.z, occupied=True) for n in obstacle.occupied_nodes]
+        occ = [
+            Node(n.x, n.y, n.z, occupied=True) for n in (obstacle.occupied_nodes or [])
+        ]
         overlap = [
-            Node(n.x, n.y, n.z, overlap_allowed=True) for n in obstacle.overlap_nodes
+            Node(n.x, n.y, n.z, overlap_allowed=True)
+            for n in (obstacle.overlap_nodes or [])
         ]
         obstacle.get_placed_node_coordinates(occ)
         obstacle.get_placed_node_coordinates(overlap)
 
         # Quantize coordinates to avoid drift
         for n in occ + overlap:
-            n.x = _quantize_coord(n.x, Config.Puzzle.NODE_SIZE)
-            n.y = _quantize_coord(n.y, Config.Puzzle.NODE_SIZE)
-            n.z = _quantize_coord(n.z, Config.Puzzle.NODE_SIZE)
+            n.x = _quantize_coord(n.x, self.node_size)
+            n.y = _quantize_coord(n.y, self.node_size)
+            n.z = _quantize_coord(n.z, self.node_size)
 
         # Boundary check
         for n in occ + overlap:
@@ -183,26 +240,27 @@ class ObstacleManager:
                 if debug:
                     print(f"    Node {(n.x, n.y, n.z)} is outside grid.")
                 return False
+
         # Collision check
         for n in occ:
             if (n.x, n.y, n.z) in self.occupied_positions:
                 if debug:
                     print(f"    Node {(n.x, n.y, n.z)} collides.")
                 return False
+
         return True
 
     def _occupy_nodes_for_obstacle(self, obstacle: Obstacle):
         """Marks grid nodes as occupied based on the obstacle's placement."""
-        # Transform local to world
         occ_local = [
             Node(n.x, n.y, n.z, occupied=True) for n in (obstacle.occupied_nodes or [])
         ]
         occ_world = obstacle.get_placed_node_coordinates(occ_local)
 
         for n in occ_world:
-            x = _quantize_coord(n.x, Config.Puzzle.NODE_SIZE)
-            y = _quantize_coord(n.y, Config.Puzzle.NODE_SIZE)
-            z = _quantize_coord(n.z, Config.Puzzle.NODE_SIZE)
+            x = _quantize_coord(n.x, self.node_size)
+            y = _quantize_coord(n.y, self.node_size)
+            z = _quantize_coord(n.z, self.node_size)
             key = (x, y, z)
             node = self.node_dict.get(key)
             if node:
@@ -210,15 +268,14 @@ class ObstacleManager:
                 self.occupied_positions.add(key)
 
     def _assign_entry_exit_nodes(self, obstacle: Obstacle):
-        """Finds closest nodes to entry/exit and marks them.
-        TODO not sure if this is still required, obstacles are usually designed this way"""
+        """Find closest nodes to entry/exit and mark them (if obstacle provides such coords)."""
         coords = obstacle.get_placed_entry_exit_coords()
         if not coords:
             print(" No entry/exit coords.")
             return
         entry, exit = coords
-        ex = tuple(_quantize_coord(c, Config.Puzzle.NODE_SIZE) for c in entry)
-        et = tuple(_quantize_coord(c, Config.Puzzle.NODE_SIZE) for c in exit)
+        ex = tuple(_quantize_coord(c, self.node_size) for c in entry)
+        et = tuple(_quantize_coord(c, self.node_size) for c in exit)
         print(f" Entry quantized: {ex}, Exit quantized: {et}")
         entry_node = self._find_closest_node(ex)
         exit_node = self._find_closest_node(et)
@@ -239,10 +296,11 @@ class ObstacleManager:
             print(f"Warning: Entry and Exit nodes are the same for {obstacle.name}")
 
     def _print_placement_summary(self):
-        """Prints a summary of all placed obstacles including count, names, origins, rotations, and timing."""
+        """Print a summary of all placed obstacles including count, names, origins, rotations, and timing."""
         total = len(self.placed_obstacles)
+        by_type = Counter([o.name for o in self.placed_obstacles])
         print("\nObstacle Placement Summary:")
-        print(f"Total obstacles placed: {total}")
+        print(f"Total obstacles placed: {total}  |  By type: {dict(by_type)}")
         print(f"Placement time: {self.placement_time:.3f} seconds")
         for obs in self.placed_obstacles:
             ox, oy, oz = obs._origin
@@ -252,7 +310,7 @@ class ObstacleManager:
             )
 
     def _find_closest_node(self, target_coord: tuple) -> Optional[Node]:
-        """Finds the node in the dictionary closest to the target coordinate."""
+        """Find the node in the dictionary closest to the target coordinate."""
         tx, ty, tz = target_coord
         min_sq = float("inf")
         closest = None
@@ -268,9 +326,8 @@ class ObstacleManager:
         self, obstacle: Obstacle
     ) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
         """
-        For the obstacle's *current rotation* (location already has rotation applied),
-        compute how far local overlap nodes extend from the origin along
-        -X/+X, -Y/+Y, -Z/+Z. Returned as ((negX,posX), (negY,posY), (negZ,posZ)).
+        For the obstacle's *current rotation*, compute how far local overlap nodes extend from the
+        origin along -X/+X, -Y/+Y, -Z/+Z. Returns ((negX,posX), (negY,posY), (negZ,posZ)).
         """
         local_nodes: List[Node] = []
         if obstacle.overlap_nodes:
@@ -293,9 +350,7 @@ class ObstacleManager:
         return (negx, posx), (negy, posy), (negz, posz)
 
     def _interior_candidates(
-        self,
-        obstacle: Obstacle,
-        inset_nodes: int = 0,
+        self, obstacle: Obstacle, inset_nodes: int = 0
     ) -> Tuple[List[Node], Tuple[float, float, float, float, float, float]]:
         """
         Build a candidate list of nodes strictly inside the grid bounds by the
