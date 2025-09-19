@@ -3,10 +3,10 @@
 import random
 import time
 from collections import Counter
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from build123d import Axis, Location, Pos, Rotation, Vector
+from build123d import Axis, Rotation, Vector
 
 import obstacles.catalogue  # ensure registration
 from config import Config
@@ -43,6 +43,17 @@ class ObstacleManager:
         # Track placement duration
         self.placement_time: float = 0.0
 
+        # Grid meta
+        self.node_size = Config.Puzzle.NODE_SIZE
+        xs = [n.x for n in nodes] or [0.0]
+        ys = [n.y for n in nodes] or [0.0]
+        zs = [n.z for n in nodes] or [0.0]
+        self.bounds = {
+            "x": (min(xs), max(xs)),
+            "y": (min(ys), max(ys)),
+            "z": (min(zs), max(zs)),
+        }
+
         # Seed RNG for repeatability
         self.seed = Config.Puzzle.SEED
         random.seed(self.seed)
@@ -65,7 +76,7 @@ class ObstacleManager:
         self,
         num_obstacles: int,
         allowed_types: Optional[List[str]] = None,
-        max_attempts: int = 10,
+        max_attempts: int = 200,
     ):
         """
         Selects and places obstacles randomly within the puzzle casing.
@@ -101,9 +112,16 @@ class ObstacleManager:
                 obstacle.rotate(Rotation(Axis.Z, az))
                 obstacle._rotation_angles = (ax, ay, az)
 
+                # Candidate nodes restricted to interior for this rotation
+                interior_nodes, region = self._interior_candidates(obstacle)
+
+                # Fallback if nothing fits interior (e.g., huge obstacle)
+                pool = interior_nodes if interior_nodes else self.nodes
+
                 # Random translation
-                target = random.choice(self.nodes)
+                target = random.choice(pool)
                 obstacle.translate(Vector(target.x, target.y, target.z))
+
                 # Snap origin to grid
                 ox = _quantize_coord(target.x, Config.Puzzle.NODE_SIZE)
                 oy = _quantize_coord(target.y, Config.Puzzle.NODE_SIZE)
@@ -113,9 +131,20 @@ class ObstacleManager:
                 p = obstacle.location.position
                 obstacle.translate(Vector(ox - p.X, oy - p.Y, oz - p.Z))
 
-                print(
-                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, rot={obstacle._rotation_angles}"
-                )
+                # Debug info
+                if interior_nodes:
+                    xmin, xmax, ymin, ymax, zmin, zmax = region
+                    print(
+                        f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
+                        f"rot={obstacle._rotation_angles} | interior candidates={len(interior_nodes)} "
+                        f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
+                    )
+                else:
+                    print(
+                        f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
+                        f"rot={obstacle._rotation_angles} | no interior fit, using full grid"
+                    )
+
                 valid = self._is_placement_valid(obstacle, debug=True)
                 print(f"  -> Placement valid? {valid}")
                 if valid:
@@ -204,7 +233,6 @@ class ObstacleManager:
             entry_node.obstacle_entry = obstacle
         if exit_node and exit_node != entry_node:
             obstacle.exit_node = exit_node
-            exit_node.waypoint = True
             exit_node.occupied = True
             exit_node.obstacle_exit = obstacle
         elif exit_node == entry_node:
@@ -235,3 +263,58 @@ class ObstacleManager:
                 min_sq = dsq
                 closest = node
         return closest
+
+    def _rotated_axis_margins(
+        self, obstacle: Obstacle
+    ) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
+        """
+        For the obstacle's *current rotation* (location already has rotation applied),
+        compute how far local overlap nodes extend from the origin along
+        -X/+X, -Y/+Y, -Z/+Z. Returned as ((negX,posX), (negY,posY), (negZ,posZ)).
+        """
+        local_nodes: List[Node] = []
+        if obstacle.overlap_nodes:
+            local_nodes.extend(Node(n.x, n.y, n.z) for n in obstacle.overlap_nodes)
+
+        if not local_nodes:
+            return (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)
+
+        # Apply current rotation (at this point obstacle hasn't been translated yet)
+        placed = obstacle.get_placed_node_coordinates(local_nodes)
+        xs = [n.x for n in placed]
+        ys = [n.y for n in placed]
+        zs = [n.z for n in placed]
+
+        # Distances outward from origin in +/- directions
+        posx, negx = (max(xs), -min(xs))
+        posy, negy = (max(ys), -min(ys))
+        posz, negz = (max(zs), -min(zs))
+
+        return (negx, posx), (negy, posy), (negz, posz)
+
+    def _interior_candidates(
+        self,
+        obstacle: Obstacle,
+        inset_nodes: int = 0,
+    ) -> Tuple[List[Node], Tuple[float, float, float, float, float, float]]:
+        """
+        Build a candidate list of nodes strictly inside the grid bounds by the
+        rotation-aware margins (overlap nodes) plus an optional extra inset.
+        """
+        (negx, posx), (negy, posy), (negz, posz) = self._rotated_axis_margins(obstacle)
+        inset = inset_nodes * self.node_size
+
+        xmin = self.bounds["x"][0] + negx + inset
+        xmax = self.bounds["x"][1] - posx - inset
+        ymin = self.bounds["y"][0] + negy + inset
+        ymax = self.bounds["y"][1] - posy - inset
+        zmin = self.bounds["z"][0] + negz + inset
+        zmax = self.bounds["z"][1] - posz - inset
+
+        # Filter nodes to those that keep all transformed nodes inside the grid
+        candidates = [
+            n
+            for n in self.nodes
+            if (xmin <= n.x <= xmax) and (ymin <= n.y <= ymax) and (zmin <= n.z <= zmax)
+        ]
+        return candidates, (xmin, xmax, ymin, ymax, zmin, zmax)
