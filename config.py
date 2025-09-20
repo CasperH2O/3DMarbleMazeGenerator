@@ -21,7 +21,6 @@ class Puzzle:
     SEED = 46  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
-    OBSTACLES = False  # Place obstacles in puzzle
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
     PATH_COLORS = ["#FFD700FF", "#00E4EBFF", "#EB009FFF"]  # Gold, Cyan, Magenta
@@ -30,6 +29,14 @@ class Puzzle:
     MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
     TRANSPARENT_CASE_COLOR = "#FFFFFF0D"  # White with alpha 0.05
     SUPPORT_MATERIAL_COLOR = "#FFFFFF1A"  # White with alpha 0.10
+
+
+class Obstacles:
+    ENABLED = True  # master on/off switch.
+    ALLOWED_TYPES = ["u_turn", "overhand_knot", "spiral"]  # registry names to consider
+    MAX_TO_PLACE = 10  # target number of obstacles to place (total)
+    ATTEMPTS_PER_PLACEMENT = 50  # random tries per single obstacle instance
+    PER_TYPE_LIMIT = 4  # optional cap per obstacle type (None = unlimited)
 
 
 # Manufacturing configuration
