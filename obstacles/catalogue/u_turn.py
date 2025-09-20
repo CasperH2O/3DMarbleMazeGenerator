@@ -17,13 +17,11 @@ from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 
 
-class u_turn(Obstacle):
+class UTurn(Obstacle):
     """An obstacle."""
 
     def __init__(self):
         super().__init__(name="U Turn")
-
-        # TODO for later upon creation, do location/orientation
 
         # Load occupied nodes from cache or determine
         self.load_relative_node_coords()
@@ -90,11 +88,11 @@ class u_turn(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("u_turn", u_turn)
+register_obstacle("U Turn", UTurn)
 
 if __name__ == "__main__":
     # Create
-    obstacle = u_turn()
+    obstacle = UTurn()
 
     # Visualization
     obstacle.visualize()

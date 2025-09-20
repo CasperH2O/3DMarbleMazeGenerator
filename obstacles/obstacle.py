@@ -38,9 +38,9 @@ class Obstacle(ABC):
         """
         self.name: str = name
         # Placement attributes (to be set by the manager/placer)
-        self.location: Optional[Location] = Location(
-            Pos(Vector(0, 0, 0))
-        )  # Position and orientation
+        self.location: Optional[Location] = Location(Pos(Vector(0, 0, 0)))  # Position
+        # Todo, origin and orientation
+        # self.orientation: Optional[Vector]
 
         # Connection points (to be determined after CAD design)
         # Should correspond to specific nodes in the main grid
@@ -349,7 +349,7 @@ class Obstacle(ABC):
 
         elapsed = time.perf_counter() - start_time
         print(
-            f"determine_occupied_nodes took {elapsed:.3f} s – tested {len(tested_centers)} cubes"
+            f"determine_occupied_nodes took {elapsed:.3f} s – tested {len(tested_centers)} cubes, occupied nodes: {len(occupied)}"
         )
 
         return occupied
