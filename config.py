@@ -12,14 +12,14 @@ from puzzle.utils.enums import (
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
-    THEME = Theme.MARBLE
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
+    THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 46  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
+    SEED = 15  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 2  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
@@ -43,7 +43,7 @@ class Obstacles:
 class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
-    EXPORT_STL = True
+    EXPORT_STL = False
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.
@@ -52,7 +52,7 @@ class Manufacturing:
 
 # Sphere case configuration
 class Sphere:
-    SPHERE_DIAMETER = 120  # Diameter of the sphere in mm
+    SPHERE_DIAMETER = 150  # Diameter of the sphere in mm
     SPHERE_FLANGE_DIAMETER = SPHERE_DIAMETER + 20  # Diameter of the flange
     SPHERE_FLANGE_INNER_DIAMETER = SPHERE_FLANGE_DIAMETER - 5
     SPHERE_FLANGE_SLOT_ANGLE = 5
@@ -78,7 +78,7 @@ class Box:
 class Path:
     PATH_CURVE_MODEL = [
         PathCurveModel.COMPOUND,
-        PathCurveModel.SPLINE,
+        # PathCurveModel.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [
@@ -97,7 +97,7 @@ class Path:
     ]
 
     # Map a segment main index to a forced profile type, optionally
-    ENABLE_OVERRIDES = True
+    ENABLE_OVERRIDES = False
 
     PATH_PROFILE_TYPE_OVERRIDES = (
         {
@@ -218,3 +218,4 @@ class Config:
     Box = Box
     Path = Path
     Manufacturing = Manufacturing
+    Obstacles = Obstacles
