@@ -51,8 +51,8 @@ class Obstacle(ABC):
         self.name: str = name
         # Placement attributes (to be set by the manager/placer)
         self.location: Optional[Location] = Location(Pos(Vector(0, 0, 0)))  # Position
-        # Todo, origin and orientation
-        # self.orientation: Optional[Vector]
+        self.grid_origin: tuple[float, float, float] | None = None
+        self.rotation_angles_deg: tuple[int, int, int] | None = None
 
         # Connection points (to be determined after CAD design)
         # Should correspond to specific nodes in the main grid
@@ -120,7 +120,7 @@ class Obstacle(ABC):
                 )
                 for n in occ_nodes
             ]
-            # 2) compute overlap_allowed in unit‐space
+            # Compute overlap_allowed in unit‐space
             overlap_nodes = self.determine_overlap_allowed_nodes(occ_nodes)
             overlap = [
                 dict(
@@ -282,7 +282,7 @@ class Obstacle(ABC):
         for trace in plot_raw_obstacle_path_plotly(path, name=f"{self.name} Raw Path"):
             fig.add_trace(trace)
 
-        # Casing
+        # Casing, for reference only
         casing = SphereCasing(
             diameter=config.Sphere.SPHERE_DIAMETER,
             shell_thickness=config.Sphere.SHELL_THICKNESS,
@@ -307,7 +307,6 @@ class Obstacle(ABC):
                              where i,j,k = node_center / node_size.
         """
         start_time = time.perf_counter()
-        grid_count = 30
         if grid_count % 2 == 0:
             grid_count += 1
 
@@ -397,8 +396,9 @@ class Obstacle(ABC):
             Node(x, y, z, occupied=False, overlap_allowed=True) for x, y, z in shell
         ]
 
+    @staticmethod
     def solid_model_node_cubes(
-        self, nodes: List[Node], name="Node", color="#FFFFFF1D"
+        nodes: List[Node], name="Node", color="#FFFFFF1D"
     ) -> list[Part]:
         """
         For each Node provided, build a cube Part of size node_size

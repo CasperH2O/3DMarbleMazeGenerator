@@ -1,4 +1,4 @@
-# obstacles/catalogue/obstacle_placeholder2.py
+# obstacles/catalogue/u_turn.py
 
 from build123d import (
     BuildLine,
@@ -6,10 +6,8 @@ from build123d import (
     BuildSketch,
     Part,
     Polyline,
-    Rot,
     Transition,
     add,
-    make_face,
     sweep,
 )
 

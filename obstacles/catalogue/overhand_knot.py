@@ -8,12 +8,9 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Part,
-    Polyline,
-    Rot,
     Spline,
     Vector,
     add,
-    make_face,
     sweep,
 )
 

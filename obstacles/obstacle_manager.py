@@ -167,7 +167,7 @@ class ObstacleManager:
             obstacle.rotate(Rotation(Axis.X, ax))
             obstacle.rotate(Rotation(Axis.Y, ay))
             obstacle.rotate(Rotation(Axis.Z, az))
-            obstacle._rotation_angles = (ax, ay, az)
+            obstacle.rotation_angles_deg = (ax, ay, az)
 
             # Candidate nodes restricted to interior for this rotation
             interior_nodes, region = self._interior_candidates(obstacle)
@@ -182,7 +182,7 @@ class ObstacleManager:
             ox = _quantize_coord(target.x, self.node_size)
             oy = _quantize_coord(target.y, self.node_size)
             oz = _quantize_coord(target.z, self.node_size)
-            obstacle._origin = (ox, oy, oz)
+            obstacle.grid_origin = (ox, oy, oz)
 
             # Move by the delta from current position to snapped position
             p = obstacle.location.position
@@ -192,14 +192,14 @@ class ObstacleManager:
             if interior_nodes:
                 xmin, xmax, ymin, ymax, zmin, zmax = region
                 print(
-                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
-                    f"rot={obstacle._rotation_angles} | interior candidates={len(interior_nodes)} "
+                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
+                    f"rot={obstacle.rotation_angles_deg} | interior candidates={len(interior_nodes)} "
                     f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
                 )
             else:
                 print(
-                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle._origin}, "
-                    f"rot={obstacle._rotation_angles} | no interior fit, using full grid"
+                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
+                    f"rot={obstacle.rotation_angles_deg} | no interior fit, using full grid"
                 )
 
             valid = self._is_placement_valid(obstacle, debug=True)
@@ -303,8 +303,8 @@ class ObstacleManager:
         print(f"Total obstacles placed: {total}  |  By type: {dict(by_type)}")
         print(f"Placement time: {self.placement_time:.3f} seconds")
         for obs in self.placed_obstacles:
-            ox, oy, oz = obs._origin
-            ax, ay, az = obs._rotation_angles
+            ox, oy, oz = obs.grid_origin
+            ax, ay, az = obs.rotation_angles_deg
             print(
                 f"- {obs.name}: Origin=({ox},{oy},{oz}), Rotation=(X:{ax}°,Y:{ay}°,Z:{az}°)"
             )

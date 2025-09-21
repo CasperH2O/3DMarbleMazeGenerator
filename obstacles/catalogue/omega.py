@@ -6,11 +6,9 @@ from build123d import (
     BuildSketch,
     Part,
     Polyline,
-    Rot,
     ThreePointArc,
     Transition,
     add,
-    make_face,
     sweep,
 )
 

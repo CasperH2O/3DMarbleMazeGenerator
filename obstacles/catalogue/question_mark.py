@@ -7,10 +7,8 @@ from build123d import (
     Part,
     Polyline,
     RadiusArc,
-    Rot,
     Spline,
     add,
-    make_face,
     sweep,
 )
 

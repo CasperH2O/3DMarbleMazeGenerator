@@ -7,10 +7,8 @@ from build123d import (
     Helix,
     Part,
     Polyline,
-    Rot,
     Spline,
     add,
-    make_face,
     sweep,
 )
 
