@@ -1,6 +1,6 @@
 # manufacturers/playtastic.py
 
-from puzzle.utils.enums import CaseShape
+from cad.cases.case import CaseShape
 
 
 def apply_base_overrides(puzzle, sphere, box, path):

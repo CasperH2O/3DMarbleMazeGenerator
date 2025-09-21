@@ -1,9 +1,11 @@
 # config.py
 
-from cad.path_profile_type_shapes import PathProfileType
-from puzzle.utils.enums import (
+from cad.cases.case import (
     CaseManufacturer,
     CaseShape,
+)
+from cad.path_profile_type_shapes import PathProfileType
+from puzzle.utils.enums import (
     PathCurveModel,
     PathCurveType,
     Theme,
