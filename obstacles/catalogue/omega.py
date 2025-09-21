@@ -1,4 +1,4 @@
-# obstacles/catalogue/question_mark.py
+# obstacles/catalogue/omega.py
 
 from build123d import (
     BuildLine,
@@ -6,9 +6,10 @@ from build123d import (
     BuildSketch,
     Part,
     Polyline,
-    RadiusArc,
     Rot,
     Spline,
+    ThreePointArc,
+    Transition,
     add,
     make_face,
     sweep,
@@ -18,11 +19,11 @@ from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 
 
-class QuestionMark(Obstacle):
-    """A question mark shaped obstacle."""
+class Omega(Obstacle):
+    """An omega shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Question Mark")
+        super().__init__(name="Omega")
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
@@ -32,25 +33,25 @@ class QuestionMark(Obstacle):
 
         with BuildPart():
             with BuildLine() as start_line:
-                Polyline((0, -3 * self.node_size, 0), (0, -2 * self.node_size, 0))
-            with BuildLine() as arc_line:
-                RadiusArc(
-                    start_point=(1 * self.node_size, 0, 0),
-                    end_point=(-1 * self.node_size, 0, 0),
-                    radius=-self.node_size,
+                Polyline(
+                    (-3 * self.node_size, -2 * self.node_size, 0),
+                    (-1 * self.node_size, -2 * self.node_size, 0),
                 )
-            with BuildLine() as spline_line:
-                Spline(
-                    [
-                        start_line.line @ 1,
-                        (1 * self.node_size, 0, 0),
-                    ],
-                    tangents=[start_line.line % 1, arc_line.line % 0],
+            with BuildLine() as arc_line:
+                ThreePointArc(
+                    (-1 * self.node_size, -2 * self.node_size, 0),
+                    (0, 2 * self.node_size, 0),
+                    (1 * self.node_size, -2 * self.node_size, 0),
+                )
+            with BuildLine() as end_line:
+                Polyline(
+                    (1 * self.node_size, -2 * self.node_size, 0),
+                    (3 * self.node_size, -2 * self.node_size, 0),
                 )
             with BuildLine() as obstacle_line:
                 add(start_line)
-                add(spline_line)
                 add(arc_line)
+                add(end_line)
 
         self.path_segment.path = obstacle_line.line
 
@@ -90,7 +91,7 @@ class QuestionMark(Obstacle):
                 with BuildLine(Rot(Z=-90)):
                     Polyline(u_shape_adjusted_points)
                 make_face()
-            sweep()
+            sweep(transition=Transition.ROUND)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
 
@@ -98,11 +99,11 @@ class QuestionMark(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("Question Mark", QuestionMark)
+register_obstacle("Omega", Omega)
 
 if __name__ == "__main__":
     # Create
-    obstacle = QuestionMark()
+    obstacle = Omega()
 
     # Visualization
     obstacle.visualize()

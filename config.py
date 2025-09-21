@@ -33,10 +33,16 @@ class Puzzle:
 
 class Obstacles:
     ENABLED = True  # master on/off switch.
-    ALLOWED_TYPES = ["u_turn", "overhand_knot", "spiral"]  # registry names to consider
+    ALLOWED_TYPES = [  # registry names to consider
+        "u_turn",
+        "overhand_knot",
+        "spiral",
+        "question_mark",
+        "omega",
+    ]
     MAX_TO_PLACE = 10  # target number of obstacles to place (total)
     ATTEMPTS_PER_PLACEMENT = 50  # random tries per single obstacle instance
-    PER_TYPE_LIMIT = 4  # optional cap per obstacle type (None = unlimited)
+    PER_TYPE_LIMIT = 2  # optional cap per obstacle type (None = unlimited)
 
 
 # Manufacturing configuration
