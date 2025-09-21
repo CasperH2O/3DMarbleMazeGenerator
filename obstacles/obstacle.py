@@ -7,11 +7,23 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import plotly.graph_objects as go
-from build123d import Box, BuildPart, Location, Part, Plane, Pos, Rotation, Vector, add
+from build123d import (
+    Box,
+    BuildPart,
+    Face,
+    Location,
+    Part,
+    Plane,
+    Pos,
+    Rotation,
+    Vector,
+    add,
+)
 from numpy import linspace
 from ocp_vscode import show
 
 import config
+from cad.path_profile_type_shapes import PathProfileType, create_u_shape
 from cad.path_segment import PathSegment
 from puzzle.casing import SphereCasing
 from puzzle.node import Node
@@ -76,6 +88,16 @@ class Obstacle(ABC):
         Returns solid model of obstacle
         """
         pass
+
+    @staticmethod
+    def default_path_profile_type() -> Face:
+        """
+        Return default U path profile type shape for sweep
+        """
+        u_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS[
+            PathProfileType.U_SHAPE.value
+        ]
+        return create_u_shape(**u_params)
 
     def load_relative_node_coords(self):
         cache_dir = Path("obstacles/catalogue/cache")

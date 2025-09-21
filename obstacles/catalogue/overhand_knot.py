@@ -145,28 +145,11 @@ class OverhandKnotObstacle(Obstacle):
         occupied nodes, debug and overview.
         """
 
-        # Define profile (e.g., L-shape)
-        height_width = self.node_size
-        wall_thickness = self.node_size * 0.12
-        half_w = height_width / 2
-        inner = half_w - wall_thickness
-        l_shape = [
-            (-half_w, half_w),
-            (-inner, half_w),
-            (-inner, -inner),
-            (half_w, -inner),
-            (half_w, -half_w),
-            (-half_w, -half_w),
-            (-half_w, half_w),
-        ]
-
         with BuildPart() as obstacle:
             with BuildLine() as line:
                 add(self.path_segment.path)
             with BuildSketch(line.line ^ 0):
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(l_shape)
-                make_face()
+                add(self.default_path_profile_type())
             sweep()
 
         obstacle.part.label = f"{self.name} Obstacle Solid"

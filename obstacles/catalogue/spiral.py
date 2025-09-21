@@ -73,36 +73,11 @@ class Spiral(Obstacle):
         occupied nodes, debug and overview.
         """
 
-        # Dimensions
-        height_width: float = 9.999
-        wall_thickness: float = 1.2
-        lower_distance: float = 2.0
-
-        # Adjusted top Y-coordinate
-        adjusted_top_y = height_width / 2 - lower_distance
-
-        half_width = height_width / 2
-        inner_half_width = half_width - wall_thickness
-
-        u_shape_adjusted_points = [
-            (-half_width, -half_width),  # 1
-            (-half_width, adjusted_top_y),  # 2
-            (-inner_half_width, adjusted_top_y),  # 3
-            (-inner_half_width, -inner_half_width),  # 4
-            (inner_half_width, -inner_half_width),  # 5
-            (inner_half_width, adjusted_top_y),  # 6
-            (half_width, adjusted_top_y),  # 7
-            (half_width, -half_width),  # 8
-            (-half_width, -half_width),  # close
-        ]
-
         with BuildPart() as obstacle:
             with BuildLine() as line:
                 add(self.path_segment.path)
             with BuildSketch(line.line ^ 0):
-                with BuildLine(Rot(Z=-90)):
-                    Polyline(u_shape_adjusted_points)
-                make_face()
+                add(self.default_path_profile_type())
             sweep(is_frenet=True)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
