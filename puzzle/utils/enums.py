@@ -3,6 +3,18 @@
 from enum import Enum
 
 
+class ObstacleType(Enum):
+    """
+    Enumeration representing the obstacles
+    """
+
+    OMEGA = "Omega"
+    OVERHAND_KNOT = "Overhand Knot"
+    QUESTION_MARK = "Question Mark"
+    SPIRAL = "Spiral"
+    U_TURN = "U Turn"
+
+
 class PathCurveModel(Enum):
     """
     Enumeration representing the different models for path curves.

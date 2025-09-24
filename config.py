@@ -5,11 +5,7 @@ from cad.cases.case import (
     CaseShape,
 )
 from cad.path_profile_type_shapes import PathProfileType
-from puzzle.utils.enums import (
-    PathCurveModel,
-    PathCurveType,
-    Theme,
-)
+from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Theme
 
 
 # Puzzle configuration
@@ -20,8 +16,8 @@ class Puzzle:
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 15  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 2  # Number of randomly placed waypoints
+    SEED = 1  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 3  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
@@ -36,15 +32,15 @@ class Puzzle:
 class Obstacles:
     ENABLED = True  # master on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
-        "u_turn",
-        "overhand_knot",
-        "spiral",
-        "question_mark",
-        "omega",
+        ObstacleType.OMEGA,
+        ObstacleType.OVERHAND_KNOT,
+        ObstacleType.QUESTION_MARK,
+        ObstacleType.SPIRAL,
+        ObstacleType.U_TURN,
     ]
-    MAX_TO_PLACE = 10  # target number of obstacles to place (total)
-    ATTEMPTS_PER_PLACEMENT = 50  # random tries per single obstacle instance
-    PER_TYPE_LIMIT = 2  # optional cap per obstacle type (None = unlimited)
+    MAX_TO_PLACE = 5  # target number of obstacles to place (total)
+    ATTEMPTS_PER_PLACEMENT = 25  # random tries per single obstacle instance
+    PER_TYPE_LIMIT = 1  # optional cap per obstacle type (None = unlimited)
 
 
 # Manufacturing configuration

@@ -51,6 +51,7 @@ class Omega(Obstacle):
                 add(end_line)
 
         self.path_segment.path = obstacle_line.line
+        self.path_segment.transition_type = Transition.ROUND
 
     def model_solid(self) -> Part:
         """

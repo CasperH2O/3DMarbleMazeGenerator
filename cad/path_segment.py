@@ -94,6 +94,11 @@ class PathSegment:
         # Store the specific edge created for this segment before combination
         self.path_edge_only: Optional[Union[Edge, Wire]] = None
 
+        # Obstacle
+        self.is_obstacle: bool = False
+        self.lock_path: bool = False  # if True, PathBuilder must not overwrite .path
+        self.use_frenet: bool = False  # for helix/spiral-like geometries
+
     def adjust_start_and_endpoints(
         self,
         node_size,

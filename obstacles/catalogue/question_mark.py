@@ -6,8 +6,8 @@ from build123d import (
     BuildSketch,
     Part,
     Polyline,
-    RadiusArc,
     Spline,
+    ThreePointArc,
     add,
     sweep,
 )
@@ -32,10 +32,10 @@ class QuestionMark(Obstacle):
             with BuildLine() as start_line:
                 Polyline((0, -3 * self.node_size, 0), (0, -2 * self.node_size, 0))
             with BuildLine() as arc_line:
-                RadiusArc(
-                    start_point=(1 * self.node_size, 0, 0),
-                    end_point=(-1 * self.node_size, 0, 0),
-                    radius=-self.node_size,
+                ThreePointArc(
+                    (1 * self.node_size, 0, 0),
+                    (0, 1 * self.node_size, 0),
+                    (-1 * self.node_size, 0, 0),
                 )
             with BuildLine() as spline_line:
                 Spline(

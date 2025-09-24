@@ -7,7 +7,6 @@ from build123d import (
     Helix,
     Part,
     Polyline,
-    Spline,
     add,
     sweep,
 )
@@ -21,6 +20,8 @@ class Spiral(Obstacle):
 
     def __init__(self):
         super().__init__(name="Spiral")
+
+        self.use_frenet = True
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
@@ -43,20 +44,6 @@ class Spiral(Obstacle):
                     pitch=2 * self.node_size,
                     height=2 * self.node_size,
                     radius=self.node_size,
-                )
-            with BuildLine() as middle_spline:
-                Spline(
-                    [
-                        start_line.line @ 1,
-                        helper_helix.line @ 0.25,
-                        helper_helix.line @ 0.35,
-                        helper_helix.line @ 0.5,
-                        helper_helix.line @ 0.65,
-                        helper_helix.line @ 0.75,
-                        end_line.line @ 0,
-                    ],
-                    tangents=[start_line.line % 1, end_line.line % 0],
-                    tangent_scalars=[1.25, 1.25],
                 )
             with BuildLine() as obstacle_line:
                 add(start_line)
