@@ -6,27 +6,27 @@ import plotly.graph_objects as go
 def main() -> None:
     # Experiment to place nodes, and visualize a cube grid with adjacent nodes
 
-    # 1. Generate full grid 0,10,...,100 in each axis
+    # Generate full grid 0,10,...,100 in each axis
     spacing = 10
     coords = list(range(0, 101, spacing))
     all_nodes = [(x, y, z) for x in coords for y in coords for z in coords]
 
-    # 2. Define hardcoded seeds and pick 3 extra random seeds
-    hardcoded_seeds = {
+    # Define hardcoded nodes and pick 3 extra random nodes
+    hardcoded_nodes = {
         (50, 20, 20),
         (50, 20, 30),
         (50, 20, 40),
         (50, 30, 40),
         (50, 40, 40),
     }
-    random.seed(42)
-    remaining = list(set(all_nodes) - hardcoded_seeds)
-    random_seeds = set(random.sample(remaining, 3))
+    random.seed()
+    remaining = list(set(all_nodes) - hardcoded_nodes)
+    random_nodes = set(random.sample(remaining, 3))
 
-    # Combine into final seed set
-    seed_nodes = hardcoded_seeds.union(random_seeds)
+    # Combine into final node set
+    nodes = hardcoded_nodes.union(random_nodes)
 
-    # 3. Build shell: all cardinal neighbors of seeds, within grid, excluding seeds
+    # Build shell: all cardinal neighbors of nodes, within grid, excluding nodes
     shell_offsets = [
         (spacing, 0, 0),
         (-spacing, 0, 0),
@@ -36,13 +36,13 @@ def main() -> None:
         (0, 0, -spacing),
     ]
     shell_nodes = set()
-    for sx, sy, sz in seed_nodes:
+    for sx, sy, sz in nodes:
         for dx, dy, dz in shell_offsets:
             nb = (sx + dx, sy + dy, sz + dz)
-            if nb in all_nodes and nb not in seed_nodes:
+            if nb in all_nodes and nb not in nodes:
                 shell_nodes.add(nb)
 
-    # 4. Prepare cube geometry
+    # Prepare cube geometry
     d = spacing / 2
     offsets = [(dx, dy, dz) for dx in (-d, d) for dy in (-d, d) for dz in (-d, d)]
     edges = [
@@ -62,7 +62,7 @@ def main() -> None:
 
     fig = go.Figure()
 
-    # 5a. Draw shell cubes first (thin, semi-transparent green)
+    # Draw shell cubes first (thin, semi-transparent green)
     for cx, cy, cz in shell_nodes:
         verts = [(cx + dx, cy + dy, cz + dz) for dx, dy, dz in offsets]
         for i, j in edges:
@@ -80,8 +80,8 @@ def main() -> None:
                 )
             )
 
-    # 5b. Draw seed cubes on top (thick, opaque red)
-    for cx, cy, cz in seed_nodes:
+    # Draw node cubes on top (thick, opaque red)
+    for cx, cy, cz in nodes:
         verts = [(cx + dx, cy + dy, cz + dz) for dx, dy, dz in offsets]
         for i, j in edges:
             x0, y0, z0 = verts[i]
@@ -98,10 +98,10 @@ def main() -> None:
                 )
             )
 
-    # 6. Plot node centers
-    #   shell markers
-    if shell_nodes:
-        bx, by, bz = zip(*shell_nodes)
+    # Plot node centers
+    # shell markers
+    if nodes:
+        bx, by, bz = zip(*nodes)
         fig.add_trace(
             go.Scatter3d(
                 x=bx,
@@ -112,9 +112,9 @@ def main() -> None:
                 name="Shell",
             )
         )
-    #   seed markers
-    if seed_nodes:
-        sx, sy, sz = zip(*seed_nodes)
+    # node markers
+    if nodes:
+        sx, sy, sz = zip(*nodes)
         fig.add_trace(
             go.Scatter3d(
                 x=sx,
@@ -126,12 +126,12 @@ def main() -> None:
             )
         )
 
-    # 7. Layout with true data aspect ratio
+    # Layout with true data aspect ratio
     fig.update_layout(
         scene=dict(
             xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="data"
         ),
-        title="3D Grid: Seeds (red) & Shell (green)",
+        title="3D Grid: Nodes (red) & Shell (green)",
         margin=dict(l=0, r=0, t=50, b=0),
     )
 

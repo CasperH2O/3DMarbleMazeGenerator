@@ -27,11 +27,11 @@ from cad.path_profile_type_shapes import PathProfileType, create_u_shape
 from cad.path_segment import PathSegment
 from puzzle.casing import SphereCasing
 from puzzle.node import Node
-from visualization.plotly_helpers import (
-    plot_casing_plotly,
-    plot_node_cubes_plotly,
-    plot_nodes_plotly,
-    plot_raw_obstacle_path_plotly,
+from visualization.visualization_helpers import (
+    plot_casing,
+    plot_node_cubes,
+    plot_nodes,
+    plot_raw_obstacle_path,
 )
 
 
@@ -264,22 +264,22 @@ class Obstacle(ABC):
         fig = go.Figure()
         # Occupied nodes and cubes
         occupied_nodes = self.get_placed_node_coordinates(self.occupied_nodes)
-        for t in plot_nodes_plotly(occupied_nodes):
+        for t in plot_nodes(occupied_nodes):
             fig.add_trace(t)
-        for t in plot_node_cubes_plotly(occupied_nodes, self.node_size):
+        for t in plot_node_cubes(occupied_nodes, self.node_size):
             fig.add_trace(t)
 
         # Overlap nodes and cubes
         overlap_nodes = self.get_placed_node_coordinates(self.overlap_nodes)
-        for t in plot_nodes_plotly(overlap_nodes):
+        for t in plot_nodes(overlap_nodes):
             fig.add_trace(t)
-        for t in plot_node_cubes_plotly(overlap_nodes, self.node_size):
+        for t in plot_node_cubes(overlap_nodes, self.node_size):
             fig.add_trace(t)
 
         # Sample points along path segment edge for visualization
         self.create_obstacle_geometry()
         path = self.sample_obstacle_path()
-        for trace in plot_raw_obstacle_path_plotly(path, name=f"{self.name} Raw Path"):
+        for trace in plot_raw_obstacle_path(path, name=f"{self.name} Raw Path"):
             fig.add_trace(trace)
 
         # Casing, for reference only
@@ -287,7 +287,7 @@ class Obstacle(ABC):
             diameter=config.Sphere.SPHERE_DIAMETER,
             shell_thickness=config.Sphere.SHELL_THICKNESS,
         )
-        for trace in plot_casing_plotly(casing):
+        for trace in plot_casing(casing):
             fig.add_trace(trace)
 
         fig.update_layout(title=f"{self.name} obstacle view", template="plotly_dark")

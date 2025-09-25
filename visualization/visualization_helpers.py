@@ -1,18 +1,45 @@
-# visualization/plotly_helpers.py
+# visualization/visualization_helpers.py
+
+import math
 
 import numpy as np
 import plotly.graph_objects as go
+from geomdl import BSpline, utilities
+from scipy import interpolate
 
 from cad.cases.case import Case
+from cad.path_segment import PathSegment
+from config import PathCurveModel, PathCurveType
 from puzzle.casing import BoxCasing, SphereCasing
 from puzzle.node import Node, NodeGridType
 
 
-def plot_nodes_plotly(nodes: list[Node]):
+def plot_nodes(nodes: list[Node], segments: list[PathSegment] | None = None):
     """
     Groups nodes by their primary property so that the legend only displays the primary label,
     while the hover text for each marker shows all applicable flags on separate lines.
+
+    Based on segments, any nodes within those segments that are flagged as
+    segment_start or segment_end are merged into the local node list
     """
+    # Start with a local copy; don't mutate the caller's list
+    all_nodes: list[Node] = list(nodes) if nodes else []
+
+    # Optionally merge segment start/end nodes
+    if segments:
+        for segment in segments:
+            for node in segment.nodes:
+                if getattr(node, "segment_start", False) or getattr(
+                    node, "segment_end", False
+                ):
+                    if not any(
+                        abs(n.x - node.x) < 1e-6
+                        and abs(n.y - node.y) < 1e-6
+                        and abs(n.z - node.z) < 1e-6
+                        for n in all_nodes
+                    ):
+                        all_nodes.append(node)
+
     # Define the priority order for determining the primary flag.
     priority_flags = [
         ("puzzle_start", "Puzzle Start"),
@@ -29,7 +56,7 @@ def plot_nodes_plotly(nodes: list[Node]):
     groups = {}  # key: primary flag; value: dict with x, y, z lists and hover texts
     seen = set()  # To avoid duplicate nodes based on coordinates only
 
-    for node in nodes:
+    for node in all_nodes:
         labels = []
         if node.puzzle_start:
             labels.append("Puzzle Start")
@@ -129,16 +156,16 @@ def plot_nodes_plotly(nodes: list[Node]):
     return traces
 
 
-def plot_casing_plotly(casing: Case):
+def plot_casing(casing: Case):
     if isinstance(casing, SphereCasing):
-        return plot_sphere_casing_plotly(casing)
+        return plot_sphere_casing(casing)
     elif isinstance(casing, BoxCasing):
-        return plot_box_casing_plotly(casing)
+        return plot_box_casing(casing)
     else:
         raise ValueError(f"Unsupported casing type: {type(casing)}")
 
 
-def plot_sphere_casing_plotly(casing: SphereCasing):
+def plot_sphere_casing(casing: SphereCasing):
     theta = np.linspace(0, 2 * np.pi, 100)
     r = casing.inner_radius
 
@@ -189,7 +216,7 @@ def plot_sphere_casing_plotly(casing: SphereCasing):
     return casing_traces
 
 
-def plot_box_casing_plotly(casing: BoxCasing):
+def plot_box_casing(casing: BoxCasing):
     hw = casing.half_width
     hh = casing.half_length
     hl = casing.half_height
@@ -250,7 +277,7 @@ def plot_box_casing_plotly(casing: BoxCasing):
     return [box_trace]
 
 
-def plot_node_cubes_plotly(nodes: list[Node], node_size: float):
+def plot_node_cubes(nodes: list[Node], node_size: float):
     """
     Draw a little wire-frame cube (edge length=node_size) centered on each node.
     Returns a list of Scatter3d traces.
@@ -299,16 +326,196 @@ def plot_node_cubes_plotly(nodes: list[Node], node_size: float):
     return traces
 
 
-def plot_raw_obstacle_path_plotly(path: list, name: str = "Raw Path"):
+def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
+    """
+    Build traces for PathSegments. Each (main_index, secondary_index) gets a stable color.
+    """
+    if not segments:
+        return []
+
+    # Color palette and stable color mapping per (main_index, secondary_index)
+    colors = [
+        "blue",
+        "green",
+        "red",
+        "purple",
+        "orange",
+        "pink",
+        "brown",
+        "cyan",
+        "magenta",
+        "yellow",
+        "lime",
+        "teal",
+        "olive",
+        "navy",
+        "maroon",
+        "aquamarine",
+        "coral",
+        "gold",
+        "indigo",
+        "lavender",
+    ]
+    segment_colors: dict[tuple[int, int], str] = {}
+    color_index = 0
+
+    traces: list[go.Scatter3d] = []
+
+    for segment in segments:
+        # Assign unique colors based on main and secondary index
+        seg_key = (segment.main_index, segment.secondary_index)
+        if seg_key not in segment_colors:
+            segment_colors[seg_key] = colors[color_index % len(colors)]
+            color_index += 1
+        segment_color = segment_colors[seg_key]
+
+        # Hover text
+        segment_name = (
+            f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
+            f"Transition Type: {segment.transition_type}<br>"
+            f"Path Curve Model: {segment.curve_model.value}<br>"
+            f"Curve Type: {segment.curve_type}<br>"
+            f"Path Profile Type: {segment.path_profile_type.value}"
+        )
+
+        # Compute curve samples for this segment
+        if segment.curve_model == PathCurveModel.COMPOUND:
+            # Bézier (B-Spline) for S-curve or 90° single-plane
+            if segment.curve_type in [
+                PathCurveType.S_CURVE,
+                PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
+            ]:
+                control_points = [[n.x, n.y, n.z] for n in segment.nodes]
+                num_cpts = len(control_points)
+                if num_cpts < 2:
+                    x_vals = [n.x for n in segment.nodes]
+                    y_vals = [n.y for n in segment.nodes]
+                    z_vals = [n.z for n in segment.nodes]
+                else:
+                    degree = num_cpts - 1
+                    curve = BSpline.Curve()
+                    curve.degree = degree
+                    curve.ctrlpts = control_points
+                    curve.knotvector = utilities.generate_knot_vector(degree, num_cpts)
+                    curve.delta = 0.001
+                    curve.evaluate()
+                    cpts = np.array(curve.evalpts)
+                    x_vals, y_vals, z_vals = cpts[:, 0], cpts[:, 1], cpts[:, 2]
+            else:
+                # Pairwise: arc if both nodes are circular; else straight
+                x_vals: list[float] = []
+                y_vals: list[float] = []
+                z_vals: list[float] = []
+                for i in range(len(segment.nodes) - 1):
+                    a = segment.nodes[i]
+                    b = segment.nodes[i + 1]
+                    # Both circular, generate arc
+                    if (NodeGridType.CIRCULAR.value in a.grid_type) and (
+                        NodeGridType.CIRCULAR.value in b.grid_type
+                    ):
+                        theta1 = math.atan2(a.y, a.x)
+                        theta2 = math.atan2(b.y, b.x)
+                        dtheta = theta2 - theta1
+                        if dtheta > math.pi:
+                            dtheta -= 2 * math.pi
+                        elif dtheta < -math.pi:
+                            dtheta += 2 * math.pi
+                        num_points = 20
+                        theta_values = np.linspace(theta1, theta1 + dtheta, num_points)
+                        r1 = math.hypot(a.x, a.y)
+                        r2 = math.hypot(b.x, b.y)
+                        r_values = np.linspace(r1, r2, num_points)
+                        xs = r_values * np.cos(theta_values)
+                        ys = r_values * np.sin(theta_values)
+                        zs = np.linspace(a.z, b.z, num_points)
+                        if i > 0:
+                            x_vals.extend(xs[1:])
+                            y_vals.extend(ys[1:])
+                            z_vals.extend(zs[1:])
+                        else:
+                            x_vals.extend(xs)
+                            y_vals.extend(ys)
+                            z_vals.extend(zs)
+                    else:
+                        if i == 0:
+                            x_vals.append(a.x)
+                            y_vals.append(a.y)
+                            z_vals.append(a.z)
+                        x_vals.append(b.x)
+                        y_vals.append(b.y)
+                        z_vals.append(b.z)
+        elif segment.curve_model == PathCurveModel.SPLINE:
+            # Keep endpoints + waypoints in the middle; chord-length parameterization
+            total_nodes = segment.nodes
+            spline_nodes: list = []
+            if len(total_nodes) >= 2:
+                spline_nodes.extend(total_nodes[:2])
+                for n in total_nodes[2:-2]:
+                    if getattr(n, "waypoint", False) and n not in spline_nodes:
+                        spline_nodes.append(n)
+                for n in total_nodes[-2:]:
+                    if n not in spline_nodes:
+                        spline_nodes.append(n)
+            else:
+                spline_nodes = total_nodes
+
+            # Ensure original order
+            spline_nodes = sorted(spline_nodes, key=lambda n: total_nodes.index(n))
+            xs = [n.x for n in spline_nodes]
+            ys = [n.y for n in spline_nodes]
+            zs = [n.z for n in spline_nodes]
+
+            xyz = np.vstack([xs, ys, zs]).T
+            if len(xyz) < 2:
+                x_vals, y_vals, z_vals = xs, ys, zs
+            else:
+                u = np.cumsum(np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)])
+                try:
+                    sx = interpolate.InterpolatedUnivariateSpline(u, xs)
+                    sy = interpolate.InterpolatedUnivariateSpline(u, ys)
+                    sz = interpolate.InterpolatedUnivariateSpline(u, zs)
+                    uu = np.linspace(u[0], u[-1], 1000)
+                    x_vals = sx(uu)
+                    y_vals = sy(uu)
+                    z_vals = sz(uu)
+                except Exception:
+                    x_vals, y_vals, z_vals = xs, ys, zs
+        else:
+            # Fallback: straight lines through the nodes
+            x_vals = [n.x for n in segment.nodes]
+            y_vals = [n.y for n in segment.nodes]
+            z_vals = [n.z for n in segment.nodes]
+
+        # Plot this curve
+        traces.append(
+            go.Scatter3d(
+                x=x_vals,
+                y=y_vals,
+                z=z_vals,
+                mode="lines",
+                name=f"Segment {segment.main_index}.{segment.secondary_index}",
+                line=dict(color=segment_color),
+                hoverinfo="text",
+                text=segment_name,
+                showlegend=True,
+            )
+        )
+
+    return traces
+
+
+def plot_raw_obstacle_path(path: list, name: str = "Raw Path"):
     """
     Given a list of vector like objects (.X/.Y/.Z),
     return a single Scatter3d trace plotting them in order as a line.
     """
+
     xs, ys, zs = [], [], []
     for p in path:
         xs.append(p.X)
         ys.append(p.Y)
         zs.append(p.Z)
+
     trace = go.Scatter3d(
         x=xs,
         y=ys,
@@ -321,7 +528,7 @@ def plot_raw_obstacle_path_plotly(path: list, name: str = "Raw Path"):
     return [trace]
 
 
-def plot_obstacles_raw_paths_plotly(obstacles: list):
+def plot_obstacles_raw_paths(obstacles: list):
     """
     Build traces for all placed obstacles (in world coordinates)
     """
@@ -334,7 +541,7 @@ def plot_obstacles_raw_paths_plotly(obstacles: list):
         # Plot single obstacle
         raw_path_points = obstacle.sample_obstacle_path_world()
 
-        obstacle_traces = plot_raw_obstacle_path_plotly(
+        obstacle_traces = plot_raw_obstacle_path(
             raw_path_points, name=f"{obstacle.name} Raw Path"
         )
 
@@ -343,7 +550,7 @@ def plot_obstacles_raw_paths_plotly(obstacles: list):
     return traces
 
 
-def plot_puzzle_path_plotly(path_nodes: list[Node], name: str = "Puzzle Path"):
+def plot_puzzle_path(path_nodes: list[Node], name: str = "Puzzle Path"):
     """
     Plot the full puzzle path (list of Nodes) as a single line.
     Hidden by default; toggle via legend.

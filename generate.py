@@ -2,7 +2,7 @@
 
 from config import Config
 from puzzle.puzzle import Puzzle
-from visualization.plotly_visualization import visualize_path_architect
+from visualization.visualization import visualize_path_architect
 
 
 def main() -> None:
