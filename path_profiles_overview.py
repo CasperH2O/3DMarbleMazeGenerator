@@ -5,11 +5,10 @@ from build123d import (
     BuildPart,
     BuildSketch,
     Polyline,
-    Transition,
     add,
     sweep,
 )
-from ocp_vscode import show_object, set_defaults, Camera
+from ocp_vscode import Camera, set_defaults, show_object
 
 import config
 from cad.path_profile_type_shapes import (
@@ -21,8 +20,7 @@ from cad.path_profile_type_shapes import (
 
 
 def get_params(pt: PathProfileType) -> tuple[dict, bool]:
-    """Return (params, missing) for this profile type.
-    """
+    """Return (params, missing) for this profile type."""
     params = config.Path.PATH_PROFILE_TYPE_PARAMETERS.get(pt.value, {})
     return params, len(params) == 0
 
