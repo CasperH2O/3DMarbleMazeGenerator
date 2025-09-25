@@ -23,9 +23,8 @@ from build123d import (
     revolve,
 )
 
+from cad.cases.case import Case, CasePart
 from config import Config
-
-from .case import Case, CasePart
 
 
 class CaseSphereWithFlange(Case):
@@ -260,3 +259,7 @@ class CaseSphereWithFlange(Case):
             mirror(about=Plane.XY)
 
         return cut_shape
+
+
+if __name__ == "__main__":
+    CaseSphereWithFlange().preview()

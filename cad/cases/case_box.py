@@ -2,9 +2,8 @@
 
 from build123d import Box, BuildPart, BuildSketch, Mode, Rectangle, extrude, offset
 
+from cad.cases.case import Case, CasePart
 from config import Config
-
-from .case import Case, CasePart
 
 
 class CaseBox(Case):
@@ -59,3 +58,7 @@ class CaseBox(Case):
             # Hollow out the box
             extrude(amount=inner_height / 2, both=True, mode=Mode.SUBTRACT)
         return cut_shape
+
+
+if __name__ == "__main__":
+    CaseBox().preview()

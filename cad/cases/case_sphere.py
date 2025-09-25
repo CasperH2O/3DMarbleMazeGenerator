@@ -14,9 +14,8 @@ from build123d import (
     revolve,
 )
 
+from cad.cases.case import Case, CasePart
 from config import Config
-
-from .case import Case, CasePart
 
 
 class CaseSphere(Case):
@@ -76,3 +75,7 @@ class CaseSphere(Case):
             revolve()
 
         return cut_shape
+
+
+if __name__ == "__main__":
+    CaseSphere().preview()

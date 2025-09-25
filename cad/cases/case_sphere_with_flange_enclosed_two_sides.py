@@ -32,9 +32,8 @@ from build123d import (
     split,
 )
 
+from cad.cases.case import Case, CasePart
 from config import Config
-
-from .case import Case, CasePart
 
 
 class CaseSphereWithFlangeEnclosedTwoSides(Case):
@@ -575,3 +574,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         cut_shape = cut_shape_cylinder
 
         return cut_shape
+
+
+if __name__ == "__main__":
+    CaseSphereWithFlangeEnclosedTwoSides().preview()
