@@ -1,4 +1,4 @@
-# profiles_overview.py
+# path_profiles_overview.py
 
 from build123d import (
     BuildLine,
@@ -21,9 +21,7 @@ from cad.path_profile_type_shapes import (
 
 
 def get_params(pt: PathProfileType) -> tuple[dict, bool]:
-    """Return (params, missing_all) for this profile type.
-
-    * missing_all is True iff the resulting dict has **no** keys.
+    """Return (params, missing) for this profile type.
     """
     params = config.Path.PATH_PROFILE_TYPE_PARAMETERS.get(pt.value, {})
     return params, len(params) == 0
@@ -47,7 +45,7 @@ def sweep_single_section_profile(profile_sketch, path_wire, label=None, color=No
             add(path_wire)
         with BuildSketch(path_wire ^ 0):
             add(profile_sketch)
-        sweep(transition=Transition.RIGHT)
+        sweep()
     if label:
         result.part.label = label
     if color:
@@ -63,7 +61,7 @@ SUPPORT_TYPES = set(SUPPORT_REGISTRY.values())
 # Layout parameters
 NODE_SIZE = config.Puzzle.NODE_SIZE  # spacing grid
 PATH_LEN = NODE_SIZE * 8  # Y-length of every demo path
-X_SPACING = NODE_SIZE * 1.5  # gap between neighbouring paths
+X_SPACING = NODE_SIZE * 2  # gap between neighbouring paths
 
 # Set the default camera position, to not adjust on new show
 set_defaults(reset_camera=Camera.KEEP)
