@@ -90,14 +90,14 @@ class Obstacle(ABC):
         pass
 
     @staticmethod
-    def default_path_profile_type() -> Face:
+    def default_path_profile_type(rotation_angle: float = -90) -> Face:
         """
         Return default U path profile type shape for sweep
         """
         u_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS[
             PathProfileType.U_SHAPE.value
         ]
-        return create_u_shape(**u_params)
+        return create_u_shape(**u_params, rotation_angle=rotation_angle)
 
     def load_relative_node_coords(self):
         cache_dir = Path("obstacles/catalogue/cache")

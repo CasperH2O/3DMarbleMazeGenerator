@@ -257,6 +257,9 @@ def path(puzzle, cut_shape: Part):
 
 
 def build_obstacle_path_bodies(puzzle: Puzzle) -> list[Part]:
+    """
+    Obstacle bodies for puzzle (WIP)
+    """
     parts: list[Part] = []
 
     for idx, obstacle in enumerate(puzzle.obstacle_manager.placed_obstacles, start=1):

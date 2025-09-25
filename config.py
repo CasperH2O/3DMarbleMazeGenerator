@@ -32,11 +32,12 @@ class Puzzle:
 class Obstacles:
     ENABLED = True  # master on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
-        ObstacleType.OMEGA,
+        ObstacleType.ALPHA,
         ObstacleType.OVERHAND_KNOT,
         ObstacleType.QUESTION_MARK,
         ObstacleType.SPIRAL,
         ObstacleType.U_TURN,
+        ObstacleType.OMEGA,
     ]
     MAX_TO_PLACE = 5  # target number of obstacles to place (total)
     ATTEMPTS_PER_PLACEMENT = 25  # random tries per single obstacle instance

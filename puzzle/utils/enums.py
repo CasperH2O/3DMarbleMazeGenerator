@@ -13,6 +13,7 @@ class ObstacleType(Enum):
     QUESTION_MARK = "Question Mark"
     SPIRAL = "Spiral"
     U_TURN = "U Turn"
+    ALPHA = "Alpha"
 
 
 class PathCurveModel(Enum):
