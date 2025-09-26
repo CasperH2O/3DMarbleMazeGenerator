@@ -1,17 +1,14 @@
 # cad/cases/case_sphere.py
 
+from typing import List
+
 from build123d import (
-    BuildLine,
     BuildPart,
-    BuildSketch,
-    Line,
     Mode,
-    Plane,
+    Part,
     Sphere,
-    ThreePointArc,
-    make_face,
+    add,
     offset,
-    revolve,
 )
 
 from cad.cases.case import Case, CasePart
@@ -22,57 +19,37 @@ class CaseSphere(Case):
     def __init__(self):
         self.diameter = Config.Sphere.SPHERE_DIAMETER
         self.shell_thickness = Config.Sphere.SHELL_THICKNESS
+
         self.inner_radius = (self.diameter / 2) - self.shell_thickness
         self.outer_radius = self.diameter / 2
 
         self.casing = self.create_casing()
         self.cut_shape = self.create_cut_shape()
 
-    def create_casing(self):
+    def create_casing(self) -> Part:
         with BuildPart() as casing:
             # Create an initial sphere
             Sphere(self.outer_radius)
             # Hollow out the sphere
-            offset(amount=-Config.Sphere.SHELL_THICKNESS, mode=Mode.SUBTRACT)
+            offset(amount=-self.shell_thickness, mode=Mode.SUBTRACT)
         return casing
 
-    def get_parts(self):
+    def get_parts(self) -> List[Part]:
         # Assign name and color to the casing part
         self.casing.part.label = CasePart.CASING.value
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        return [
-            self.casing.part,
-        ]
+        return [self.casing.part]
 
-    def create_cut_shape(self):
-        flush_distance_tolerance = (
-            0.0  # Small distance to ensure the cut shape is flush with the casing
-        )
+    def create_cut_shape(self) -> Part:
+        flush_distance_tolerance = 0.4  # Ensure flush with case
+
         with BuildPart() as cut_shape:
-            # Create the cross-sectional profile, shaped like a C
-            with BuildSketch(Plane.XZ):
-                with BuildLine(Plane.XZ):
-                    Line(
-                        (0, self.inner_radius + flush_distance_tolerance),
-                        (0, self.outer_radius * 2),
-                    )
-                    ThreePointArc(
-                        (0, self.outer_radius * 2),
-                        (-self.outer_radius * 2, 0),
-                        (0, -self.outer_radius * 2),
-                    )
-                    Line(
-                        (0, -self.outer_radius * 2),
-                        (0, -self.inner_radius + flush_distance_tolerance),
-                    )
-                    ThreePointArc(
-                        (0, -self.inner_radius + flush_distance_tolerance),
-                        (-self.inner_radius + flush_distance_tolerance, 0),
-                        (0, self.inner_radius - flush_distance_tolerance),
-                    )
-                make_face()
-            revolve()
+            # Larger outer sphere to cut off excess bodies
+            sphere_outer = Sphere(self.outer_radius * 2)
+            sphere_inner = Sphere(self.inner_radius - flush_distance_tolerance)
+            # Hollow out the sphere
+            add(sphere_outer - sphere_inner, mode=Mode.REPLACE)
 
         return cut_shape
 

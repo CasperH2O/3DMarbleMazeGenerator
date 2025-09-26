@@ -2,6 +2,7 @@
 
 import math
 from copy import copy
+from typing import List
 
 from build123d import (
     Axis,
@@ -12,7 +13,9 @@ from build123d import (
     Circle,
     Cylinder,
     Line,
+    Locations,
     Mode,
+    Part,
     Plane,
     PolarLocations,
     Text,
@@ -29,6 +32,7 @@ from config import Config
 
 class CaseSphereWithFlange(Case):
     def __init__(self):
+        # Config
         self.sphere_outer_diameter = Config.Sphere.SPHERE_DIAMETER
         self.sphere_flange_diameter = Config.Sphere.SPHERE_FLANGE_DIAMETER
         self.sphere_thickness = Config.Sphere.SHELL_THICKNESS
@@ -48,6 +52,7 @@ class CaseSphereWithFlange(Case):
         self.sphere_inner_radius = self.sphere_inner_diameter / 2
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
+        # Create parts
         self.mounting_ring, self.path_bridges, self.start_text = (
             self.create_mounting_ring()
         )
@@ -67,7 +72,8 @@ class CaseSphereWithFlange(Case):
 
         # Add start text
         with BuildPart() as start_text:
-            with BuildSketch():
+            # Position the text at the top surface of the mounting ring
+            with BuildSketch(Plane.XY.offset(0.5 * self.mounting_ring_thickness)):
                 text_radius = (self.sphere_outer_radius + self.sphere_flange_radius) / 2
                 text_path = (
                     Circle(text_radius, mode=Mode.PRIVATE)
@@ -76,9 +82,6 @@ class CaseSphereWithFlange(Case):
                 )
                 Text(txt="START", font_size=8, path=text_path)
             extrude(amount=-1)
-
-        # Position the text at the top surface of the mounting ring
-        start_text.part.position = (0, 0, 0.5 * self.mounting_ring_thickness)
 
         # Subtract the text from the mounting ring
         mounting_ring.part = mounting_ring.part - start_text.part
@@ -94,13 +97,17 @@ class CaseSphereWithFlange(Case):
         printing_layer_thickness = Config.Manufacturing.LAYER_THICKNESS
         printing_nozzle_diameter = Config.Manufacturing.NOZZLE_DIAMETER
 
-        with BuildPart() as mounting_ring_bridges:
-            with PolarLocations(
+        bridge_locations = list(
+            PolarLocations(
                 radius=self.mounting_distance / 2,
                 count=count,
                 start_angle=start_angle,
                 angular_range=angle_range,
-            ):
+            )
+        )
+
+        with BuildPart() as mounting_ring_bridges:
+            with Locations(bridge_locations):
                 Box(
                     width=self.node_size,
                     length=self.node_size * 2,
@@ -108,18 +115,14 @@ class CaseSphereWithFlange(Case):
                 )
 
         with BuildPart() as path_bridges:
-            with PolarLocations(
-                radius=self.mounting_distance / 2,
-                count=count,
-                start_angle=start_angle,
-                angular_range=angle_range,
-            ):
+            with Locations(bridge_locations):
                 Box(
                     width=self.node_size - 4 * printing_nozzle_diameter,
                     length=self.node_size * 2 + 4 * printing_nozzle_diameter,
                     height=self.mounting_ring_thickness - printing_layer_thickness * 8,
                 )
 
+        # Combine path bridges and mounting ring
         path_bridges.part = path_bridges.part - mounting_ring.part
         mounting_ring.part = mounting_ring.part + (
             mounting_ring_bridges.part - path_bridges.part
@@ -203,7 +206,7 @@ class CaseSphereWithFlange(Case):
         self.dome_top.part = self.dome_top.part - holes.part
         self.dome_bottom.part = self.dome_bottom.part - holes.part
 
-    def get_parts(self):
+    def get_parts(self) -> List[Part]:
         # Assign names and colors to the parts
         self.mounting_ring.part.label = CasePart.MOUNTING_RING.value
         self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
@@ -229,7 +232,7 @@ class CaseSphereWithFlange(Case):
             self.start_text.part,
         ]
 
-    def create_cut_shape(self):
+    def create_cut_shape(self) -> Part:
         flush_distance_tolerance = 0.0
         radius_outer = self.sphere_flange_diameter
         radius_inner = self.sphere_inner_radius - flush_distance_tolerance
@@ -253,7 +256,7 @@ class CaseSphereWithFlange(Case):
             revolve()
             translation_z = (
                 0.5 * self.mounting_ring_thickness
-                - 0.33333 * self.mounting_ring_thickness
+                - 1 / 3 * self.mounting_ring_thickness
             )
             cut_shape.part.position = (0, 0, -translation_z)
             mirror(about=Plane.XY)

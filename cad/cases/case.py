@@ -9,6 +9,7 @@ from ocp_vscode import Camera, set_defaults, set_viewer_config, show, status
 class CaseManufacturer(Enum):
     GENERIC = "generic"
     SPHERE_PLAYTASTIC_120_MM = "sphere_playtastic_120_mm"
+    SPHERE_PLAYTASTIC_170_MM = "sphere_playtastic_170_mm"
     SPHERE_SAIDKOCC_100_MM = "sphere_saidkocc_100_mm"
 
 

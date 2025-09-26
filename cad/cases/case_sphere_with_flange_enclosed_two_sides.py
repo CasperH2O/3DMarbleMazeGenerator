@@ -285,16 +285,10 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             mounting_ring_bottom,
         )
 
-    def create_mounting_ring_clips(self, use_tolerance: bool):
+    def create_mounting_ring_clips(self, use_tolerance: bool) -> Part:
         """
         Create mounting ring clips for both the physical parts and the cut-out pattern,
         applying an additional clearance tolerance where needed.
-
-        Parameters:
-            tolerance (float): Extra tolerance (clearance) to be applied to key dimensions.
-
-        Returns:
-            BuildPart: The constructed mounting ring clips.
         """
 
         # Set tolerance to 0.1 mm, if tolerance is requested,
@@ -382,6 +376,8 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         return mounting_ring_clips
 
     def create_domes(self):
+        """Outer shell, two parts, top and bottom"""
+
         angle_45 = math.radians(45)
         x_mid_inner = self.sphere_inner_radius * math.cos(angle_45)
         x_start_outer = math.sqrt(
@@ -462,7 +458,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
 
         return dome_top, dome_bottom
 
-    def get_parts(self):
+    def get_parts(self) -> list[Part]:
         # Prepare the mounting ring clips as separate parts for manufacturing
         mounting_ring_clip_start = copy(self.mounting_ring_clips)
         mounting_ring_clip_single = copy(self.mounting_ring_clips)
@@ -509,6 +505,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
 
         self.internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
         self.internal_path_bridges.part.color = Config.Puzzle.PATH_COLORS[0]
+
         # Return parts
         return [
             self.dome_top.part,
@@ -523,7 +520,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             self.internal_path_bridges.part,
         ]
 
-    def create_cut_shape(self):
+    def create_cut_shape(self) -> Part:
         flush_distance_tolerance = 0.5
         radius_outer = self.sphere_flange_diameter * 0.7
         radius_inner = self.sphere_flange_inner_radius - flush_distance_tolerance
@@ -532,6 +529,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         mid_inner_x = radius_inner / math.sqrt(2)
         mid_inner_y = radius_inner / math.sqrt(2)
 
+        # Cylinder shape cut out for in between top and bottom domes
         with BuildPart() as cut_shape_cylinder:
             Cylinder(
                 radius=self.sphere_flange_diameter * 0.75,
@@ -550,6 +548,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
                 mode=Mode.SUBTRACT,
             )
 
+        # Top and bottom dome
         with BuildPart() as cut_shape_sphere:
             with BuildSketch(Plane.XZ):
                 with BuildLine(Plane.XZ):
@@ -565,7 +564,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             revolve()
             translation_z = (
                 0.5 * self.mounting_bridge_height
-            ) - 0.33333 * self.mounting_bridge_height
+            ) - 1 / 3 * self.mounting_bridge_height
             cut_shape_sphere.part.position = (0, 0, -translation_z)
             mirror(about=Plane.XY)
 
