@@ -10,14 +10,14 @@ from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Them
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.GENERIC
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
     THEME = Theme.GENERIC
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 1  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 3  # Number of randomly placed waypoints
+    SEED = 2  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 6  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
@@ -30,7 +30,7 @@ class Puzzle:
 
 
 class Obstacles:
-    ENABLED = True  # master on/off switch.
+    ENABLED = False  # obstacle on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
         ObstacleType.ALPHA,
         ObstacleType.OVERHAND_KNOT,
@@ -83,7 +83,7 @@ class Box:
 class Path:
     PATH_CURVE_MODEL = [
         PathCurveModel.COMPOUND,
-        # PathCurveModel.SPLINE,
+        PathCurveModel.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [

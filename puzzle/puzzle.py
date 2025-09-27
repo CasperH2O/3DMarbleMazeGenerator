@@ -92,12 +92,6 @@ class Puzzle:
     def get_neighbors(self, node: Node) -> List[Node]:
         """
         Delegates neighbor retrieval to the node creator.
-
-        Parameters:
-            node (Node): The node for which to retrieve neighbors.
-
-        Returns:
-            List[Node]: A list of neighboring nodes.
         """
         return self.node_creator.get_neighbors(node, self.node_dict, self.node_size)
 

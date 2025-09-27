@@ -8,7 +8,6 @@ from build123d import (
     Part,
     Polyline,
     Spline,
-    Transition,
     add,
     sweep,
 )
@@ -133,7 +132,7 @@ if __name__ == "__main__":
     obstacle = Alpha()
 
     # Visualization
-    # obstacle.visualize()
+    obstacle.visualize()
 
     # Solid model
     obstacle.show_solid_model()
