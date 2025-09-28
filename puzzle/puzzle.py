@@ -2,7 +2,7 @@
 
 import random
 from collections import Counter
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from puzzle.cases.cylinder import CylinderCasing
 from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node, NodeGridType
 from puzzle.path_finder import AStarPathFinder
+from puzzle.utils.geometry import key3
 
 
 class Puzzle:
@@ -368,20 +369,69 @@ class Puzzle:
 
     def _check_node_connectivity(self) -> None:
         """
-        Verify every node has ≥1 neighbour
-        # TODO if a node like this is found, and it's not the start node, remove it, log warning
-        """
+        Verify every non-start node has ≥2 neighbours ie pruning nodes
+        with ≤1 neighbour (isolated or leaf/ dead-end nodes).
 
+        Pruning rules:
+        - Repeatedly remove all non-start nodes whose neighbour count <= 1.
+        This prevents dead-ends in the grid.
+        - Keep the start node even if it ends up with ≤1 neighbour; warn about it.
+        """
         max_report = 10
-        isolated = [n for n in self.nodes if not self.path_finder.get_neighbors(self, n)]
-        if len(isolated) > 0:
-            msg = (
-                f"[DEBUG] {len(isolated)} isolated nodes detected "
-                f"({sum(1 for n in isolated if n.puzzle_start)} of them are the start node)."
+        total_pruned = 0
+        iteration = 0
+
+        while True:
+            iteration += 1
+
+            # Compute neighbour counts for the current node set
+            degrees: dict[Node, int] = {}
+            for n in self.nodes:
+                neighbors = self.path_finder.get_neighbors(self, n)
+                degrees[n] = len(neighbors)
+
+            # Candidates: non-start nodes with <= 1 neighbour
+            to_prune: List[Node] = [
+                n for n, deg in degrees.items() if deg <= 1 and n is not self.start_node
+            ]
+
+            if not to_prune:
+                break
+
+            print(
+                f"[Warning] Pruning {len(to_prune)} node(s) with ≤1 neighbour "
+                f"[iteration {iteration}]"
             )
-            print(msg)
-            for n in isolated[:max_report]:
-                tag = "  <-- START" if n is self.start_node else ""
-                print(f"      ({n.x:.1f}, {n.y:.1f}, {n.z:.1f}){tag}")
-            if len(isolated) > max_report:
-                print(f"      … and {len(isolated) - max_report} more")
+            for n in to_prune[:max_report]:
+                tags = []
+                if getattr(n, "mounting", False):
+                    tags.append("mounting")
+                if getattr(n, "waypoint", False):
+                    tags.append("waypoint")
+                tag_str = f" [{', '.join(tags)}]" if tags else ""
+                print(f"    - ({n.x:.1f}, {n.y:.1f}, {n.z:.1f}){tag_str}")
+            if len(to_prune) > max_report:
+                print(f"    … and {len(to_prune) - max_report} more")
+
+            # Remove from nodes and node_dict
+            for n in to_prune:
+                self.nodes.remove(n)
+                k = key3(n.x, n.y, n.z)
+                if self.node_dict.get(k) is n:
+                    del self.node_dict[k]
+
+            total_pruned += len(to_prune)
+
+        # Start node special case: warn if it has no neighbour
+        if (
+            self.start_node
+            and len(self.path_finder.get_neighbors(self, self.start_node)) < 1
+        ):
+            print(
+                "[Warning] Start node has no neighbour after pruning; pathfinding may fail."
+            )
+
+        if total_pruned > 0:
+            print(
+                f"[Info] Connectivity pruning complete. Removed {total_pruned} node(s)."
+            )
