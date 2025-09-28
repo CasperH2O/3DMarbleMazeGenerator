@@ -2,18 +2,16 @@
 
 import random
 from collections import Counter
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
 from cad.path_architect import PathArchitect
 from config import CaseShape, Config
 from obstacles.obstacle_manager import ObstacleManager
-
-from .casing import BoxCasing, SphereCasing
-from .node import Node, NodeGridType
-from .node_creator import BoxGridNodeCreator, SphereGridNodeCreator
-from .path_finder import AStarPathFinder
+from puzzle.cases import BoxCasing, CylinderCasing, SphereCasing
+from puzzle.node import Node, NodeGridType
+from puzzle.path_finder import AStarPathFinder
 
 
 class Puzzle:
@@ -25,11 +23,6 @@ class Puzzle:
     def __init__(self, node_size: float, seed: int, case_shape: CaseShape) -> None:
         """
         Initializes the Puzzle by setting up the casing, node creator, pathfinder, and generating the nodes.
-
-        Parameters:
-            node_size (float): The size of each node in the grid.
-            seed (int): Seed value for random number generators.
-            case_shape (CaseShape): The shape of the puzzle casing.
         """
         self.node_size: float = node_size
         self.seed: int = seed
@@ -41,32 +34,31 @@ class Puzzle:
             CaseShape.SPHERE_WITH_FLANGE,
             CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES,
         ):
-            self.casing: SphereCasing = SphereCasing(
+            self.casing = SphereCasing(
                 diameter=Config.Sphere.SPHERE_DIAMETER,
                 shell_thickness=Config.Sphere.SHELL_THICKNESS,
             )
-            self.node_creator: SphereGridNodeCreator = SphereGridNodeCreator()
         elif case_shape == CaseShape.BOX:
-            self.casing: BoxCasing = BoxCasing(
+            self.casing = BoxCasing(
                 width=Config.Box.WIDTH,
                 height=Config.Box.HEIGHT,
                 length=Config.Box.LENGTH,
                 panel_thickness=Config.Box.PANEL_THICKNESS,
             )
-            self.node_creator: BoxGridNodeCreator = BoxGridNodeCreator()
+        elif case_shape == CaseShape.CYLINDER:
+            self.casing = CylinderCasing(
+                diameter=Config.Cylinder.DIAMETER,
+                height=Config.Cylinder.HEIGHT,
+                shell_thickness=Config.Cylinder.SHELL_THICKNESS,
+            )
         else:
-            raise ValueError(f"Unknown case_shape '{case_shape}' specified.")
+            raise ValueError(f"Unknown case_shape '{case_shape}'.")
 
         # Initialize the pathfinder
-        self.pathfinder: AStarPathFinder = AStarPathFinder()
+        self.path_finder: AStarPathFinder = AStarPathFinder()
 
-        # Generate nodes using the node creator
-        self.nodes: List[Node]
-        self.node_dict: Dict[Tuple[float, float, float], Node]
-        self.start_node: Node
-        self.nodes, self.node_dict, self.start_node = self.node_creator.create_nodes(
-            self
-        )
+        # nodes, dict, start from casing
+        self.nodes, self.node_dict, self.start_node = self.casing.create_nodes(self)
 
         # Define mounting waypoints
         self.define_mounting_waypoints()
@@ -84,16 +76,10 @@ class Puzzle:
         self.randomly_select_waypoints(num_waypoints=Config.Puzzle.NUMBER_OF_WAYPOINTS)
 
         # Connect the waypoints using the pathfinder
-        self.total_path: List[Node] = self.pathfinder.connect_waypoints(self)
+        self.total_path: List[Node] = self.path_finder.connect_waypoints(self)
 
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
-
-    def get_neighbors(self, node: Node) -> List[Node]:
-        """
-        Delegates neighbor retrieval to the node creator.
-        """
-        return self.node_creator.get_neighbors(node, self.node_dict, self.node_size)
 
     def define_mounting_waypoints(self) -> None:
         """
@@ -106,10 +92,6 @@ class Puzzle:
     ) -> None:
         """
         Randomly occupies a percentage of nodes within the casing as obstacles.
-
-        Parameters:
-            min_percentage (int, optional): Minimum percentage of nodes to occupy. Defaults to 0.
-            max_percentage (int, optional): Maximum percentage of nodes to occupy. Defaults to 0.
         """
         random.seed(self.seed)
 
@@ -125,10 +107,6 @@ class Puzzle:
     ) -> None:
         """
         Randomly selects waypoints from unoccupied nodes, ensuring they are spread out.
-
-        Parameters:
-            num_waypoints (int, optional): Number of waypoints to select. Defaults to 5.
-            num_candidates (int, optional): Number of candidate nodes to consider when selecting each waypoint. Defaults to 10.
         """
         # Select unoccupied nodes
         unoccupied_nodes: List[Node] = [
@@ -188,7 +166,7 @@ class Puzzle:
         print("      PUZZLE INFORMATION")
         print("=" * 30)
 
-        # --- Configuration Summary ---
+        # Configuration Summary
         print("\n--- Configuration Summary ---")
         print(f"Seed: {self.seed}")
         print(f"Case Shape: {self.case_shape.value}")
@@ -206,7 +184,7 @@ class Puzzle:
             )
         print(f"Requested Waypoints: {Config.Puzzle.NUMBER_OF_WAYPOINTS}")
 
-        # --- Allowed Settings ---
+        # Allowed Settings
         print("\n--- Allowed Path Settings (from Config) ---")
         print(
             f"Allowed Curve Models: {', '.join(m.value for m in Config.Path.PATH_CURVE_MODEL)}"
@@ -218,7 +196,7 @@ class Puzzle:
             f"Allowed Curve Types for Detection: {', '.join(c.value for c in Config.Path.PATH_CURVE_TYPE)}"
         )
 
-        # --- Node Grid Summary ---
+        # Node Grid Summary
         print("\n--- Node Grid Summary ---")
         total_nodes_generated = len(self.nodes)
         print(f"Total Nodes Generated: {total_nodes_generated}")
@@ -238,7 +216,7 @@ class Puzzle:
         )
         print(f"Total Waypoints in Grid: {len(all_waypoints_in_grid)}")
 
-        # --- Start Waypoint Pattern/Stats Logic ---
+        # Start Waypoint Pattern/Stats Logic
         waypoint_labels = []
         last_wp_node = None  # Track the actual node to avoid duplicates
 
@@ -300,7 +278,7 @@ class Puzzle:
 
         else:  # If no self.total_path
             print("Waypoint Stats: No path generated.")
-        # --- End Waypoint Pattern/Stats Logic ---
+        # End Waypoint Pattern/Stats Logic
 
         if start_node:
             print(
@@ -311,16 +289,15 @@ class Puzzle:
                 f"End Node   X: {end_node.x:.1f}, Y: {end_node.y:.1f}, Z: {end_node.z:.1f}"
             )
 
-        if isinstance(self.node_creator, SphereGridNodeCreator):
-            rect_count = sum(
-                1
-                for node in self.nodes
-                if NodeGridType.CIRCULAR.value not in node.grid_type
-            )
-            circ_count = len(self.nodes) - rect_count
-            print(f"Node Grid Types: Rectangular={rect_count}, Circular={circ_count}")
+        rect_count = sum(
+            1
+            for node in self.nodes
+            if NodeGridType.CIRCULAR.value not in node.grid_type
+        )
+        circ_count = len(self.nodes) - rect_count
+        print(f"Node Grid Types: Rectangular={rect_count}, Circular={circ_count}")
 
-        # --- Path Summary ---
+        # Path Summary
         print("\n--- Path Summary ---")
         total_path_nodes = len(self.total_path) if self.total_path else 0
         num_segments = (
@@ -334,7 +311,7 @@ class Puzzle:
             avg_nodes_per_segment = total_path_nodes / num_segments
             print(f"Average Nodes per Segment: {avg_nodes_per_segment:.1f}")
 
-        # --- Segment Details ---
+        # Segment Details
         if num_segments > 0:
             print("\n--- Segment Details ---")
             segments = self.path_architect.segments
@@ -390,16 +367,16 @@ class Puzzle:
     def _check_node_connectivity(self) -> None:
         """
         Verify every node has ≥1 neighbour
+        # TODO if a node like this is found, and it's not the start node, remove it, log warning
         """
 
-        max_report = 10  # limit in case something went really wrong
-        isolated = [n for n in self.nodes if not self.get_neighbors(n)]
+        max_report = 10
+        isolated = [n for n in self.nodes if not self.path_finder.get_neighbors(self, n)]
         if len(isolated) > 0:
             msg = (
                 f"[DEBUG] {len(isolated)} isolated nodes detected "
                 f"({sum(1 for n in isolated if n.puzzle_start)} of them are the start node)."
             )
-
             print(msg)
             for n in isolated[:max_report]:
                 tag = "  <-- START" if n is self.start_node else ""

@@ -79,6 +79,13 @@ class Box:
     PANEL_THICKNESS = 3  # Thickness of the box panels in mm
 
 
+class Cylinder:
+    DIAMETER = 120.0
+    HEIGHT = 180.0
+    SHELL_THICKNESS = 4.0
+    NUMBER_OF_MOUNTING_POINTS = 4
+
+
 # Path curves and profile configuration
 class Path:
     PATH_CURVE_MODEL = [
@@ -221,6 +228,7 @@ class Config:
     Puzzle = Puzzle
     Sphere = Sphere
     Box = Box
+    Cylinder = Cylinder
     Path = Path
     Manufacturing = Manufacturing
     Obstacles = Obstacles

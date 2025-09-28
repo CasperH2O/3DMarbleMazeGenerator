@@ -10,7 +10,7 @@ from scipy import interpolate
 from cad.cases.case import Case
 from cad.path_segment import PathSegment
 from config import PathCurveModel, PathCurveType
-from puzzle.casing import BoxCasing, SphereCasing
+from puzzle.cases import BoxCasing, CylinderCasing, SphereCasing
 from puzzle.node import Node, NodeGridType
 
 
@@ -161,8 +161,79 @@ def plot_casing(casing: Case):
         return plot_sphere_casing(casing)
     elif isinstance(casing, BoxCasing):
         return plot_box_casing(casing)
+    elif isinstance(casing, CylinderCasing):
+        return plot_cylinder_casing(casing)
     else:
         raise ValueError(f"Unsupported casing type: {type(casing)}")
+
+
+def plot_cylinder_casing(casing: CylinderCasing):
+    """
+    Draw a minimal wireframe for a vertical cylinder centered at the origin:
+    - Top and bottom circles (z = ±half_height)
+    - A set of vertical lines to suggest the side wall
+    """
+    r = casing.inner_radius
+    z_top = casing.half_height
+    z_bot = -casing.half_height
+
+    casing_traces = []
+
+    # top and bottom circles
+    theta = np.linspace(0, 2 * np.pi, 100)
+
+    x_top = r * np.cos(theta)
+    y_top = r * np.sin(theta)
+    z_top_arr = np.full_like(theta, z_top)
+
+    top_circle = go.Scatter3d(
+        x=x_top,
+        y=y_top,
+        z=z_top_arr,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(top_circle)
+
+    x_bot = r * np.cos(theta)
+    y_bot = r * np.sin(theta)
+    z_bot_arr = np.full_like(theta, z_bot)
+
+    bottom_circle = go.Scatter3d(
+        x=x_bot,
+        y=y_bot,
+        z=z_bot_arr,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(bottom_circle)
+
+    # vertical generator lines (evenly spaced by angle)
+    n_generators = 8
+    gen_angles = np.linspace(0, 2 * np.pi, n_generators, endpoint=False)
+
+    x_lines, y_lines, z_lines = [], [], []
+    for a in gen_angles:
+        x = r * np.cos(a)
+        y = r * np.sin(a)
+        # line from bottom to top, then None to break
+        x_lines.extend([x, x, None])
+        y_lines.extend([y, y, None])
+        z_lines.extend([z_bot, z_top, None])
+
+    verticals = go.Scatter3d(
+        x=x_lines,
+        y=y_lines,
+        z=z_lines,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(verticals)
+
+    return casing_traces
 
 
 def plot_sphere_casing(casing: SphereCasing):

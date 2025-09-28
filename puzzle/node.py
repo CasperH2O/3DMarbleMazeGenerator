@@ -48,6 +48,7 @@ class Node:
         self.puzzle_end: bool = False  # End of the puzzle
         self.mounting: bool = False  # Mounting node, connects to mounting bridge
 
+        # TODO is path profile type and path curve type required as property for nodes?
         self.path_profile_type: Optional[PathProfileType] = (
             None  # Type of path profile shape
         )

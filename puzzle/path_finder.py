@@ -3,8 +3,10 @@
 import heapq
 from typing import Any, List, Optional, Set, Tuple
 
-from puzzle.node import Node
-from puzzle.utils.distances import euclidean_distance, manhattan_distance
+from puzzle.node import Node, NodeGridType
+from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
+
+Coordinate = Tuple[float, float, float]
 
 
 class AStarPathFinder:
@@ -12,23 +14,103 @@ class AStarPathFinder:
     Finds paths between nodes in a puzzle grid using the A* algorithm.
     Includes logic to connect a series of waypoints, aiming for an even
     distribution between 'mounting' and 'non-mounting' types, while ensuring
-    all mounting waypoints are visited.
+    all mounting waypoints are visited. Also provides neighbor generation.
     """
+
+    def get_neighbors(
+        self,
+        puzzle: Any,
+        node: Node,
+    ) -> List[Tuple[Node, float]]:
+        """
+        Get neighboring nodes for a given node in the grid.
+
+        - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
+        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed within a certain range
+        - Moves between two circular nodes, closest two on the same plane
+        - TODO Movest between two circular node, closest one, one plane higher, closest one, one plane lower
+
+        Each neighbor is returned as a tuple: (neighbor, cost), cost being the distance
+        """
+        node_dict = puzzle.node_dict
+        node_size = puzzle.node_size
+        neighbors: List[Tuple[Node, float]] = []
+        tolerance = node_size * 0.1  # tolerance to decide if coordinates are "the same"
+
+        # Cardinal moves (exactly one axis differs, using exact grid offsets)
+        cardinal_offsets: List[Coordinate] = [
+            (node_size, 0, 0),
+            (-node_size, 0, 0),
+            (0, node_size, 0),
+            (0, -node_size, 0),
+            (0, 0, node_size),
+            (0, 0, -node_size),
+        ]
+        for dx, dy, dz in cardinal_offsets:
+            coord = key3(node.x + dx, node.y + dy, node.z + dz)
+            candidate = node_dict.get(coord)
+            if candidate:
+                neighbors.append((candidate, node_size))
+                # print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
+
+        # Examine all nodes for near-cardinal and closest circular node connections.
+        for candidate in node_dict.values():
+            if candidate is node:
+                continue
+
+            dx = abs(candidate.x - node.x)
+            dy = abs(candidate.y - node.y)
+            dz = abs(candidate.z - node.z)
+            distance = (dx**2 + dy**2 + dz**2) ** 0.5
+
+            # Count how many coordinates differ significantly (beyond tolerance)
+            diff_count = sum(1 for d in (dx, dy, dz) if d > tolerance)
+
+            # Near-cardinal move: exactly one axis differs,
+            # and allowed only if one node is circular and the other is not.
+            if diff_count == 1 and (
+                (NodeGridType.CIRCULAR.value in node.grid_type)
+                ^ (NodeGridType.CIRCULAR.value in candidate.grid_type)
+            ):
+                if distance <= 2 * node_size - tolerance:
+                    cost = distance
+                    neighbors.append((candidate, cost))
+                    # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+
+        # If we're on the circular ring, link to the two closest circular neighbors (by straight-line distance).
+        if NodeGridType.CIRCULAR.value in node.grid_type:
+            tol_z = tolerance  # stay on the ring plane
+            circ_candidates: list[tuple[Node, float]] = []
+            for candinate_node in node_dict.values():
+                if candinate_node is node:
+                    continue  # skip same node
+                if NodeGridType.CIRCULAR.value not in candinate_node.grid_type:
+                    continue  # candidate node needs to also be circular
+                if abs(candinate_node.z - node.z) > tol_z:
+                    continue  # ensure same z-plane (circulars are at z=0)
+
+                dx = candinate_node.x - node.x
+                dy = candinate_node.y - node.y
+                dz = candinate_node.z - node.z
+                distance = (dx * dx + dy * dy + dz * dz) ** 0.5
+                if (
+                    distance > tolerance
+                ):  # guard against any accidental duplicates at same coord
+                    circ_candidates.append((candinate_node, distance))
+
+            # Take the two closest circular neighbors
+            circ_candidates.sort(key=lambda t: t[1])
+            for candinate_node, distance in circ_candidates[:2]:
+                neighbors.append((candinate_node, distance))
+
+        # print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
+        return neighbors
 
     def find_path(
         self, start_node: Node, goal_node: Node, puzzle: Any
     ) -> Optional[List[Node]]:
         """
         Implements the A* pathfinding algorithm to find the cheapest path between two nodes.
-
-        Parameters:
-            start_node (Node): The starting node.
-            goal_node (Node): The goal node.
-            puzzle (Any): The puzzle object containing the node grid and neighbor logic.
-
-        Returns:
-            Optional[List[Node]]: The cheapest path as a list of nodes from start to goal,
-                                  or None if no path is found.
         """
         # Priority queue for nodes to visit, ordered by f-score (estimated total cost)
         open_set: List[Tuple[float, Node]] = []
@@ -61,7 +143,7 @@ class AStarPathFinder:
             closed_set.add(current_node)
 
             # Explore neighbors
-            neighbors_with_costs = puzzle.get_neighbors(current_node)
+            neighbors_with_costs = self.get_neighbors(puzzle, current_node)
             for neighbor, move_cost in neighbors_with_costs:
                 # Skip neighbors that have already been evaluated
                 if neighbor in closed_set:
@@ -99,12 +181,6 @@ class AStarPathFinder:
         """
         Reconstructs the path from the goal node back to the start node
         by following the parent pointers.
-
-        Parameters:
-            current_node (Node): The goal node where the pathfinding ended.
-
-        Returns:
-            List[Node]: The reconstructed path as a list of nodes, ordered start to goal.
         """
         path: List[Node] = []
         # Traverse backwards from the goal node using the parent links
@@ -121,15 +197,6 @@ class AStarPathFinder:
         """
         Finds the shortest path from the current node to the closest reachable
         candidate waypoint from the provided list.
-
-        Parameters:
-            current_node (Node): The node to start the search from.
-            candidates (List[Node]): A list of potential next waypoints.
-            puzzle (Any): The puzzle object.
-
-        Returns:
-            Tuple[Optional[Node], Optional[List[Node]]]: A tuple containing the chosen
-            candidate node and the path to it, or (None, None) if no candidate is reachable.
         """
         # Sort candidates by Euclidean distance as a heuristic for closeness
         candidates.sort(key=lambda node: euclidean_distance(current_node, node))
@@ -154,11 +221,6 @@ class AStarPathFinder:
         """
         Checks if all required mounting waypoints were included in the path.
         Prints an error message for any missing waypoints.
-
-        Parameters:
-            initial_mounting (List[Node]): The original list of mounting waypoints.
-            visited_waypoints (Set[Node]): The set of waypoints actually visited.
-            start_node (Node): The puzzle's start node.
         """
         # Identify mounting waypoints that should have been visited but weren't
         missed_mounting = [
@@ -181,12 +243,6 @@ class AStarPathFinder:
         """
         Enforces the rule that the path should end with at most one non-mounting
         waypoint after the last mounting waypoint. Trims the path if necessary.
-
-        Parameters:
-            total_path (List[Node]): The generated path before trimming.
-
-        Returns:
-            List[Node]: The potentially trimmed path.
         """
         if not total_path:
             return []  # Nothing to trim
@@ -249,13 +305,6 @@ class AStarPathFinder:
         Connects all waypoints defined in the puzzle, starting from the puzzle's
         start node. It aims for an even distribution of mounting vs. non-mounting
         waypoints and ensures all mounting waypoints are included.
-
-        Parameters:
-            puzzle (Any): The puzzle object containing nodes, waypoints, start_node, etc.
-
-        Returns:
-            List[Node]: The generated path connecting the waypoints, or an empty list if
-                        path construction fails.
         """
         # --- 1. Initialization ---
         all_waypoints = [node for node in puzzle.nodes if node.waypoint]
@@ -433,9 +482,6 @@ class AStarPathFinder:
         Resets the pathfinding attributes (g, h, f, parent) of all nodes.
         This is crucial before starting a new A* search to clear previous run data.
         It does NOT reset the 'occupied' status.
-
-        Parameters:
-            nodes (List[Node]): The list of all nodes in the puzzle.
         """
         for node in nodes:
             node.g = float("inf")  # Cost from start
@@ -448,11 +494,6 @@ class AStarPathFinder:
         Marks the nodes in the provided path segment as occupied. This prevents
         them from being reused in subsequent pathfinding searches (unless they
         are the target goal node).
-
-        Parameters:
-            path (List[Node]): The path segment whose nodes are to be marked as occupied.
-                               Typically excludes the starting node of the segment as it
-                               was the end node of the previous segment.
         """
         for node in path:
             # Mark node as occupied if it isn't already

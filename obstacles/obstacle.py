@@ -25,7 +25,7 @@ from ocp_vscode import show
 import config
 from cad.path_profile_type_shapes import PathProfileType, create_u_shape
 from cad.path_segment import PathSegment
-from puzzle.casing import SphereCasing
+from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node
 from visualization.visualization_helpers import (
     plot_casing,
