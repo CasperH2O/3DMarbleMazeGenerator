@@ -28,7 +28,7 @@ class AStarPathFinder:
         - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
         - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed within a certain range
         - Moves between two circular nodes, closest two on the same plane
-        - TODO Movest between two circular node, closest one, one plane higher, closest one, one plane lower
+        - Circular node cross-plane links: connect to closest circular node on the plane one step above and one step below (z ± node_size)
 
         Each neighbor is returned as a tuple: (neighbor, cost), cost being the distance
         """
@@ -61,7 +61,6 @@ class AStarPathFinder:
             dx = abs(candidate.x - node.x)
             dy = abs(candidate.y - node.y)
             dz = abs(candidate.z - node.z)
-            distance = (dx**2 + dy**2 + dz**2) ** 0.5
 
             # Count how many coordinates differ significantly (beyond tolerance)
             diff_count = sum(1 for d in (dx, dy, dz) if d > tolerance)
@@ -72,36 +71,56 @@ class AStarPathFinder:
                 (NodeGridType.CIRCULAR.value in node.grid_type)
                 ^ (NodeGridType.CIRCULAR.value in candidate.grid_type)
             ):
-                if distance <= 2 * node_size - tolerance:
-                    cost = distance
-                    neighbors.append((candidate, cost))
-                    # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z}) with cost {cost}, distance {distance}")
+                # Keep within ~2 steps along that axis
+                if euclidean_distance(node, candidate) <= 2 * node_size - tolerance:
+                    neighbors.append((candidate, euclidean_distance(node, candidate)))
+                    # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z})")
 
-        # If we're on the circular ring, link to the two closest circular neighbors (by straight-line distance).
+        # If we're on the circular ring, link to the two closest circular neighbors (same plane).
         if NodeGridType.CIRCULAR.value in node.grid_type:
-            tol_z = tolerance  # stay on the ring plane
-            circ_candidates: list[tuple[Node, float]] = []
-            for candinate_node in node_dict.values():
-                if candinate_node is node:
-                    continue  # skip same node
-                if NodeGridType.CIRCULAR.value not in candinate_node.grid_type:
-                    continue  # candidate node needs to also be circular
-                if abs(candinate_node.z - node.z) > tol_z:
-                    continue  # ensure same z-plane (circulars are at z=0)
+            same_plane_tol = tolerance  # stay on the ring plane
+            circ_same_plane: list[tuple[Node, float]] = []
+            for candidate_node in node_dict.values():
+                if candidate_node is node:
+                    continue
+                if NodeGridType.CIRCULAR.value not in candidate_node.grid_type:
+                    continue
+                if abs(candidate_node.z - node.z) > same_plane_tol:
+                    continue  # ensure same z-plane (e.g., z == node.z within tol)
 
-                dx = candinate_node.x - node.x
-                dy = candinate_node.y - node.y
-                dz = candinate_node.z - node.z
-                distance = (dx * dx + dy * dy + dz * dz) ** 0.5
+                dist = euclidean_distance(node, candidate_node)
                 if (
-                    distance > tolerance
-                ):  # guard against any accidental duplicates at same coord
-                    circ_candidates.append((candinate_node, distance))
+                    dist > tolerance
+                ):  # guard against accidental duplicates at same coord
+                    circ_same_plane.append((candidate_node, dist))
 
-            # Take the two closest circular neighbors
-            circ_candidates.sort(key=lambda t: t[1])
-            for candinate_node, distance in circ_candidates[:2]:
-                neighbors.append((candinate_node, distance))
+            # Take the two closest circular neighbors (same plane)
+            circ_same_plane.sort(key=lambda t: t[1])
+            for candidate_node, dist in circ_same_plane[:2]:
+                neighbors.append((candidate_node, dist))
+
+            # Cross-plane circular neighbors — look exactly one plane above and one plane below (z ± node_size)
+            plane_tol = tolerance  # z tolerance when matching planes
+            target_z_above = node.z + node_size
+            target_z_below = node.z - node_size
+
+            # Helper: pick closest circular node on a specific z plane (within plane_tol)
+            def add_best_on_plane(target_z: float) -> None:
+                plane_nodes = [
+                    cn
+                    for cn in node_dict.values()
+                    if cn is not node
+                    and NodeGridType.CIRCULAR.value in cn.grid_type
+                    and abs(cn.z - target_z) <= plane_tol
+                ]
+                if not plane_nodes:
+                    return
+                best = min(plane_nodes, key=lambda cn: euclidean_distance(node, cn))
+                neighbors.append((best, euclidean_distance(node, best)))
+
+            # Add one above and one below if present
+            add_best_on_plane(target_z_above)
+            add_best_on_plane(target_z_below)
 
         # print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
         return neighbors
