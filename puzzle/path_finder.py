@@ -21,7 +21,7 @@ class AStarPathFinder:
         self,
         puzzle: Any,
         node: Node,
-    ) -> List[Tuple[Node, float]]:
+    ) -> list[Tuple[Node, float]]:
         """
         Get neighboring nodes for a given node in the grid.
 
@@ -34,11 +34,11 @@ class AStarPathFinder:
         """
         node_dict = puzzle.node_dict
         node_size = puzzle.node_size
-        neighbors: List[Tuple[Node, float]] = []
+        neighbors: list[Tuple[Node, float]] = []
         tolerance = node_size * 0.1  # tolerance to decide if coordinates are "the same"
 
         # Cardinal moves (exactly one axis differs, using exact grid offsets)
-        cardinal_offsets: List[Coordinate] = [
+        cardinal_offsets: list[Coordinate] = [
             (node_size, 0, 0),
             (-node_size, 0, 0),
             (0, node_size, 0),
@@ -127,12 +127,12 @@ class AStarPathFinder:
 
     def find_path(
         self, start_node: Node, goal_node: Node, puzzle: Any
-    ) -> Optional[List[Node]]:
+    ) -> Optional[list[Node]]:
         """
         Implements the A* pathfinding algorithm to find the cheapest path between two nodes.
         """
         # Priority queue for nodes to visit, ordered by f-score (estimated total cost)
-        open_set: List[Tuple[float, Node]] = []
+        open_set: list[Tuple[float, Node]] = []
         # Set of nodes already evaluated
         closed_set: Set[Node] = set()
 
@@ -196,12 +196,12 @@ class AStarPathFinder:
         # If the open set becomes empty and the goal was not reached, no path exists
         return None
 
-    def reconstruct_path(self, current_node: Node) -> List[Node]:
+    def reconstruct_path(self, current_node: Node) -> list[Node]:
         """
         Reconstructs the path from the goal node back to the start node
         by following the parent pointers.
         """
-        path: List[Node] = []
+        path: list[Node] = []
         # Traverse backwards from the goal node using the parent links
         while current_node:
             path.append(current_node)
@@ -211,8 +211,8 @@ class AStarPathFinder:
         return path
 
     def _find_best_path_to_candidate(
-        self, current_node: Node, candidates: List[Node], puzzle: Any
-    ) -> Tuple[Optional[Node], Optional[List[Node]]]:
+        self, current_node: Node, candidates: list[Node], puzzle: Any
+    ) -> Tuple[Optional[Node], Optional[list[Node]]]:
         """
         Finds the shortest path from the current node to the closest reachable
         candidate waypoint from the provided list.
@@ -233,7 +233,7 @@ class AStarPathFinder:
 
     def _verify_mounting_waypoints_visited(
         self,
-        initial_mounting: List[Node],
+        initial_mounting: list[Node],
         visited_waypoints: Set[Node],
         start_node: Node,
     ) -> None:
@@ -258,7 +258,7 @@ class AStarPathFinder:
                 )
             # Consider raising an exception or returning a failure status if this is critical
 
-    def _trim_path_end_condition(self, total_path: List[Node]) -> List[Node]:
+    def _trim_path_end_condition(self, total_path: list[Node]) -> list[Node]:
         """
         Enforces the rule that the path should end with at most one non-mounting
         waypoint after the last mounting waypoint. Trims the path if necessary.
@@ -319,7 +319,7 @@ class AStarPathFinder:
             # Path already satisfies the end condition
             return total_path
 
-    def connect_waypoints(self, puzzle: Any) -> List[Node]:
+    def connect_waypoints(self, puzzle: Any) -> list[Node]:
         """
         Connects all waypoints defined in the puzzle, starting from the puzzle's
         start node. It aims for an even distribution of mounting vs. non-mounting
@@ -366,7 +366,7 @@ class AStarPathFinder:
             target_non_mounting_per_gap = float("inf") if remaining_non_mounting else 0
 
         # --- 3. Path Construction Loop ---
-        total_path: List[Node] = [start_node]  # Start the path with the initial node
+        total_path: list[Node] = [start_node]  # Start the path with the initial node
         current_node: Node = start_node
         # Keep track of waypoints added to the path to avoid duplicates and verify completion
         visited_waypoints: Set[Node] = {start_node} if start_node.waypoint else set()
@@ -404,7 +404,7 @@ class AStarPathFinder:
                         target_mounting = True
 
             # --- Select candidates and find the best path ---
-            candidates: List[Node]
+            candidates: list[Node]
             candidate_type_str = "Mounting" if target_mounting else "Non-Mounting"
 
             if target_mounting:
@@ -496,7 +496,7 @@ class AStarPathFinder:
         # print(f"--- connect_waypoints Finished. Final Path Length: {len(total_path)} nodes ---")
         return total_path
 
-    def reset_nodes(self, nodes: List[Node]) -> None:
+    def reset_nodes(self, nodes: list[Node]) -> None:
         """
         Resets the pathfinding attributes (g, h, f, parent) of all nodes.
         This is crucial before starting a new A* search to clear previous run data.
@@ -508,7 +508,7 @@ class AStarPathFinder:
             node.f = float("inf")  # Total estimated cost
             node.parent = None  # Path reconstruction link
 
-    def occupy_path(self, path: List[Node]) -> None:
+    def occupy_path(self, path: list[Node]) -> None:
         """
         Marks the nodes in the provided path segment as occupied. This prevents
         them from being reused in subsequent pathfinding searches (unless they

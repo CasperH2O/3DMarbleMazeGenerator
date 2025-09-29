@@ -7,12 +7,12 @@ from config import Path, PathCurveType
 from puzzle.node import Node
 
 
-def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
+def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
     """
     Detect curves in the given nodes based on the configuration.
 
     Args:
-        nodes (List[Node]): A list of nodes to analyze for curves.
+        nodes (list[Node]): A list of nodes to analyze for curves.
         curve_id_counter (int): The starting curve ID.
 
     Returns:
@@ -30,7 +30,7 @@ def detect_curves(nodes: List[Node], curve_id_counter: int) -> int:
     return curve_id_counter
 
 
-def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
+def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
     s_curve_length = 6  # Number of nodes in an S-curve
     if len(nodes) < s_curve_length:
         return curve_id_counter  # Not enough nodes to form an S-curve
@@ -79,12 +79,12 @@ def detect_s_curves(nodes: List[Node], curve_id_counter: int) -> int:
     return curve_id_counter
 
 
-def detect_circular_segments(nodes: List[Node], curve_id_counter: int) -> int:
+def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
     """
     Detects consecutive nodes with a circular grid type and marks them as ARC curves.
 
     Args:
-        nodes (List[Node]): The list of nodes to process.
+        nodes (list[Node]): The list of nodes to process.
         curve_id_counter (int): The current curve ID counter.
 
     Returns:
@@ -110,7 +110,7 @@ def detect_circular_segments(nodes: List[Node], curve_id_counter: int) -> int:
     return curve_id_counter
 
 
-def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
+def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
     curve_lengths = [
         5,
         3,
@@ -144,14 +144,14 @@ def detect_arcs(nodes: List[Node], curve_id_counter: int) -> int:
     return curve_id_counter
 
 
-def is_in_plane(pts: List[Node]) -> bool:
+def is_in_plane(pts: list[Node]) -> bool:
     x_vals = [pt.x for pt in pts]
     y_vals = [pt.y for pt in pts]
     z_vals = [pt.z for pt in pts]
     return len(set(x_vals)) == 1 or len(set(y_vals)) == 1 or len(set(z_vals)) == 1
 
 
-def is_linear(pts: List[Node], axis: str) -> bool:
+def is_linear(pts: list[Node], axis: str) -> bool:
     if axis == "x":
         return all(pt.y == pts[0].y and pt.z == pts[0].z for pt in pts)
     elif axis == "y":
@@ -165,7 +165,7 @@ def vector_between_nodes(n1: Node, n2: Node):
     return n2.x - n1.x, n2.y - n1.y, n2.z - n1.z
 
 
-def check_90_deg_curve(segment: List[Node]) -> bool:
+def check_90_deg_curve(segment: list[Node]) -> bool:
     if not is_in_plane(segment):
         return False
 
@@ -220,7 +220,7 @@ def check_90_deg_curve(segment: List[Node]) -> bool:
     return True
 
 
-def all_vectors_aligned_in_plane(pts: List[Node], plane_axes: List[str]) -> bool:
+def all_vectors_aligned_in_plane(pts: list[Node], plane_axes: list[str]) -> bool:
     if len(pts) < 2:
         return True  # Not enough points to check alignment
 
@@ -239,7 +239,7 @@ def all_vectors_aligned_in_plane(pts: List[Node], plane_axes: List[str]) -> bool
     return True
 
 
-def vector_in_plane(n1: Node, n2: Node, plane_axes: List[str]):
+def vector_in_plane(n1: Node, n2: Node, plane_axes: list[str]):
     v = []
     for axis in plane_axes:
         coord1 = getattr(n1, axis)

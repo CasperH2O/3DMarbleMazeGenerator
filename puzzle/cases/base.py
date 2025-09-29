@@ -16,13 +16,13 @@ class Casing(ABC):
         pass
 
     @abstractmethod
-    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+    def get_mounting_waypoints(self, nodes: list[Node]) -> list[Node]:
         """Mark & return mounting waypoint nodes inside 'nodes'."""
         pass
 
     @abstractmethod
     def create_nodes(
         self, puzzle: Any
-    ) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
+    ) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
         """Return (nodes, node_dict, start_node) for this casing."""
         pass

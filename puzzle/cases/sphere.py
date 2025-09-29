@@ -21,7 +21,7 @@ class SphereCasing(Casing):
     def contains_point(self, x: float, y: float, z: float) -> bool:
         return x * x + y * y + z * z <= self.inner_radius**2
 
-    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+    def get_mounting_waypoints(self, nodes: list[Node]) -> list[Node]:
         """
         Get mounting waypoints for the spherical casing.
         """
@@ -60,11 +60,11 @@ class SphereCasing(Casing):
 
     def create_nodes(
         self, puzzle: Any
-    ) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
+    ) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
         """
         Create nodes for a spherical grid based on the provided puzzle configuration.
         """
-        nodes: List[Node] = []
+        nodes: list[Node] = []
         node_size: float = puzzle.node_size
         casing = puzzle.casing
 
@@ -79,11 +79,11 @@ class SphereCasing(Casing):
 
         start_pos: float = -(num_cubes_along_axis // 2) * node_size
 
-        x_values: List[float] = [
+        x_values: list[float] = [
             start_pos + i * node_size for i in range(num_cubes_along_axis)
         ]
-        y_values: List[float] = x_values
-        z_values: List[float] = x_values
+        y_values: list[float] = x_values
+        z_values: list[float] = x_values
 
         effective_radius_squared: float = effective_radius**2
 
@@ -200,7 +200,7 @@ class SphereCasing(Casing):
                 del node_dict[key]
 
         # Define the start node by extending the x-axis in the negative direction
-        x_axis_nodes: List[Node] = [
+        x_axis_nodes: list[Node] = [
             node for node in nodes if abs(node.y) < 1e-3 and node.z == 0
         ]
         min_x: float = min(node.x for node in x_axis_nodes) if x_axis_nodes else 0

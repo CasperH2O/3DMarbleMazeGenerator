@@ -520,7 +520,7 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             self.internal_path_bridges.part,
         ]
 
-    def create_cut_shape(self) -> Part:
+    def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.5
         radius_outer = self.sphere_flange_diameter * 0.7
         radius_inner = self.sphere_flange_inner_radius - flush_distance_tolerance

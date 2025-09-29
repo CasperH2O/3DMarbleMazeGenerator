@@ -19,10 +19,10 @@ from . import curve_detection
 
 
 class PathArchitect:
-    def __init__(self, nodes: List[Node]):
+    def __init__(self, nodes: list[Node]):
         # Inputs
         self.nodes = nodes
-        self.segments: List[PathSegment] = []
+        self.segments: list[PathSegment] = []
         self.main_index_counter = 1  # Main index counter
         self.secondary_index_counters = {}  # Dictionary to track secondary indices per main_index
 
@@ -93,7 +93,7 @@ class PathArchitect:
             )
             self.main_index_counter += 1
 
-    def _create_segment(self, nodes: List[Node], main_index: int):
+    def _create_segment(self, nodes: list[Node], main_index: int):
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
 
@@ -320,8 +320,8 @@ class PathArchitect:
                 i += 1
 
     def _split_segment_by_detected_curves(
-        self, nodes: List[Node], original_segment: PathSegment
-    ) -> List[PathSegment]:
+        self, nodes: list[Node], original_segment: PathSegment
+    ) -> list[PathSegment]:
         """
         Splits a given path segment into multiple segments based on detected curves and ensures continuity
         between adjacent curves by creating connecting segments when necessary.
@@ -331,11 +331,11 @@ class PathArchitect:
         a connecting segment between them to maintain path continuity.
 
         Args:
-            nodes (List[Node]): The list of nodes with curve detection information.
+            nodes (list[Node]): The list of nodes with curve detection information.
             original_segment: The original path segment to be split.
 
         Returns:
-            List[PathSegment]: A list of new path segments resulting from splitting the original segment.
+            list[PathSegment]: A list of new path segments resulting from splitting the original segment.
         """
         split_segments = []
         current_segment_nodes = []
@@ -724,7 +724,7 @@ class PathArchitect:
         return new_segments
 
     def make_circular_run(
-        self, original: PathSegment, run_nodes: List[Node], is_circ: bool
+        self, original: PathSegment, run_nodes: list[Node], is_circ: bool
     ) -> PathSegment:
         """
         Given a slice of nodes all sharing the same circular‐flag, make a new

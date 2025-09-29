@@ -26,7 +26,7 @@ class CaseSphere(Case):
         self.casing = self.create_casing()
         self.cut_shape = self.create_cut_shape()
 
-    def create_casing(self) -> Part:
+    def create_casing(self) -> BuildPart:
         with BuildPart() as casing:
             # Create an initial sphere
             Sphere(self.outer_radius)
@@ -34,14 +34,14 @@ class CaseSphere(Case):
             offset(amount=-self.shell_thickness, mode=Mode.SUBTRACT)
         return casing
 
-    def get_parts(self) -> List[Part]:
+    def get_parts(self) -> list[Part]:
         # Assign name and color to the casing part
         self.casing.part.label = CasePart.CASING.value
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         return [self.casing.part]
 
-    def create_cut_shape(self) -> Part:
+    def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.4  # Ensure flush with case
 
         with BuildPart() as cut_shape:

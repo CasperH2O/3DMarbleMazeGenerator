@@ -5,16 +5,16 @@ from puzzle.node import Node, NodeGridType
 
 
 # Helper methods
-def make_node(x: float, type: NodeGridType = None) -> Node:
+def make_node(x: float, grid_type: NodeGridType = None) -> Node:
     """
     Build a Node with only the attributes that `PathArchitect.adjust_segments`
     actually inspects (x, y, z, grid_type).  Everything else can keep the
     library defaults.
     """
     node = Node(x, 0, 0)  # y = z = 0 keeps things simple
-    if type == NodeGridType.CIRCULAR:
+    if grid_type == NodeGridType.CIRCULAR:
         node.grid_type.append(NodeGridType.CIRCULAR.value)
-    elif type == NodeGridType.RECTANGULAR:
+    elif grid_type == NodeGridType.RECTANGULAR:
         node.grid_type.append(NodeGridType.RECTANGULAR.value)
     return node
 
@@ -107,11 +107,11 @@ TOL = 1e-7
 def test_bridge_insert_pattern_a():
     segs = run_harmonise(
         # seg-A : non-circ(0)  →  circ(1)
-        [make_node(0), make_node(1, type=NodeGridType.CIRCULAR)],
+        [make_node(0), make_node(1, grid_type=NodeGridType.CIRCULAR)],
         # seg-B : circ(1)  →  circ(2)
         [
-            make_node(1, type=NodeGridType.CIRCULAR),
-            make_node(2, type=NodeGridType.CIRCULAR),
+            make_node(1, grid_type=NodeGridType.CIRCULAR),
+            make_node(2, grid_type=NodeGridType.CIRCULAR),
         ],
     )
 
@@ -146,11 +146,11 @@ def test_bridge_insert_pattern_b():
     segs = run_harmonise(
         # seg-A : circ(0) → circ(1)
         [
-            make_node(0, type=NodeGridType.CIRCULAR),
-            make_node(1, type=NodeGridType.CIRCULAR),
+            make_node(0, grid_type=NodeGridType.CIRCULAR),
+            make_node(1, grid_type=NodeGridType.CIRCULAR),
         ],
         # seg-B : circ(1) → non-circ(2)
-        [make_node(1, type=NodeGridType.CIRCULAR), make_node(2)],
+        [make_node(1, grid_type=NodeGridType.CIRCULAR), make_node(2)],
     )
 
     # three segments expected

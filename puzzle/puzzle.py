@@ -79,7 +79,7 @@ class Puzzle:
         self.randomly_select_waypoints(num_waypoints=Config.Puzzle.NUMBER_OF_WAYPOINTS)
 
         # Connect the waypoints using the pathfinder
-        self.total_path: List[Node] = self.path_finder.connect_waypoints(self)
+        self.total_path: list[Node] = self.path_finder.connect_waypoints(self)
 
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(self.total_path)
@@ -101,7 +101,7 @@ class Puzzle:
         percentage_to_occupy: int = random.randint(min_percentage, max_percentage)
         num_nodes_to_occupy: int = int(len(self.nodes) * (percentage_to_occupy / 100))
 
-        occupied_nodes: List[Node] = random.sample(self.nodes, num_nodes_to_occupy)
+        occupied_nodes: list[Node] = random.sample(self.nodes, num_nodes_to_occupy)
         for node in occupied_nodes:
             node.occupied = True
 
@@ -112,7 +112,7 @@ class Puzzle:
         Randomly selects waypoints from unoccupied nodes, ensuring they are spread out.
         """
         # Select unoccupied nodes
-        unoccupied_nodes: List[Node] = [
+        unoccupied_nodes: list[Node] = [
             node for node in self.nodes if not node.occupied
         ]
         if len(unoccupied_nodes) < num_waypoints:
@@ -124,10 +124,10 @@ class Puzzle:
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        waypoints: List[Node] = []
+        waypoints: list[Node] = []
         for _ in range(num_waypoints):
             # Generate candidates
-            candidates: List[Node] = random.sample(
+            candidates: list[Node] = random.sample(
                 unoccupied_nodes, min(num_candidates, len(unoccupied_nodes))
             )
 
@@ -391,7 +391,7 @@ class Puzzle:
                 degrees[n] = len(neighbors)
 
             # Candidates: non-start nodes with <= 1 neighbour
-            to_prune: List[Node] = [
+            to_prune: list[Node] = [
                 n for n, deg in degrees.items() if deg <= 1 and n is not self.start_node
             ]
 

@@ -61,8 +61,8 @@ class Obstacle(ABC):
 
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
-        self.occupied_nodes: Optional[List[Node]] = None
-        self.overlap_nodes: Optional[List[Node]] = None
+        self.occupied_nodes: Optional[list[Node]] = None
+        self.overlap_nodes: Optional[list[Node]] = None
         self.path_segment: Optional[PathSegment] = PathSegment(
             nodes=[(0, 0, 0)], main_index=0, secondary_index=0
         )
@@ -76,9 +76,6 @@ class Obstacle(ABC):
         """
         Creates the raw 3D geometry (Part) of the obstacle, typically centered
         at the origin before placement.
-
-        Returns:
-            Part: The Build123D Part representing the obstacle's shape.
         """
         pass
 
@@ -99,7 +96,7 @@ class Obstacle(ABC):
         ]
         return create_u_shape(**u_params, rotation_angle=rotation_angle)
 
-    def load_relative_node_coords(self):
+    def load_relative_node_coords(self) -> list[Node]:
         cache_dir = Path("obstacles/catalogue/cache")
         cache_dir.mkdir(parents=True, exist_ok=True)
         fn = cache_dir / f"{self.name.replace(' ', '_').lower()}_nodes.json"
@@ -172,7 +169,7 @@ class Obstacle(ABC):
         # Return a located copy
         return self._part.located(self.location)
 
-    def get_placed_node_coordinates(self, nodes: List[Node]) -> List[Node]:
+    def get_placed_node_coordinates(self, nodes: list[Node]) -> list[Node]:
         """
         Transforms the local Node list in-place to world coordinates.
         Updates each Node.x, Node.y, Node.z without creating new Node instances.
@@ -375,7 +372,7 @@ class Obstacle(ABC):
 
         return occupied
 
-    def determine_overlap_allowed_nodes(self, occupied: List[Node]) -> List[Node]:
+    def determine_overlap_allowed_nodes(self, occupied: list[Node]) -> list[Node]:
         # cardinal 6‐neigh offsets in world coords
         offs = [
             (self.node_size, 0, 0),
@@ -398,7 +395,7 @@ class Obstacle(ABC):
 
     @staticmethod
     def solid_model_node_cubes(
-        nodes: List[Node], name="Node", color="#FFFFFF1D"
+        nodes: list[Node], name="Node", color="#FFFFFF1D"
     ) -> list[Part]:
         """
         For each Node provided, build a cube Part of size node_size

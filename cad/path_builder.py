@@ -92,23 +92,23 @@ class PathBuilder:
         Create profile(s), path and body for each path segment.
         """
         # Get segments from path architect
-        segments: List[PathSegment] = self.path_architect.segments
+        segments: list[PathSegment] = self.path_architect.segments
 
         # Process each segment, define it's path
         self._define_segment_paths(segments)
 
         # Group sub segments of compound segments and combine their paths
-        combine_segments: List[PathSegment] = self._combine_compound_segments_for_path(
+        combine_segments: list[PathSegment] = self._combine_compound_segments_for_path(
             segments
         )
 
         # Sweep segments
-        swept_segments: List[PathSegment] = self.sweep_segments(combine_segments)
+        swept_segments: list[PathSegment] = self.sweep_segments(combine_segments)
 
         # Store segments in path architect again
         self.path_architect.segments = swept_segments
 
-    def sweep_segments(self, segments: List[PathSegment]) -> List[PathSegment]:
+    def sweep_segments(self, segments: list[PathSegment]) -> list[PathSegment]:
         # Sweep the segments, with information of which ever segment comes previous
         previous_segment: Optional[PathSegment] = None
 
@@ -148,7 +148,7 @@ class PathBuilder:
 
         return segments
 
-    def _define_segment_paths(self, segments: List[PathSegment]) -> None:
+    def _define_segment_paths(self, segments: list[PathSegment]) -> None:
         """
         Process each (sub) segment to define its path.
         """
@@ -157,14 +157,14 @@ class PathBuilder:
                 segment = self.define_standard_segment_path(segment)
 
     def _combine_compound_segments_for_path(
-        self, segments: List[PathSegment]
-    ) -> List[PathSegment]:
+        self, segments: list[PathSegment]
+    ) -> list[PathSegment]:
         """
         Combine all the individual paths of sub segments of a
         single main index compound segment into a single path
         """
-        compound_groups: Dict[int, List[PathSegment]] = {}
-        non_compound_segments: List[PathSegment] = []
+        compound_groups: Dict[int, list[PathSegment]] = {}
+        non_compound_segments: list[PathSegment] = []
 
         # Separate compound segments from non-compound segments.
         for segment in segments:
@@ -175,18 +175,18 @@ class PathBuilder:
             else:
                 non_compound_segments.append(segment)
 
-        combined_segments: List[PathSegment] = []
+        combined_segments: list[PathSegment] = []
         for main_index, seg_list in compound_groups.items():
             if len(seg_list) == 1:
                 # No combination needed if there's only one segment in this group.
                 combined_segments.append(seg_list[0])
             else:
                 # Sort segments by secondary_index to maintain correct order.
-                seg_list_sorted: List[PathSegment] = sorted(
+                seg_list_sorted: list[PathSegment] = sorted(
                     seg_list, key=lambda s: s.secondary_index
                 )
                 # Collect edges from each segment's already-created path.
-                all_edges: List[Any] = self._collect_edges(seg_list_sorted)
+                all_edges: list[Any] = self._collect_edges(seg_list_sorted)
                 # Combine the collected edges into one continuous Wire.
                 combined_wire = Wire(all_edges)
                 # Combine the nodes of the segments.
@@ -210,13 +210,13 @@ class PathBuilder:
         # Return both non-compound and combined compound segments (sorted)
         return segments
 
-    def _collect_edges(self, seg_list: List[PathSegment]) -> List[Any]:
+    def _collect_edges(self, seg_list: list[PathSegment]) -> list[Any]:
         """
         Helper method to collect edges from the path of each segment.
 
         If the path is a Wire, extract its edges; otherwise, assume it's a single Edge.
         """
-        all_edges: List[Any] = []
+        all_edges: list[Any] = []
         for seg in seg_list:
             if seg.path:
                 if hasattr(seg.path, "edges"):
@@ -225,7 +225,7 @@ class PathBuilder:
                     all_edges.append(seg.path)
         return all_edges
 
-    def _combine_nodes(self, seg_list: List[PathSegment]) -> List[Node]:
+    def _combine_nodes(self, seg_list: list[PathSegment]) -> list[Node]:
         """
         Helper method to combine nodes from a sorted list of segments.
 
@@ -233,7 +233,7 @@ class PathBuilder:
         skips its first node if it duplicates the previous segment's end node,
         ensuring continuity in the combined node list.
         """
-        combined_nodes: List[Node] = seg_list[0].nodes.copy()
+        combined_nodes: list[Node] = seg_list[0].nodes.copy()
         for seg in seg_list[1:]:
             # Use helper _node_to_vector to compare positions of nodes.
             if seg.nodes and is_same_location(
@@ -752,7 +752,7 @@ class PathBuilder:
         num_divisions = Config.Manufacturing.DIVIDE_PATHS_IN
 
         # Collect all the path bodies by main_index
-        groups: Dict[int, List[Part]] = {}
+        groups: Dict[int, list[Part]] = {}
         for segment in self.path_architect.segments:
             # skip the “start” funnel
             if any(node.puzzle_start for node in segment.nodes):
@@ -775,7 +775,7 @@ class PathBuilder:
             standard_list = list(fused_by_main.values())
         else:
             # Prepare empty buckets for each division
-            buckets: List[List[Part]] = [[] for _ in range(num_divisions)]
+            buckets: list[list[Part]] = [[] for _ in range(num_divisions)]
             bucket_counter = 0
             for main_index in sorted(fused_by_main):
                 current_part = fused_by_main[main_index]
@@ -786,8 +786,8 @@ class PathBuilder:
             standard_list = [Part() + bucket for bucket in buckets if bucket]
 
         # Combine accent and support bodies all at once
-        all_support_bodies: List[Part] = []
-        all_accent_bodies: List[Part] = []
+        all_support_bodies: list[Part] = []
+        all_accent_bodies: list[Part] = []
         for segment in self.path_architect.segments:
             # skip the “start” funnel
             if any(node.puzzle_start for node in segment.nodes):

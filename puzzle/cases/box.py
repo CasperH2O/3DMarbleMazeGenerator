@@ -29,7 +29,7 @@ class BoxCasing(Casing):
             and -self.half_height <= z <= self.half_height
         )
 
-    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+    def get_mounting_waypoints(self, nodes: list[Node]) -> list[Node]:
         """
         Determine mounting waypoints for the box casing
         """
@@ -44,7 +44,7 @@ class BoxCasing(Casing):
             (0, 0, -self.half_height),
         ]
 
-        mounting_nodes: List[Node] = []
+        mounting_nodes: list[Node] = []
 
         for x_face, y_face, z_face in face_centers:
             candidates = [node for node in nodes if not node.occupied]
@@ -67,11 +67,11 @@ class BoxCasing(Casing):
 
     def create_nodes(
         self, puzzle: Any
-    ) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
+    ) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
         """
         Create nodes for a box grid based on the provided puzzle configuration.
         """
-        nodes: List[Node] = []
+        nodes: list[Node] = []
         node_dict: Dict[Coordinate, Node] = {}
         node_size: float = puzzle.node_size
         casing = puzzle.casing
@@ -88,9 +88,9 @@ class BoxCasing(Casing):
         start_z: float = -half_height + node_size / 2
         end_z: float = half_height - node_size / 2
 
-        x_values: List[float] = frange(start_x, end_x, node_size)
-        y_values: List[float] = frange(start_y, end_y, node_size)
-        z_values: List[float] = frange(start_z, end_z, node_size)
+        x_values: list[float] = frange(start_x, end_x, node_size)
+        y_values: list[float] = frange(start_y, end_y, node_size)
+        z_values: list[float] = frange(start_z, end_z, node_size)
 
         for x in x_values:
             for y in y_values:

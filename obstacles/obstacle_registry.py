@@ -56,7 +56,7 @@ def get_obstacle_class(name: str) -> Type[Obstacle]:
     return cls
 
 
-def get_available_obstacles() -> List[str]:
+def get_available_obstacles() -> list[str]:
     """Returns a list of names of all registered obstacles."""
     _load_all_catalogue_obstacles_once()
     return list(OBSTACLE_REGISTRY.keys())

@@ -54,12 +54,12 @@ def midpoint(P: Vector, Q: Vector, circular: bool = False) -> Vector:
 
 
 class PathSegment:
-    def __init__(self, nodes: List[Node], main_index: int, secondary_index: int = 0):
+    def __init__(self, nodes: list[Node], main_index: int, secondary_index: int = 0):
         """
         Initialize a PathSegment instance.
 
         Parameters:
-            nodes (List[Node]): List of nodes that form this segment.
+            nodes (list[Node]): List of nodes that form this segment.
             main_index (int): Main index for identifying the segment.
             secondary_index (int): Secondary index for ordering segments within a main segment.
         """

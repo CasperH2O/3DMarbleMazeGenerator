@@ -25,7 +25,7 @@ class ObstacleManager:
     Manages the selection, placement, and node occupation of obstacles.
     """
 
-    def __init__(self, nodes: List[Node]) -> None:
+    def __init__(self, nodes: list[Node]) -> None:
         """
         Initializes the obstacle manager.
 
@@ -33,12 +33,12 @@ class ObstacleManager:
             nodes: puzzle nodes, for placement of the nodes.
         """
         # Store nodes and build lookup dict
-        self.nodes: List[Node] = nodes
+        self.nodes: list[Node] = nodes
         self.node_dict: Dict[tuple, Node] = {
             (node.x, node.y, node.z): node for node in nodes
         }
         # Track placed obstacles and occupied grid positions
-        self.placed_obstacles: List[Obstacle] = []
+        self.placed_obstacles: list[Obstacle] = []
         self.occupied_positions: set = set()
         # Track placement duration
         self.placement_time: float = 0.0
@@ -88,7 +88,7 @@ class ObstacleManager:
     def place_obstacles(
         self,
         num_to_place: int,
-        allowed_types: Optional[List[str]] = None,
+        allowed_types: Optional[list[str]] = None,
         attempts_per_placement: int = 200,
         per_type_limit: Optional[int] = None,
     ):
@@ -329,7 +329,7 @@ class ObstacleManager:
         For the obstacle's *current rotation*, compute how far local overlap nodes extend from the
         origin along -X/+X, -Y/+Y, -Z/+Z. Returns ((negX,posX), (negY,posY), (negZ,posZ)).
         """
-        local_nodes: List[Node] = []
+        local_nodes: list[Node] = []
         if obstacle.overlap_nodes:
             local_nodes.extend(Node(n.x, n.y, n.z) for n in obstacle.overlap_nodes)
 
@@ -351,7 +351,7 @@ class ObstacleManager:
 
     def _interior_candidates(
         self, obstacle: Obstacle, inset_nodes: int = 0
-    ) -> Tuple[List[Node], Tuple[float, float, float, float, float, float]]:
+    ) -> Tuple[list[Node], Tuple[float, float, float, float, float, float]]:
         """
         Build a candidate list of nodes strictly inside the grid bounds by the
         rotation-aware margins (overlap nodes) plus an optional extra inset.

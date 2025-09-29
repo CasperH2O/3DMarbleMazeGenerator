@@ -206,7 +206,7 @@ class CaseSphereWithFlange(Case):
         self.dome_top.part = self.dome_top.part - holes.part
         self.dome_bottom.part = self.dome_bottom.part - holes.part
 
-    def get_parts(self) -> List[Part]:
+    def get_parts(self) -> list[Part]:
         # Assign names and colors to the parts
         self.mounting_ring.part.label = CasePart.MOUNTING_RING.value
         self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
@@ -232,7 +232,7 @@ class CaseSphereWithFlange(Case):
             self.start_text.part,
         ]
 
-    def create_cut_shape(self) -> Part:
+    def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.0
         radius_outer = self.sphere_flange_diameter
         radius_inner = self.sphere_inner_radius - flush_distance_tolerance

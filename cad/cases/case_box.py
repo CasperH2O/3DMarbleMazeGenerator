@@ -19,7 +19,7 @@ class CaseBox(Case):
         self.casing = self.create_casing()
         self.cut_shape = self.create_cut_shape()
 
-    def create_casing(self) -> Part:
+    def create_casing(self) -> BuildPart:
         with BuildPart() as casing:
             # Create the outer box
             Box(self.width, self.length, self.height)
@@ -27,14 +27,14 @@ class CaseBox(Case):
             offset(amount=-self.panel_thickness, mode=Mode.SUBTRACT)
         return casing
 
-    def get_parts(self) -> List[Part]:
+    def get_parts(self) -> list[Part]:
         # Assign name and color to the part
         self.casing.part.label = CasePart.CASING.value
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         return [self.casing.part]
 
-    def create_cut_shape(self) -> Part:
+    def create_cut_shape(self) -> BuildPart:
         # Create a box to ensure it cuts the path body properly
         flush_distance_tolerance = 0.4  # Ensure flush with case
 
