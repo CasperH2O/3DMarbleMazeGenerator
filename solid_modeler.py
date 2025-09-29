@@ -36,6 +36,7 @@ from ocp_vscode import (
 from cad.base import create_box_base, create_circular_base
 from cad.cases.case import CasePart
 from cad.cases.case_box import CaseBox
+from cad.cases.case_cylinder import CaseCylinder
 from cad.cases.case_sphere import CaseSphere
 from cad.cases.case_sphere_with_flange import CaseSphereWithFlange
 from cad.cases.case_sphere_with_flange_enclosed_two_sides import (
@@ -181,6 +182,8 @@ def puzzle_casing():
         case = CaseSphere()
     elif Config.Puzzle.CASE_SHAPE == CaseShape.BOX:
         case = CaseBox()
+    elif Config.Puzzle.CASE_SHAPE == CaseShape.CYLINDER:
+        case = CaseCylinder()
     elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE:
         case = CaseSphereWithFlange()
     elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES:
