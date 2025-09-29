@@ -1,5 +1,6 @@
 # puzzle/utils/geometry.py
 
+import math
 from typing import List, Tuple
 
 from puzzle.node import Node
@@ -29,19 +30,26 @@ def euclidean_distance(node_a: Node, node_b: Node) -> float:
     ) ** 0.5
 
 
-def frange(start: float, stop: float, step: float) -> List[float]:
+def frange(start: float, stop: float, step: float) -> list[float]:
     """
-    Generate a range of floating-point numbers from
-    start to stop inclusive with a given step
+    Generate a range of floating-point numbers that are integer multiples of `step`
+    within [start, stop], inclusive of boundaries that land on a multiple.
+
+    Examples:
+      frange(-56, 56, 10) -> [-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50]
+      frange(-4, 4, 10)   -> [0]
     """
+    if step <= 0:
+        raise ValueError("step must be > 0")
 
-    # inclusive range w/ floating guard
-    values: List[float] = []
+    n_min = math.ceil(start / step)
+    n_max = math.floor(stop / step)
+    if n_max < n_min:
+        return []
 
-    while start <= stop + step / 2:
-        values.append(round(start, 10))
-        start += step
-
+    values: list[float] = []
+    for n in range(n_min, n_max + 1):
+        values.append(snap(n * step))
     return values
 
 
