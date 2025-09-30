@@ -1,9 +1,10 @@
 # puzzle/cases/box.py
 
-from typing import Any, Dict, List, Tuple
+from typing import Dict, Tuple
 
+from config import Config
 from puzzle.node import Node
-from puzzle.utils.geometry import frange, key3, snap, squared_distance_xyz
+from puzzle.utils.geometry import frange, squared_distance_xyz
 
 from .base import Casing
 
@@ -14,19 +15,25 @@ class BoxCasing(Casing):
     def __init__(
         self, width: float, height: float, length: float, panel_thickness: float
     ):
+        self.node_size = Config.Puzzle.NODE_SIZE
         self.width = width
         self.height = height
         self.length = length
-        self.panel_thickness = panel_thickness
-        self.half_width = width / 2
-        self.half_height = height / 2
-        self.half_length = length / 2
+
+        self.inner_half_width = width / 2 - panel_thickness
+        self.inner_half_height = height / 2 - panel_thickness
+        self.inner_half_length = length / 2 - panel_thickness
 
     def contains_point(self, x: float, y: float, z: float) -> bool:
+        # Define boundaries adjusted for casing and half the node size ie path width
+        effective_width = self.inner_half_width - self.node_size / 2
+        effective_length = self.inner_half_length - self.node_size / 2
+        effective_height = self.inner_half_height - self.node_size / 2
+
         return (
-            -self.half_width <= x <= self.half_width
-            and -self.half_length <= y <= self.half_length
-            and -self.half_height <= z <= self.half_height
+            -effective_width <= x <= effective_width
+            and -effective_length <= y <= effective_length
+            and -effective_height <= z <= effective_height
         )
 
     def get_mounting_waypoints(self, nodes: list[Node]) -> list[Node]:
@@ -36,18 +43,18 @@ class BoxCasing(Casing):
 
         # Place mounting points in the center of every panel face
         face_centers = [
-            (0, -self.half_length, 0),
-            (0, self.half_length, 0),
-            (self.half_width, 0, 0),
-            (-self.half_width, 0, 0),
-            (0, 0, self.half_height),
-            (0, 0, -self.half_height),
+            (0, -self.inner_half_length, 0),
+            (0, self.inner_half_length, 0),
+            (self.inner_half_width, 0, 0),
+            (-self.inner_half_width, 0, 0),
+            (0, 0, self.inner_half_height),
+            (0, 0, -self.inner_half_height),
         ]
 
         mounting_nodes: list[Node] = []
 
         for x_face, y_face, z_face in face_centers:
-            candidates = [node for node in nodes if not node.occupied]
+            candidates = [node for node in nodes]
 
             if not candidates:
                 continue
@@ -65,67 +72,31 @@ class BoxCasing(Casing):
 
         return mounting_nodes
 
-    def create_nodes(
-        self, puzzle: Any
-    ) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
+    def create_nodes(self) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
         """
         Create nodes for a box grid based on the provided puzzle configuration.
         """
-        nodes: list[Node] = []
-        node_dict: Dict[Coordinate, Node] = {}
-        node_size: float = puzzle.node_size
-        casing = puzzle.casing
 
-        # Define grid boundaries adjusted for node_size and casing
-        half_width: float = casing.width / 2 - casing.panel_thickness
-        half_length: float = casing.length / 2 - casing.panel_thickness
-        half_height: float = casing.height / 2 - casing.panel_thickness
-
-        start_x: float = -half_width + node_size / 2
-        end_x: float = half_width - node_size / 2
-        start_y: float = -half_length + node_size / 2
-        end_y: float = half_length - node_size / 2
-        start_z: float = -half_height + node_size / 2
-        end_z: float = half_height - node_size / 2
-
-        x_values: list[float] = frange(start_x, end_x, node_size)
-        y_values: list[float] = frange(start_y, end_y, node_size)
-        z_values: list[float] = frange(start_z, end_z, node_size)
-
-        for x in x_values:
-            for y in y_values:
-                for z in z_values:
-                    if casing.contains_point(x, y, z):
-                        node = Node(x, y, z)
-                        nodes.append(node)
-                        node_dict[key3(x, y, z)] = node
-
-        if not nodes:
-            raise ValueError("No nodes were created inside the box casing.")
-
-        # Define the start node for the box case
-        # Find the minimum x among existing nodes
-        min_x: float = min(node.x for node in nodes)
-        min_y: float = min(node.y for node in nodes if node.x == min_x)
-        min_z: float = min(
-            node.z for node in nodes if node.x == min_x and node.y == min_y
+        x_values = frange(-self.inner_half_width, self.inner_half_width, self.node_size)
+        y_values = frange(
+            -self.inner_half_length, self.inner_half_length, self.node_size
+        )
+        z_values = frange(
+            -self.inner_half_height, self.inner_half_height, self.node_size
         )
 
-        # Extend along the negative x-direction
-        x1 = snap(min_x - node_size)
-        x2 = snap(x1 - node_size)
+        # Use the generic rectangular grid generator (filtered by contains_point)
+        nodes, node_dict = self.generate_rectangular_grid_from_values(
+            x_values=x_values, y_values=y_values, z_values=z_values
+        )
 
-        # Create two new nodes at positions (x1, min_y, min_z) and (x2, min_y, min_z)
-        node1 = Node(x1, min_y, min_z)
-        node2 = Node(x2, min_y, min_z)
-
-        # Add them to nodes and node_dict
-        nodes.extend([node1, node2])
-        node_dict[key3(node1.x, node1.y, node1.z)] = node1
-        node_dict[key3(node2.x, node2.y, node2.z)] = node2
-
-        # Mark the furthest node as the start node (node 2)
-        node2.puzzle_start = True
-        start_node: Node = node2
+        # Define the start node for the box case
+        start_node: Node = self.place_start_node_along_negative_x(
+            nodes=nodes,
+            node_dict=node_dict,
+            node_size=self.node_size,
+            prefer_y=min(y_values),
+            prefer_z=min(z_values),
+        )
 
         return nodes, node_dict, start_node

@@ -1,7 +1,5 @@
 # cad/cases/case_box.py
 
-from typing import List
-
 from build123d import Box, BuildPart, Mode, Part, add, offset
 
 from cad.cases.case import Case, CasePart

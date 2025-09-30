@@ -61,7 +61,7 @@ class Puzzle:
         self.path_finder: AStarPathFinder = AStarPathFinder()
 
         # nodes, dict, start from casing
-        self.nodes, self.node_dict, self.start_node = self.casing.create_nodes(self)
+        self.nodes, self.node_dict, self.start_node = self.casing.create_nodes()
 
         # Define mounting waypoints
         self.define_mounting_waypoints()
@@ -180,10 +180,10 @@ class Puzzle:
         print(f"Node Size (mm): {self.node_size}")
         print(f"Ball Diameter (mm): {Config.Puzzle.BALL_DIAMETER}")
         if isinstance(self.casing, SphereCasing):
-            print(f"Sphere Diameter (mm): {self.casing.diameter}")
+            print(f"Sphere Diameter (mm): {Config.Sphere.SPHERE_DIAMETER}")
         elif isinstance(self.casing, BoxCasing):
             print(
-                f"Box Dimensions (LxWxH mm): {self.casing.length} x {self.casing.width} x {self.casing.height}"
+                f"Box Dimensions (LxWxH mm): {Config.Box.LENGTH} x {Config.Box.WIDTH} x {Config.Box.HEIGHT}"
             )
         print(f"Requested Waypoints: {Config.Puzzle.NUMBER_OF_WAYPOINTS}")
 

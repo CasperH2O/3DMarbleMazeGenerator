@@ -1,7 +1,7 @@
 # puzzle/utils/geometry.py
 
 import math
-from typing import List, Tuple
+from typing import Tuple
 
 from puzzle.node import Node
 

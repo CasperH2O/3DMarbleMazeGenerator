@@ -172,12 +172,12 @@ def plot_casing(casing: Case):
 def plot_cylinder_casing(casing: CylinderCasing):
     """
     Draw a minimal wireframe for a vertical cylinder centered at the origin:
-    - Top and bottom circles (z = ±half_height)
+    - Top and bottom circles (z = ± half height)
     - A set of vertical lines to suggest the side wall
     """
-    r = casing.inner_radius
-    z_top = casing.half_height
-    z_bot = -casing.half_height
+    r = casing.diameter / 2
+    z_top = casing.height / 2
+    z_bot = -casing.height / 2
 
     casing_traces = []
 
@@ -240,13 +240,13 @@ def plot_cylinder_casing(casing: CylinderCasing):
 
 def plot_sphere_casing(casing: SphereCasing):
     theta = np.linspace(0, 2 * np.pi, 100)
-    r = casing.inner_radius
+    radius = casing.diameter / 2
 
     casing_traces = []
 
     # Circle in XY plane (z = 0)
-    x_circle_xy = r * np.cos(theta)
-    y_circle_xy = r * np.sin(theta)
+    x_circle_xy = radius * np.cos(theta)
+    y_circle_xy = radius * np.sin(theta)
     z_circle_xy = np.zeros_like(theta)
     circle_trace_xy = go.Scatter3d(
         x=x_circle_xy,
@@ -259,9 +259,9 @@ def plot_sphere_casing(casing: SphereCasing):
     casing_traces.append(circle_trace_xy)
 
     # Circle in XZ plane (y = 0)
-    x_circle_xz = r * np.cos(theta)
+    x_circle_xz = radius * np.cos(theta)
     y_circle_xz = np.zeros_like(theta)
-    z_circle_xz = r * np.sin(theta)
+    z_circle_xz = radius * np.sin(theta)
     circle_trace_xz = go.Scatter3d(
         x=x_circle_xz,
         y=y_circle_xz,
@@ -274,8 +274,8 @@ def plot_sphere_casing(casing: SphereCasing):
 
     # Circle in YZ plane (x = 0)
     x_circle_yz = np.zeros_like(theta)
-    y_circle_yz = r * np.cos(theta)
-    z_circle_yz = r * np.sin(theta)
+    y_circle_yz = radius * np.cos(theta)
+    z_circle_yz = radius * np.sin(theta)
     circle_trace_yz = go.Scatter3d(
         x=x_circle_yz,
         y=y_circle_yz,
@@ -290,21 +290,21 @@ def plot_sphere_casing(casing: SphereCasing):
 
 
 def plot_box_casing(casing: BoxCasing):
-    hw = casing.half_width
-    hh = casing.half_length
-    hl = casing.half_height
+    half_width = casing.width / 2
+    half_height = casing.height / 2
+    half_length = casing.length / 2
 
     # Define the 8 corners of the box
     corners = np.array(
         [
-            [-hw, -hh, -hl],
-            [hw, -hh, -hl],
-            [hw, hh, -hl],
-            [-hw, hh, -hl],
-            [-hw, -hh, hl],
-            [hw, -hh, hl],
-            [hw, hh, hl],
-            [-hw, hh, hl],
+            [-half_width, -half_height, -half_length],
+            [half_width, -half_height, -half_length],
+            [half_width, half_height, -half_length],
+            [-half_width, half_height, -half_length],
+            [-half_width, -half_height, half_length],
+            [half_width, -half_height, half_length],
+            [half_width, half_height, half_length],
+            [-half_width, half_height, half_length],
         ]
     )
 
