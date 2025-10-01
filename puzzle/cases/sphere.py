@@ -80,7 +80,7 @@ class SphereCasing(Casing):
             node_dict=node_dict,
             reference_nodes=added_circular,
             cutoff_distance=self.node_size,
-            only_on_planes={0.0},
+            z_planes={0.0},
         )
 
         # Start node along -X on the equatorial line (z = 0, y = 0)

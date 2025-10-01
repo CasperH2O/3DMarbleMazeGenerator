@@ -84,7 +84,7 @@ class CylinderCasing(Casing):
             node_dict=node_dict,
             reference_nodes=added_circular,
             cutoff_distance=self.node_size,
-            only_on_planes=z_values,
+            z_planes=z_values,
         )
 
         # Start node: extend along -X on the center line (y = 0, z = 0)

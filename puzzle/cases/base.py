@@ -57,66 +57,108 @@ class Casing(ABC):
         radius: float,
         z_planes: list[float],
         count_even: int,
-        grid_step: float,
-        tolerance: Optional[float] = None,
+        grid_step: float = None,
+        tolerance: float = None,
     ) -> list[Node]:
         """
         Add circularly placed nodes on one or more Z-planes.
 
-        - Adds 'count_even' evenly spaced nodes on each plane at 'radius'.
-        - Always adds nodes where the rectangular grid lines (spacing 'grid_step')
-          intersect the circle on that plane.
-        - Marks added nodes with NodeGridType.CIRCULAR and dedupes via node_dict.
+        Matches original behavior:
+        - Always place 'count_even' evenly spaced ring nodes (x/y snapped).
+        - Add grid–circle intersections; dedupe those by tolerance
+          and withhold any that are closer than 'tolerance' to existing
+          circular nodes on the same plane.
+        - Always create new circular nodes;
+
+        Returns: list of all circular nodes added (ring + intersections).
         """
+        import math
 
-        # TODO remove near duplicates like original code
+        added_circular: list[Node] = []
+        tol = tolerance if tolerance is not None else (grid_step or 0.0)
+        tol2 = tol * tol
 
-        added_nodes: list[Node] = []
-        tolerance_value = grid_step if tolerance is None else tolerance
+        def is_close_xy(ax: float, ay: float, bx: float, by: float) -> bool:
+            dx = ax - bx
+            dy = ay - by
+            return (dx * dx + dy * dy) < tol2
 
-        def maybe_add_node(x_value: float, y_value: float, z_value: float) -> None:
-            node_key = key3(x_value, y_value, z_value)
-            if node_key not in node_dict:
-                new_node = Node(x_value, y_value, z_value)
-                new_node.grid_type.append(NodeGridType.CIRCULAR.value)
-                nodes.append(new_node)
-                node_dict[node_key] = new_node
-                added_nodes.append(new_node)
+        def add_new_circular_node(xf: float, yf: float, zf: float) -> Node:
+            # Ring nodes, snapped
+            xs, ys, zs = snap(xf), snap(yf), zf
+            k = key3(xs, ys, zs)
 
-        # Evenly spaced ring nodes and grid-circle intersections
-        for z_value in z_planes:
-            for angle_index in range(count_even):
-                angle = 2.0 * math.pi * angle_index / count_even
-                x_value = snap(radius * math.cos(angle))
-                y_value = snap(radius * math.sin(angle))
-                maybe_add_node(x_value, y_value, z_value)
+            # Always create a new circular node
+            new_node = Node(xs, ys, zs)
+            new_node.grid_type.append(NodeGridType.CIRCULAR.value)
+            nodes.append(new_node)
 
+            # Overwrite mapping
+            node_dict[k] = new_node
+
+            added_circular.append(new_node)
+            return new_node
+
+        # Work per plane
+        for z_plane in z_planes:
+            # 1) Evenly spaced ring nodes (no tolerance-based dedupe)
+            ring_nodes_this_plane: list[Node] = []
+            for i in range(count_even):
+                angle = 2.0 * math.pi * i / count_even
+                x_ring = radius * math.cos(angle)
+                y_ring = radius * math.sin(angle)
+                ring_node = add_new_circular_node(x_ring, y_ring, z_plane)
+                ring_nodes_this_plane.append(ring_node)
+
+            # 2) grid–circle intersections (deduped and withheld)
+            candidate_xy: list[tuple[float, float]] = []
             max_steps = int(abs(radius) // grid_step)
+
+            # Generate candidates from vertical and horizontal grid lines
             for step_index in range(max_steps + 1):
                 for sign in [1] if step_index == 0 else [1, -1]:
-                    # Vertical candidates (x fixed)
-                    x_fixed = snap(step_index * grid_step * sign)
-                    remainder_y = radius * radius - x_fixed * x_fixed
-                    if remainder_y >= 0:
-                        y_raw = math.sqrt(remainder_y)
-                        y_candidates = (
-                            [y_raw] if abs(y_raw) < tolerance_value else [y_raw, -y_raw]
-                        )
-                        for y_candidate in y_candidates:
-                            maybe_add_node(snap(x_fixed), snap(y_candidate), z_value)
+                    # Vertical: x fixed
+                    x_val = step_index * grid_step * sign
+                    remainder_v = radius * radius - x_val * x_val
+                    if remainder_v >= 0:
+                        y_raw = math.sqrt(remainder_v)
+                        y_opts = [y_raw] if abs(y_raw) < tol else [y_raw, -y_raw]
+                        for y_cand in y_opts:
+                            candidate_xy.append((x_val, y_cand))
 
-                    # Horizontal candidates (y fixed)
-                    y_fixed = snap(step_index * grid_step * sign)
-                    remainder_x = radius * radius - y_fixed * y_fixed
-                    if remainder_x >= 0:
-                        x_raw = math.sqrt(remainder_x)
-                        x_candidates = (
-                            [x_raw] if abs(x_raw) < tolerance_value else [x_raw, -x_raw]
-                        )
-                        for x_candidate in x_candidates:
-                            maybe_add_node(snap(x_candidate), snap(y_fixed), z_value)
+                    # Horizontal: y fixed
+                    y_val = step_index * grid_step * sign
+                    remainder_h = radius * radius - y_val * y_val
+                    if remainder_h >= 0:
+                        x_raw = math.sqrt(remainder_h)
+                        x_opts = [x_raw] if abs(x_raw) < tol else [x_raw, -x_raw]
+                        for x_cand in x_opts:
+                            candidate_xy.append((x_cand, y_val))
 
-        return added_nodes
+            # Deduplicate intersection candidates among themselves by tolerance
+            unique_candidates: list[tuple[float, float]] = []
+            for coord in candidate_xy:
+                if any(
+                    is_close_xy(coord[0], coord[1], uc[0], uc[1])
+                    for uc in unique_candidates
+                ):
+                    continue
+                unique_candidates.append(coord)
+
+            # Build current plane circular set for conflict checks
+            plane_circular_now: list[Node] = [
+                n
+                for n in nodes
+                if (n.z == z_plane and NodeGridType.CIRCULAR.value in n.grid_type)
+            ]
+
+            # Withhold intersections that conflict with existing circulars on this plane
+            for cx, cy in unique_candidates:
+                if any(is_close_xy(cx, cy, n.x, n.y) for n in plane_circular_now):
+                    continue
+                add_new_circular_node(cx, cy, z_plane)
+
+        return added_circular
 
     def remove_rectangular_nodes_close_to(
         self,
@@ -124,7 +166,7 @@ class Casing(ABC):
         node_dict: Dict[Coordinate, Node],
         reference_nodes: list[Node],
         cutoff_distance: float,
-        only_on_planes: Optional[set[float]] = None,
+        z_planes: Optional[set[float]] = None,
     ) -> None:
         """
         Remove non-circular nodes that lie within 'cutoff_distance' of any
@@ -136,7 +178,7 @@ class Casing(ABC):
         for node in nodes:
             if NodeGridType.CIRCULAR.value in node.grid_type:
                 continue
-            if only_on_planes is not None and node.z not in only_on_planes:
+            if z_planes is not None and node.z not in z_planes:
                 continue
 
             for ref_node in reference_nodes:
