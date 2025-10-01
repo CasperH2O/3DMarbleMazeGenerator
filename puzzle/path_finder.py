@@ -168,10 +168,10 @@ class AStarPathFinder:
                 if neighbor in closed_set:
                     continue
 
-                # Mounting waypoints can only be entered when they are the target goal.
+                # (Non) mounting waypoints can only be entered when they are the target goal.
                 # Ensures mounting waypoints are not visited on route, preserving the
                 # intended load-bearing distribution.
-                if neighbor.waypoint and neighbor.mounting and neighbor != goal_node:
+                if neighbor.waypoint and neighbor != goal_node:
                     continue
 
                 # Skip neighbors that are marked as occupied (part of a previous path),
@@ -411,6 +411,15 @@ class AStarPathFinder:
 
             # --- Select candidates and find the best path ---
             candidates: list[Node]
+
+            # Guard against too many non mounting waypoints after final mounting waypoint
+            if (
+                target_mounting
+                and len(remaining_mounting) == 1
+                and len(remaining_non_mounting) > 1
+            ):
+                target_mounting = False
+
             candidate_type_str = "Mounting" if target_mounting else "Non-Mounting"
 
             if target_mounting:
