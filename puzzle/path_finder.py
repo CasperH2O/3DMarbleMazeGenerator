@@ -1,7 +1,7 @@
 # puzzle/path_finder.py
 
 import heapq
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, Optional, Set, Tuple
 
 from puzzle.node import Node, NodeGridType
 from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
@@ -166,6 +166,12 @@ class AStarPathFinder:
             for neighbor, move_cost in neighbors_with_costs:
                 # Skip neighbors that have already been evaluated
                 if neighbor in closed_set:
+                    continue
+
+                # Mounting waypoints can only be entered when they are the target goal.
+                # Ensures mounting waypoints are not visited on route, preserving the
+                # intended load-bearing distribution.
+                if neighbor.waypoint and neighbor.mounting and neighbor != goal_node:
                     continue
 
                 # Skip neighbors that are marked as occupied (part of a previous path),
@@ -440,24 +446,28 @@ class AStarPathFinder:
                 # Append the new segment to the total path
                 total_path.extend(chosen_path[1:])
 
-                # Update state: current node, visited waypoints, remaining lists, distribution counters
-                current_node = chosen_node
-                visited_waypoints.add(chosen_node)
+                # Update state for any waypoints encountered along this path segment
+                for path_node in chosen_path[1:]:
+                    if not path_node.waypoint:
+                        continue
 
-                if chosen_node.mounting:
-                    if chosen_node in remaining_mounting:
-                        remaining_mounting.remove(chosen_node)
-                    last_visited_was_mounting = True
-                    non_mounting_count_since_last_mount = (
-                        0  # Reset counter for the new gap
-                    )
-                else:
-                    if chosen_node in remaining_non_mounting:
-                        remaining_non_mounting.remove(chosen_node)
-                    last_visited_was_mounting = False
-                    non_mounting_count_since_last_mount += (
-                        1  # Increment count for this gap
-                    )
+                    visited_waypoints.add(path_node)
+
+                    if path_node.mounting:
+                        if path_node in remaining_mounting:
+                            remaining_mounting.remove(path_node)
+                        last_visited_was_mounting = True
+                        non_mounting_count_since_last_mount = 0
+                    else:
+                        if path_node in remaining_non_mounting:
+                            remaining_non_mounting.remove(path_node)
+                        if last_visited_was_mounting:
+                            non_mounting_count_since_last_mount = 1
+                        else:
+                            non_mounting_count_since_last_mount += 1
+                        last_visited_was_mounting = False
+
+                current_node = chosen_path[-1]
 
             else:
                 # Critical failure: Couldn't reach any remaining candidate of the required type.
