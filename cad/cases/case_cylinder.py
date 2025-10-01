@@ -1,6 +1,16 @@
 # cad/cases/case_cylinder.py
 
-from build123d import BuildPart, Cylinder, Mode, Part, add, offset
+from build123d import (
+    BuildPart,
+    Cylinder,
+    GeomType,
+    Mode,
+    Part,
+    SortBy,
+    add,
+    fillet,
+    offset,
+)
 
 from cad.cases.case import Case, CasePart
 from config import Config
@@ -22,6 +32,13 @@ class CaseCylinder(Case):
             Cylinder(radius=self.diameter / 2, height=self.height)
             # Hollow out the case
             offset(amount=-self.panel_thickness, mode=Mode.SUBTRACT)
+            fillet(
+                casing.edges()
+                .sort_by(SortBy.LENGTH, reverse=True)
+                .filter_by(GeomType.CIRCLE)[:2],
+                radius=2,
+            )
+
         return casing
 
     def get_parts(self) -> list[Part]:
