@@ -61,9 +61,9 @@ def visualize_path_architect(
         title="Path Visualization",
         template="plotly_dark",
         scene=dict(
-            xaxis_title="X Axis",
-            yaxis_title="Y Axis",
-            zaxis_title="Z Axis",
+            xaxis_title="X (width, mm)",
+            yaxis_title="Y (length, mm)",
+            zaxis_title="Z (height, mm)",
             aspectmode="data",
             camera=dict(
                 projection=dict(type="orthographic"), eye=camera_views["Iso"]["eye"]

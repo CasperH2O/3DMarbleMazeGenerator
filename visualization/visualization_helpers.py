@@ -297,14 +297,14 @@ def plot_box_casing(casing: BoxCasing):
     # Define the 8 corners of the box
     corners = np.array(
         [
-            [-half_width, -half_height, -half_length],
-            [half_width, -half_height, -half_length],
-            [half_width, half_height, -half_length],
-            [-half_width, half_height, -half_length],
-            [-half_width, -half_height, half_length],
-            [half_width, -half_height, half_length],
-            [half_width, half_height, half_length],
-            [-half_width, half_height, half_length],
+            [-half_width, -half_length, -half_height],
+            [half_width, -half_length, -half_height],
+            [half_width, half_length, -half_height],
+            [-half_width, half_length, -half_height],
+            [-half_width, -half_length, half_height],
+            [half_width, -half_length, half_height],
+            [half_width, half_length, half_height],
+            [-half_width, half_length, half_height],
         ]
     )
 
