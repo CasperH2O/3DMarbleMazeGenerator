@@ -1,7 +1,7 @@
 # cad/path_segment.py
 
 import math
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 
@@ -268,15 +268,19 @@ class PathSegment:
         if not self.nodes[0].puzzle_start:
             if previous_end_node is not None:
                 adjusted_start = _node_to_vector(previous_end_node)
-                # Propagate the circular property from the previous segment's end node.
-                is_circular_start = (
+                previous_is_circular = (
                     NodeGridType.CIRCULAR.value in previous_end_node.grid_type
+                    or previous_curve_type == PathCurveType.ARC
+                )
+                # Propagate only if both sides of the junction are circular.
+                is_circular_start = (
+                    previous_is_circular
+                    and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
                 )
             else:
                 adjusted_start = _node_to_vector(self.nodes[0])
                 is_circular_start = (
-                    hasattr(self.nodes[0], "grid_type")
-                    and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                    NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
                 )
 
             start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
@@ -291,14 +295,22 @@ class PathSegment:
         end_node_point = _node_to_vector(self.nodes[-1])
         is_circular_end = False
         if next_start_node is not None:
+            next_is_circular = (
+                NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                or next_curve_type == PathCurveType.ARC
+            )
             if next_curve_type is not None:
                 # Full adjustment: snap exactly to the next segment's start node.
                 adjusted_end = _node_to_vector(next_start_node)
+                is_circular_end = (
+                    NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                    and next_is_circular
+                )
             else:
                 # For half adjustment: if current end node is circular, compute arc midpoint.
                 if (
-                    hasattr(self.nodes[-1], "grid_type")
-                    and NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                    NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                    and next_is_circular
                 ):
                     is_circular_end = True
                     adjusted_end = midpoint(
@@ -343,15 +355,17 @@ class PathSegment:
         node_point = _node_to_vector(self.nodes[0])
         if previous_end_node is not None:
             adjusted_start = _node_to_vector(previous_end_node)
-            is_circular_start = (
+            previous_is_circular = (
                 NodeGridType.CIRCULAR.value in previous_end_node.grid_type
+                or previous_curve_type == PathCurveType.ARC
+            )
+            is_circular_start = (
+                previous_is_circular
+                and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
             )
         else:
             adjusted_start = node_point
-            is_circular_start = (
-                hasattr(self.nodes[0], "grid_type")
-                and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
-            )
+            is_circular_start = NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
 
         start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
         if is_circular_start:
@@ -370,10 +384,15 @@ class PathSegment:
 
         if self.nodes[0].puzzle_end:
             if next_start_node is not None:
-                if (
-                    hasattr(self.nodes[0], "grid_type")
-                    and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
-                ):
+                next_is_circular = (
+                    NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                    or next_curve_type == PathCurveType.ARC
+                )
+                should_use_circular_midpoint = (
+                    NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                    and next_is_circular
+                )
+                if should_use_circular_midpoint:
                     adjusted_end = midpoint(
                         node_point, _node_to_vector(next_start_node), circular=True
                     )
@@ -392,13 +411,21 @@ class PathSegment:
             # create start and end nodes on either side.
             if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
                 if next_start_node is not None:
+                    next_is_circular = (
+                        NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                        or next_curve_type == PathCurveType.ARC
+                    )
                     if next_curve_type is not None:
                         adjusted_end = _node_to_vector(next_start_node)
+                        is_circular_end = (
+                            NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                            and next_is_circular
+                        )
                     else:
                         # For half adjustment, use arc midpoint if the node is circular.
                         if (
-                            hasattr(self.nodes[0], "grid_type")
-                            and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                            NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                            and next_is_circular
                         ):
                             is_circular_end = True
                             adjusted_end = midpoint(

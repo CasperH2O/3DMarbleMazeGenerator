@@ -1,6 +1,6 @@
 from cad.path_architect import PathArchitect
 from cad.path_segment import PathSegment
-from config import PathCurveModel, PathCurveType
+from config import Config, PathCurveModel, PathCurveType
 from puzzle.node import Node, NodeGridType
 
 
@@ -174,3 +174,110 @@ def test_bridge_insert_pattern_b():
 
     # seg-B continues straight, node at x=2 remains
     assert abs(seg_b.nodes[1].x - 2) < TOL
+
+
+def test_single_before_non_circular_spline():
+    node_size = Config.Puzzle.NODE_SIZE
+
+    # SINGLE segment centred on a circular node, with a following spline run
+    core_node = make_node(0, NodeGridType.CIRCULAR)
+    single_segment = PathSegment([core_node], main_index=1)
+    single_segment.curve_model = PathCurveModel.SINGLE
+
+    spline_entry = make_node(1)
+    spline_follow = make_node(2)
+    spline_segment = PathSegment([spline_entry, spline_follow], main_index=2)
+    spline_segment.curve_model = PathCurveModel.SPLINE
+    spline_segment.curve_type = None  # explicit non-circular run
+
+    single_segment.adjust_start_and_endpoints(
+        node_size,
+        previous_end_node=None,
+        next_start_node=spline_entry,
+        previous_curve_type=None,
+        next_curve_type=None,
+    )
+
+    spline_segment.adjust_start_and_endpoints(
+        node_size,
+        previous_end_node=single_segment.nodes[-1],
+        next_start_node=None,
+        previous_curve_type=None,
+        next_curve_type=None,
+    )
+
+    # Guard should keep the shared boundary nodes linear
+    assert NodeGridType.CIRCULAR.value not in single_segment.nodes[-1].grid_type
+    assert NodeGridType.CIRCULAR.value not in spline_segment.nodes[0].grid_type
+
+    arch = PathArchitect([])
+    arch.segments = [single_segment, spline_segment]
+    arch._harmonise_circular_transitions()
+
+    # No additional bridge should be created
+    assert len(arch.segments) == 2
+    assert NodeGridType.CIRCULAR.value not in arch.segments[0].nodes[-1].grid_type
+    assert NodeGridType.CIRCULAR.value not in arch.segments[1].nodes[0].grid_type
+
+
+def test_single_after_non_circular_spline():
+    node_size = Config.Puzzle.NODE_SIZE
+
+    # Upstream spline segment remains linear at the junction
+    spline_exit = make_node(-1)
+    spline_segment = PathSegment([make_node(-2), spline_exit], main_index=1)
+    spline_segment.curve_model = PathCurveModel.SPLINE
+    spline_segment.curve_type = None
+
+    # SINGLE segment centred on a circular grid node
+    core_node = make_node(0, NodeGridType.CIRCULAR)
+    single_segment = PathSegment([core_node], main_index=2)
+    single_segment.curve_model = PathCurveModel.SINGLE
+
+    # Following arc run should still pick up the circular context
+    arc_entry = make_node(1, NodeGridType.CIRCULAR)
+    arc_follow = make_node(2, NodeGridType.CIRCULAR)
+    arc_segment = PathSegment([arc_entry, arc_follow], main_index=3)
+    arc_segment.curve_model = PathCurveModel.COMPOUND
+    arc_segment.curve_type = PathCurveType.ARC
+
+    spline_segment.adjust_start_and_endpoints(
+        node_size,
+        previous_end_node=None,
+        next_start_node=core_node,
+        previous_curve_type=None,
+        next_curve_type=None,
+    )
+
+    single_segment.adjust_start_and_endpoints(
+        node_size,
+        previous_end_node=spline_segment.nodes[-1],
+        next_start_node=arc_entry,
+        previous_curve_type=spline_segment.curve_type,
+        next_curve_type=arc_segment.curve_type,
+    )
+
+    arc_segment.adjust_start_and_endpoints(
+        node_size,
+        previous_end_node=single_segment.nodes[-1],
+        next_start_node=None,
+        previous_curve_type=None,
+        next_curve_type=None,
+    )
+
+    # Junction back to the spline should stay linear
+    assert NodeGridType.CIRCULAR.value not in single_segment.nodes[0].grid_type
+    assert NodeGridType.CIRCULAR.value not in spline_segment.nodes[-1].grid_type
+
+    # Junction into the arc should remain circular
+    assert NodeGridType.CIRCULAR.value in single_segment.nodes[-1].grid_type
+    assert NodeGridType.CIRCULAR.value in arc_segment.nodes[0].grid_type
+
+    arch = PathArchitect([])
+    arch.segments = [spline_segment, single_segment, arc_segment]
+    arch._harmonise_circular_transitions()
+
+    # Harmonisation should not insert an extra arc at the spline / SINGLE boundary
+    assert len(arch.segments) == 3
+    assert NodeGridType.CIRCULAR.value not in arch.segments[0].nodes[-1].grid_type
+    assert NodeGridType.CIRCULAR.value in arch.segments[1].nodes[-1].grid_type

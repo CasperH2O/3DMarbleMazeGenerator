@@ -101,12 +101,6 @@ class PathArchitect:
         """
         Fix mismatches where an arc meets a straight run at a segment boundary.
         """
-
-        # helper that copes with either the enum or its .value in grid_type
-        def is_circ(node) -> bool:
-            g = getattr(node, "grid_type", [])
-            return NodeGridType.CIRCULAR in g or NodeGridType.CIRCULAR.value in g
-
         for idx in range(len(self.segments) - 1):
             seg_a, seg_b = self.segments[idx], self.segments[idx + 1]
 
@@ -124,10 +118,11 @@ class PathArchitect:
 
             # pattern A (straight -> arc)
             if (
-                is_circ(end_a)
-                and is_circ(start_b)
+                NodeGridType.CIRCULAR.value in end_a.grid_type
+                and NodeGridType.CIRCULAR.value in start_b.grid_type
                 and len(seg_a.nodes) >= 2
-                and not is_circ(second_last_a)  # seg-A’s 2nd-last is non-circ
+                and not NodeGridType.CIRCULAR.value
+                in second_last_a.grid_type  # seg-A’s 2nd-last is non-circ
             ):
                 print(
                     f"Harmonise circular transitions pattern A being done for segments: "
@@ -163,10 +158,11 @@ class PathArchitect:
 
             # pattern B (arc -> straight)
             if (
-                is_circ(end_a)
-                and is_circ(start_b)
+                NodeGridType.CIRCULAR.value in end_a.grid_type
+                and NodeGridType.CIRCULAR.value in start_b.grid_type
                 and len(seg_b.nodes) >= 2
-                and not is_circ(seg_b.nodes[1])  # 2nd-node non-circ
+                and not NodeGridType.CIRCULAR.value
+                in seg_b.nodes[1].grid_type  # 2nd-node non-circ
             ):
                 print(
                     f"Harmonise circular transitions pattern B being done for segments: "
@@ -596,9 +592,10 @@ class PathArchitect:
         P = Vector(prev_node.x, prev_node.y, prev_node.z)
         Q = Vector(last_node.x, last_node.y, last_node.z)
 
-        if NodeGridType.CIRCULAR.value in getattr(
-            prev_node, "grid_type", []
-        ) and NodeGridType.CIRCULAR.value in getattr(last_node, "grid_type", []):
+        if (
+            NodeGridType.CIRCULAR.value in prev_node.grid_type
+            and NodeGridType.CIRCULAR.value in last_node.grid_type
+        ):
             # on a circle → true tangent
             R = Vector(Q.X, Q.Y, 0)
             tangent = Vector(-R.Y, R.X, 0).normalized()
