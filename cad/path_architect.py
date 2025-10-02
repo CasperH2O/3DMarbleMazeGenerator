@@ -208,11 +208,22 @@ class PathArchitect:
             has_mounting_node = any(node.mounting for node in segment.nodes)
             if has_mounting_node:
                 # For mounting segments, only select specific types, ensures linking with bridge
-                available_profile_types = [
+                # Respect config, if none of these are allowed, fall back to U_SHAPE.
+                candidates_for_mounting = [
                     PathProfileType.O_SHAPE,
                     PathProfileType.U_SHAPE,
                     PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
                 ]
+                # Filter against allowed types from config
+                available_profile_types = [
+                    profile_type
+                    for profile_type in candidates_for_mounting
+                    if profile_type in self.path_profile_types
+                ]
+                # Fallback if nothing allowed
+                if not available_profile_types:
+                    available_profile_types = [PathProfileType.U_SHAPE]
+
                 available_curve_models = [PathCurveModel.COMPOUND]
             else:
                 # For other segments, use all available types
