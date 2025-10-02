@@ -1,7 +1,6 @@
 # cad/path_architect.py
 
 import random
-from typing import List
 
 from build123d import Transition, Vector
 
@@ -309,7 +308,15 @@ class PathArchitect:
                 i += len(new_split_segments)
             elif segment.curve_model == PathCurveModel.SPLINE:
                 # Split the spline segment into parts
-                new_segments = self._split_spline_segment(segment)
+                previous_segment = self.segments[i - 1] if i > 0 else None
+                next_segment = (
+                    self.segments[i + 1] if i + 1 < len(self.segments) else None
+                )
+                new_segments = self._split_spline_segment(
+                    segment,
+                    previous_segment=previous_segment,
+                    next_segment=next_segment,
+                )
                 self.segments[i : i + 1] = new_segments
                 i += len(new_segments)
             else:
@@ -664,47 +671,111 @@ class PathArchitect:
                 segment.path_profile_type
             )
 
-    def _split_spline_segment(self, segment: PathSegment):
+    def _split_spline_segment(
+        self,
+        segment: PathSegment,
+        previous_segment: PathSegment | None = None,
+        next_segment: PathSegment | None = None,
+    ):
+        """
+        Split the spline segment into parts. Neighbouring segments are provided so
+        the splitter can compare directions across the boundary and decide
+        whether it needs the single-node “stitch” segments at each end.
+
+        Stitch segments are included when the direction changes from either
+        the previous segment or the next. This ensures improved feasible spline
+        paths within the puzzle.
+        """
+
         new_segments = []
         main_index = segment.main_index
         secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
         nodes = segment.nodes
 
+        # Sufficient nodes are required to create
+        # stitch segments, if applicable and spline segment
         if len(nodes) > 2:
-            # First node segment
-            first_node_segment = PathSegment(
-                [nodes[0]],
-                main_index=main_index,
-                secondary_index=secondary_index_counter,
-            )
-            first_node_segment.copy_attributes_from(segment)
-            first_node_segment.curve_model = PathCurveModel.SINGLE
-            new_segments.append(first_node_segment)
-            secondary_index_counter += 1
 
-            # Middle nodes segment
-            middle_nodes_segment = PathSegment(
-                nodes[1:-1],
-                main_index=main_index,
-                secondary_index=secondary_index_counter,
-            )
-            middle_nodes_segment.copy_attributes_from(segment)
-            middle_nodes_segment.curve_model = PathCurveModel.SPLINE
-            new_segments.append(middle_nodes_segment)
-            secondary_index_counter += 1
+            def _are_collinear(vec_a: Vector, vec_b: Vector, tol: float = 1e-5) -> bool:
+                """Return True when the two direction vectors are effectively the same line."""
+                if vec_a.length == 0 or vec_b.length == 0:
+                    return False
+                dir_a = vec_a.normalized()
+                dir_b = vec_b.normalized()
+                dot = dir_a.dot(dir_b)
+                # Clamp potential floating point drift before comparison
+                dot = max(min(dot, 1.0), -1.0)
+                if abs(dot) >= 1 - tol:
+                    return True
+                # Fallback to cross product magnitude check to cover near-opposite
+                cross_x = dir_a.Y * dir_b.Z - dir_a.Z * dir_b.Y
+                cross_y = dir_a.Z * dir_b.X - dir_a.X * dir_b.Z
+                cross_z = dir_a.X * dir_b.Y - dir_a.Y * dir_b.X
+                cross_mag_sq = cross_x * cross_x + cross_y * cross_y + cross_z * cross_z
+                return cross_mag_sq <= tol
 
-            # Last node segment
-            last_node_segment = PathSegment(
-                [nodes[-1]],
-                main_index=main_index,
-                secondary_index=secondary_index_counter,
-            )
-            last_node_segment.copy_attributes_from(segment)
-            last_node_segment.curve_model = PathCurveModel.SINGLE
-            new_segments.append(last_node_segment)
-            secondary_index_counter += 1
+            # Decide whether the spline needs to start with a stitch segment
+            needs_leading_single = True
+            if previous_segment and previous_segment.nodes:
+                prev_tail_vec = _node_to_vector(previous_segment.nodes[-1])
+                first_vec = _node_to_vector(nodes[0])
+                second_vec = _node_to_vector(nodes[1])
+                in_vec = first_vec - prev_tail_vec
+                out_vec = second_vec - first_vec
+                needs_leading_single = not _are_collinear(in_vec, out_vec)
+
+            # Decide whether the spline needs to end with a stitch segment
+            needs_trailing_single = True
+            if next_segment and next_segment.nodes:
+                next_head_vec = _node_to_vector(next_segment.nodes[0])
+                penultimate_vec = _node_to_vector(nodes[-2])
+                last_vec = _node_to_vector(nodes[-1])
+                in_vec = last_vec - penultimate_vec
+                out_vec = next_head_vec - last_vec
+                needs_trailing_single = not _are_collinear(in_vec, out_vec)
+
+            # Select nodes based on decisions for requiring start or end stitch segments
+            middle_start = 1 if needs_leading_single else 0
+            middle_end = len(nodes) - 1 if needs_trailing_single else len(nodes)
+
+            # Prepare start stitch segment, if applicable
+            if needs_leading_single:
+                first_node_segment = PathSegment(
+                    [nodes[0]],
+                    main_index=main_index,
+                    secondary_index=secondary_index_counter,
+                )
+                first_node_segment.copy_attributes_from(segment)
+                first_node_segment.curve_model = PathCurveModel.SINGLE
+                new_segments.append(first_node_segment)
+                secondary_index_counter += 1
+
+            # Prepare spline segment
+            middle_nodes = nodes[middle_start:middle_end]
+            if middle_nodes:
+                middle_nodes_segment = PathSegment(
+                    middle_nodes,
+                    main_index=main_index,
+                    secondary_index=secondary_index_counter,
+                )
+                middle_nodes_segment.copy_attributes_from(segment)
+                middle_nodes_segment.curve_model = PathCurveModel.SPLINE
+                new_segments.append(middle_nodes_segment)
+                secondary_index_counter += 1
+
+            # Prepare end stitch segment, if applicable
+            if needs_trailing_single:
+                last_node_segment = PathSegment(
+                    [nodes[-1]],
+                    main_index=main_index,
+                    secondary_index=secondary_index_counter,
+                )
+                last_node_segment.copy_attributes_from(segment)
+                last_node_segment.curve_model = PathCurveModel.SINGLE
+                new_segments.append(last_node_segment)
+                secondary_index_counter += 1
         else:
-            # Handle segments with two or fewer nodes
+            # Not enough nodes for spline, define regular segment
             for node in nodes:
                 single_node_segment = PathSegment(
                     [node],

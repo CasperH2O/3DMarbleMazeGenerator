@@ -19,6 +19,46 @@ def make_node(x: float, grid_type: NodeGridType = None) -> Node:
     return node
 
 
+def make_xyz_node(x: float, y: float = 0.0, z: float = 0.0) -> Node:
+    """Shortcut for building nodes at arbitrary coordinates."""
+    return Node(x, y, z)
+
+
+def run_split_spline(
+    segment_nodes: list[Node],
+    *,
+    previous_nodes: list[Node] | None = None,
+    next_nodes: list[Node] | None = None,
+    main_index: int = 7,
+):
+    """Helper to call `_split_spline_segment` in isolation."""
+
+    arch = PathArchitect.__new__(PathArchitect)
+    arch.secondary_index_counters = {}
+
+    segment = PathSegment(segment_nodes, main_index=main_index)
+    segment.curve_model = PathCurveModel.SPLINE
+
+    previous_segment = (
+        PathSegment(previous_nodes, main_index=main_index - 1)
+        if previous_nodes is not None
+        else None
+    )
+    next_segment = (
+        PathSegment(next_nodes, main_index=main_index + 1)
+        if next_nodes is not None
+        else None
+    )
+
+    split_segments = arch._split_spline_segment(
+        segment,
+        previous_segment=previous_segment,
+        next_segment=next_segment,
+    )
+
+    return arch, split_segments
+
+
 def run_adjust_segments(nodes):
     """
     Feed a SINGLE PathSegment to a placeholder `PathArchitect` and return
@@ -281,3 +321,88 @@ def test_single_after_non_circular_spline():
     assert len(arch.segments) == 3
     assert NodeGridType.CIRCULAR.value not in arch.segments[0].nodes[-1].grid_type
     assert NodeGridType.CIRCULAR.value in arch.segments[1].nodes[-1].grid_type
+
+
+def test_split_spline_handles_empty_node_list():
+    arch, segments = run_split_spline([])
+
+    assert segments == []
+    assert arch.secondary_index_counters[7] == 0
+
+
+def test_split_spline_keeps_leading_stitch_only():
+    nodes = [
+        make_xyz_node(1, 0, 0),
+        make_xyz_node(2, 0, 0),
+        make_xyz_node(3, 0, 0),
+    ]
+    previous_nodes = [make_xyz_node(1, -1, 0)]
+    next_nodes = [make_xyz_node(4, 0, 0)]
+
+    arch, segments = run_split_spline(
+        nodes, previous_nodes=previous_nodes, next_nodes=next_nodes
+    )
+
+    assert len(segments) == 2
+    first, body = segments
+
+    assert first.curve_model == PathCurveModel.SINGLE
+    assert first.nodes[0] is nodes[0]
+
+    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.nodes == nodes[1:]
+
+    assert arch.secondary_index_counters[7] == 2
+
+
+def test_split_spline_keeps_both_boundary_stitches():
+    nodes = [
+        make_xyz_node(1, 0, 0),
+        make_xyz_node(2, 0, 0),
+        make_xyz_node(3, 0, 0),
+    ]
+    previous_nodes = [make_xyz_node(1, -1, 0)]
+    next_nodes = [make_xyz_node(3, 1, 0)]
+
+    arch, segments = run_split_spline(
+        nodes, previous_nodes=previous_nodes, next_nodes=next_nodes
+    )
+
+    assert len(segments) == 3
+    lead, body, tail = segments
+
+    assert lead.curve_model == PathCurveModel.SINGLE
+    assert lead.nodes[0] is nodes[0]
+
+    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.nodes == nodes[1:-1]
+
+    assert tail.curve_model == PathCurveModel.SINGLE
+    assert tail.nodes[0] is nodes[-1]
+
+    assert arch.secondary_index_counters[7] == 3
+
+
+def test_split_spline_keeps_trailing_stitch_only():
+    nodes = [
+        make_xyz_node(1, 0, 0),
+        make_xyz_node(2, 0, 0),
+        make_xyz_node(3, 0, 0),
+    ]
+    previous_nodes = [make_xyz_node(0, 0, 0)]
+    next_nodes = [make_xyz_node(3, 1, 0)]
+
+    arch, segments = run_split_spline(
+        nodes, previous_nodes=previous_nodes, next_nodes=next_nodes
+    )
+
+    assert len(segments) == 2
+    body, tail = segments
+
+    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.nodes == nodes[:-1]
+
+    assert tail.curve_model == PathCurveModel.SINGLE
+    assert tail.nodes[0] is nodes[-1]
+
+    assert arch.secondary_index_counters[7] == 2
