@@ -111,6 +111,7 @@ class PathBuilder:
     def sweep_segments(self, segments: list[PathSegment]) -> list[PathSegment]:
         # Sweep the segments, with information of which ever segment comes previous
         previous_segment: Optional[PathSegment] = None
+        previous_swept_segment: Optional[PathSegment] = None
 
         # Iterate with an index so we can look ahead one element
         for idx, segment in enumerate(segments):
@@ -128,7 +129,9 @@ class PathBuilder:
             if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
                 # Sweep the segment.
                 segment = self.sweep_standard_segment(
-                    segment=segment, previous_segment=previous_segment
+                    segment=segment,
+                    previous_segment=previous_segment,
+                    previous_swept_segment=previous_swept_segment,
                 )
 
             # Create a spline segment, trying different path combinations.
@@ -138,6 +141,7 @@ class PathBuilder:
                     segment=segment,
                     previous_segment=previous_segment,
                     next_segment=next_segment,
+                    previous_swept_segment=previous_swept_segment,
                 )
             else:
                 print(f"Unsupported curve model: {segment.curve_model}")
@@ -145,6 +149,8 @@ class PathBuilder:
             # Store the processed segment back (in case it was modified)
             segments[idx] = segment
             previous_segment = segment
+            if segment.path_body is not None:
+                previous_swept_segment = segment
 
         return segments
 
@@ -289,7 +295,10 @@ class PathBuilder:
         return segment
 
     def sweep_standard_segment(
-        self, segment: PathSegment, previous_segment: PathSegment
+        self,
+        segment: PathSegment,
+        previous_segment: Optional[PathSegment],
+        previous_swept_segment: Optional[PathSegment],
     ) -> PathSegment:
         """
         Sweeps the segment based on its defined path and profile.
@@ -318,9 +327,9 @@ class PathBuilder:
             path_line_angle += 90 * round(path_angle_delta / 90.0)
 
         # Determine the angle of the profile based on the previous segment
-        if previous_segment is not None:
+        if previous_swept_segment is not None:
             profile_angle = self.determine_path_profile_angle(
-                previous_segment, segment, path_line_angle
+                previous_swept_segment, segment, path_line_angle
             )
 
         # Get parameters for the path profile type
@@ -385,6 +394,7 @@ class PathBuilder:
         segment: PathSegment,
         previous_segment: PathSegment,
         next_segment: PathSegment,
+        previous_swept_segment: Optional[PathSegment],
     ):
         """
         Creates a spline segment.
@@ -474,8 +484,20 @@ class PathBuilder:
             )
 
             # Determine the angle where profile matches  the previous segment
-            angle_profile_rotation_match = self.determine_path_profile_angle(
-                previous_segment, segment, angle_path_line_previous
+            profile_reference_segment: Optional[PathSegment] = previous_swept_segment
+            if profile_reference_segment is None and previous_segment is not None:
+                profile_reference_segment = (
+                    previous_segment
+                    if previous_segment.path_body is not None
+                    else None
+                )
+
+            angle_profile_rotation_match = (
+                self.determine_path_profile_angle(
+                    profile_reference_segment, segment, angle_path_line_previous
+                )
+                if profile_reference_segment is not None
+                else 0
             )
 
             # Determine spline path end angle for additional end of path profile rotation due to help path tangent
@@ -745,7 +767,11 @@ class PathBuilder:
         new_seg.secondary_index = segment.secondary_index
 
         # Sweep as a standard compound segment
-        return self.sweep_standard_segment(new_seg, previous_segment)
+        return self.sweep_standard_segment(
+            new_seg,
+            previous_segment=previous_segment,
+            previous_swept_segment=previous_swept_segment,
+        )
 
     def combine_final_path_bodies(self):
         # Combine separate segment path bodies depending on divide options
