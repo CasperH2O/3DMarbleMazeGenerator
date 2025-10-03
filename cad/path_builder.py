@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from build123d import (
     Bezier,
@@ -248,7 +248,7 @@ class PathBuilder:
                 combined_nodes.extend(seg.nodes[1:])
             else:
                 combined_nodes.extend(seg.nodes)
-        return combined_nodes
+            return combined_nodes
 
     def define_standard_segment_path(self, segment: PathSegment) -> PathSegment:
         """
@@ -274,23 +274,47 @@ class PathBuilder:
         elif segment.curve_type == PathCurveType.S_CURVE:
             if len(sub_path_points) >= 3:
                 segment.path = Bezier([(p.X, p.Y, p.Z) for p in sub_path_points])
-        elif segment.curve_type == PathCurveType.ARC:
+        elif (
+            segment.curve_type == PathCurveType.ARC
+            and all(
+                math.isclose(p.Z, sub_path_points[0].Z, rel_tol=0.0, abs_tol=1e-6)
+                for p in sub_path_points
+            )
+            and len(sub_path_points) >= 2
+        ):
             if len(sub_path_points) >= 2:
                 first = sub_path_points[0]
                 last = sub_path_points[-1]
-                # Calculate the Euclidean distance between first node to 0,0,0 center of puzzle
-                distance_to_center = math.sqrt(first.X**2 + first.Y**2 + first.Z**2)
+
+            # Calculate the Euclidean distance between first node and the plane center at (0, 0, plane_z)
+            plane_z: float = sub_path_points[0].Z
+            dx: float = first.X - 0.0
+            dy: float = first.Y - 0.0
+            dz: float = (
+                first.Z - plane_z
+            )  # ≈ 0 because all points are on the same Z plane
+            distance_to_center: float = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+            segment.path = RadiusArc(
+                start_point=first, end_point=last, radius=distance_to_center
+            )
+
+            # Check if the arc is bent in the right direction, if not invert and recreate
+            if not (
+                math.isclose(segment.path.arc_center.X, 0.0, abs_tol=1e-6)
+                and math.isclose(segment.path.arc_center.Y, 0.0, abs_tol=1e-6)
+                and math.isclose(segment.path.arc_center.Z, plane_z, abs_tol=1e-6)
+            ):
+                distance_to_center *= -1
                 segment.path = RadiusArc(
                     start_point=first, end_point=last, radius=distance_to_center
                 )
-                # Check if the arc is bent in the right direction, if not invert and recreate
-                if not is_close_to_origin(segment.path.arc_center):
-                    distance_to_center *= -1
-                    segment.path = RadiusArc(
-                        start_point=first, end_point=last, radius=distance_to_center
-                    )
-        else:
+        elif len(sub_path_points) >= 2:
             segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
+        else:
+            print(
+                f"Define standard segment found an issue with this point: {sub_path_points[0]}"
+            )
 
         return segment
 
@@ -487,9 +511,7 @@ class PathBuilder:
             profile_reference_segment: Optional[PathSegment] = previous_swept_segment
             if profile_reference_segment is None and previous_segment is not None:
                 profile_reference_segment = (
-                    previous_segment
-                    if previous_segment.path_body is not None
-                    else None
+                    previous_segment if previous_segment.path_body is not None else None
                 )
 
             angle_profile_rotation_match = (
