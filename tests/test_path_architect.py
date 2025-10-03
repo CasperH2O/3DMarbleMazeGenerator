@@ -1,5 +1,119 @@
+import math
+import sys
+from enum import Enum
+from types import ModuleType
+
+
+if "build123d" not in sys.modules:
+    stub = ModuleType("build123d")
+
+    class _StubVector:
+        def __init__(self, x=0.0, y=0.0, z=0.0):
+            self.X = float(x)
+            self.Y = float(y)
+            self.Z = float(z)
+
+        def __add__(self, other):
+            return _StubVector(self.X + other.X, self.Y + other.Y, self.Z + other.Z)
+
+        def __sub__(self, other):
+            return _StubVector(self.X - other.X, self.Y - other.Y, self.Z - other.Z)
+
+        def __mul__(self, scalar):
+            return _StubVector(self.X * scalar, self.Y * scalar, self.Z * scalar)
+
+        __rmul__ = __mul__
+
+        @property
+        def length(self):
+            return math.sqrt(self.X**2 + self.Y**2 + self.Z**2)
+
+        def normalized(self):
+            length = self.length
+            if length == 0:
+                return _StubVector(0.0, 0.0, 0.0)
+            return _StubVector(self.X / length, self.Y / length, self.Z / length)
+
+        def dot(self, other):
+            return self.X * other.X + self.Y * other.Y + self.Z * other.Z
+
+        @property
+        def x(self):
+            return self.X
+
+        @property
+        def y(self):
+            return self.Y
+
+        @property
+        def z(self):
+            return self.Z
+
+    class _StubTransition:
+        ROUND = "round"
+        RIGHT = "right"
+
+    class _StubGeometry:
+        pass
+
+    stub.Vector = _StubVector
+    stub.Transition = _StubTransition
+    stub.Edge = _StubGeometry
+    stub.Part = _StubGeometry
+    stub.Sketch = _StubGeometry
+    stub.Wire = _StubGeometry
+
+    sys.modules["build123d"] = stub
+
+
+if "ocp_vscode" not in sys.modules:
+    ocp_stub = ModuleType("ocp_vscode")
+
+    class _StubCamera:
+        KEEP = "keep"
+
+    def _noop(*args, **kwargs):
+        return None
+
+    def _status():
+        return {"states": {}}
+
+    ocp_stub.Camera = _StubCamera
+    ocp_stub.set_defaults = _noop
+    ocp_stub.set_viewer_config = _noop
+    ocp_stub.show = _noop
+    ocp_stub.status = _status
+
+    sys.modules["ocp_vscode"] = ocp_stub
+
+
+if "cad.path_profile_type_shapes" not in sys.modules:
+    path_stub = ModuleType("cad.path_profile_type_shapes")
+
+    class PathProfileType(Enum):
+        L_SHAPE_MIRRORED = "l_shape_mirrored"
+        L_SHAPE_MIRRORED_PATH_COLOR = "l_shape_mirrored_path_color"
+        L_SHAPE_ADJUSTED_HEIGHT = "l_shape_adjusted_height"
+        L_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR = "l_shape_adjusted_height_path_color"
+        O_SHAPE = "o_shape"
+        O_SHAPE_SUPPORT = "o_shape_support"
+        U_SHAPE = "u_shape"
+        U_SHAPE_PATH_COLOR = "u_shape_path_color"
+        U_SHAPE_ADJUSTED_HEIGHT = "u_shape_adjusted_height"
+        U_SHAPE_ADJUSTED_HEIGHT_PATH_COLOR = "u_shape_adjusted_height_path_color"
+        V_SHAPE = "v_shape"
+        V_SHAPE_PATH_COLOR = "v_shape_path_color"
+        RECTANGLE_SHAPE = "rectangle_shape"
+
+    path_stub.PathProfileType = PathProfileType
+    path_stub.ACCENT_REGISTRY = {}
+    path_stub.SUPPORT_REGISTRY = {}
+
+    sys.modules["cad.path_profile_type_shapes"] = path_stub
+
+
 from cad.path_architect import PathArchitect
-from cad.path_segment import PathSegment
+from cad.path_segment import PathSegment, _node_to_vector
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.node import Node, NodeGridType
 
@@ -214,6 +328,49 @@ def test_bridge_insert_pattern_b():
 
     # seg-B continues straight, node at x=2 remains
     assert abs(seg_b.nodes[1].x - 2) < TOL
+
+
+def test_detect_curves_vertical_step_creates_compound_segment():
+    """Vertical steps inside an arc should become standalone compound segments."""
+
+    arc_nodes = [
+        Node(1.0, 0.0, 0.0),
+        Node(0.0, 1.0, 0.0),
+        Node(0.0, 1.0, 1.0),  # vertical lift (same X/Y as previous node)
+        Node(-1.0, 0.0, 1.0),
+    ]
+    for node in arc_nodes:
+        node.grid_type.append(NodeGridType.CIRCULAR.value)
+
+    segment = PathSegment(arc_nodes, main_index=3)
+    segment.curve_model = PathCurveModel.COMPOUND
+
+    arch = PathArchitect.__new__(PathArchitect)
+    arch.segments = [segment]
+    arch.secondary_index_counters = {}
+
+    arch.detect_curves_and_adjust_segments()
+
+    assert len(arch.segments) == 3
+
+    leading_arc, vertical_span, trailing_arc = arch.segments
+
+    assert leading_arc.curve_type == PathCurveType.ARC
+    assert trailing_arc.curve_type == PathCurveType.ARC
+
+    assert vertical_span.curve_model == PathCurveModel.COMPOUND
+    assert vertical_span.curve_type is None
+
+    # Shared nodes maintained to preserve continuity
+    assert leading_arc.nodes[-1] is vertical_span.nodes[0]
+    assert vertical_span.nodes[-1] is trailing_arc.nodes[0]
+
+    # Vertical span keeps identical X/Y but different Z coordinates
+    start_vec = _node_to_vector(vertical_span.nodes[0])
+    end_vec = _node_to_vector(vertical_span.nodes[-1])
+    assert abs(start_vec.X - end_vec.X) < TOL
+    assert abs(start_vec.Y - end_vec.Y) < TOL
+    assert abs(start_vec.Z - end_vec.Z) > TOL
 
 
 def test_single_before_non_circular_spline():

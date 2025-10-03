@@ -360,6 +360,89 @@ class PathArchitect:
         # Retrieve or initialize the secondary index counter for this main index
         secondary_index_counter = self.secondary_index_counters.get(main_index, 0)
 
+        def _is_vertical_edge(node_a: Node, node_b: Node, tol: float = 1e-7) -> bool:
+            """Return True if node_a → node_b only changes in Z within tolerance."""
+
+            vec_a = _node_to_vector(node_a)
+            vec_b = _node_to_vector(node_b)
+            return (
+                abs(vec_a.X - vec_b.X) < tol
+                and abs(vec_a.Y - vec_b.Y) < tol
+                and abs(vec_a.Z - vec_b.Z) > tol
+            )
+
+        def _split_nodes_by_vertical_runs(nodes_subset: list[Node]) -> list[tuple[list[Node], bool]]:
+            """Split nodes into planar/vertical runs, tagging the vertical ones."""
+
+            if len(nodes_subset) < 2:
+                return [(list(nodes_subset), False)]
+
+            runs: list[tuple[list[Node], bool]] = []
+            current_nodes = [nodes_subset[0]]
+            current_run_type: str | None = None  # "planar" or "vertical"
+            i = 0
+            while i < len(nodes_subset) - 1:
+                edge_is_vertical = _is_vertical_edge(nodes_subset[i], nodes_subset[i + 1])
+                run_type = "vertical" if edge_is_vertical else "planar"
+
+                if current_run_type is None:
+                    current_run_type = run_type
+
+                if run_type != current_run_type:
+                    runs.append((list(current_nodes), current_run_type == "vertical"))
+                    current_nodes = [nodes_subset[i]]
+                    current_run_type = run_type
+                    continue  # Re-process this edge for the new run type
+
+                current_nodes.append(nodes_subset[i + 1])
+                i += 1
+
+            if current_nodes:
+                runs.append((list(current_nodes), current_run_type == "vertical"))
+
+            return runs
+
+        def _emit_segments(nodes_subset: list[Node], curve_type: PathCurveType | None):
+            """Create path segments for the provided nodes, handling vertical runs."""
+
+            nonlocal secondary_index_counter
+
+            if not nodes_subset:
+                return
+
+            if (
+                curve_type == PathCurveType.ARC
+                and len(nodes_subset) > 1
+            ):
+                runs = _split_nodes_by_vertical_runs(nodes_subset)
+                for run_nodes, is_vertical in runs:
+                    if len(run_nodes) < 2:
+                        continue
+                    segment = PathSegment(
+                        list(run_nodes),
+                        main_index=main_index,
+                        secondary_index=secondary_index_counter,
+                    )
+                    secondary_index_counter += 1
+                    segment.copy_attributes_from(original_segment)
+                    if is_vertical:
+                        segment.curve_model = PathCurveModel.COMPOUND
+                        segment.curve_type = None
+                    else:
+                        segment.curve_type = curve_type
+                    split_segments.append(segment)
+                return
+
+            segment = PathSegment(
+                list(nodes_subset),
+                main_index=main_index,
+                secondary_index=secondary_index_counter,
+            )
+            secondary_index_counter += 1
+            segment.copy_attributes_from(original_segment)
+            segment.curve_type = curve_type
+            split_segments.append(segment)
+
         for idx, node in enumerate(nodes):
             node_curve_id = getattr(
                 node, "curve_id", None
@@ -371,18 +454,7 @@ class PathArchitect:
             ):
                 if current_segment_nodes:
                     # Finish the current segment and add it to the list of split segments
-                    segment = PathSegment(
-                        current_segment_nodes,
-                        main_index=main_index,
-                        secondary_index=secondary_index_counter,
-                    )
-                    secondary_index_counter += 1
-                    # Copy attributes from the original segment to maintain consistency
-                    segment.path_profile_type = original_segment.path_profile_type
-                    segment.curve_model = original_segment.curve_model
-                    segment.curve_type = current_curve_type
-                    segment.transition_type = original_segment.transition_type
-                    split_segments.append(segment)
+                    _emit_segments(list(current_segment_nodes), current_curve_type)
 
                     # Create a connecting segment only when transitioning between different curves
                     if (
@@ -426,18 +498,7 @@ class PathArchitect:
         # After processing all nodes, check if there is a segment to be added
         if current_segment_nodes:
             # Finish the last segment and add it to the list of split segments
-            segment = PathSegment(
-                current_segment_nodes,
-                main_index=main_index,
-                secondary_index=secondary_index_counter,
-            )
-            secondary_index_counter += 1
-            # Copy attributes from the original segment
-            segment.path_profile_type = original_segment.path_profile_type
-            segment.curve_model = original_segment.curve_model
-            segment.curve_type = current_curve_type
-            segment.transition_type = original_segment.transition_type
-            split_segments.append(segment)
+            _emit_segments(list(current_segment_nodes), current_curve_type)
 
         # Update the secondary index counter for the main index
         self.secondary_index_counters[main_index] = secondary_index_counter
