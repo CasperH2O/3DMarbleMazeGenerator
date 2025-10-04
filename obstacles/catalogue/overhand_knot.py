@@ -206,9 +206,8 @@ class OverhandKnotObstacle(Obstacle):
 
         def rodrigues(v: Vector) -> Vector:
             # v_rot = v*cosθ + (k×v)*sinθ + k*(k·v)*(1−cosθ)
-            c, s = (acos(-1.0) and None, None)  # dummy to keep locals distinct
-            c = __import__("math").cos(ang_a_rad)
-            s = __import__("math").sin(ang_a_rad)
+            c = cos(ang_a_rad)
+            s = sin(ang_a_rad)
             return v * c + k.cross(v) * s + k * (k.dot(v)) * (1.0 - c)
 
         v0 = rodrigues(d0)

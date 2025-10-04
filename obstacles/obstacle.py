@@ -4,7 +4,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import plotly.graph_objects as go
 from build123d import (
@@ -17,7 +17,6 @@ from build123d import (
     Pos,
     Rotation,
     Vector,
-    add,
 )
 from numpy import linspace
 from ocp_vscode import show
@@ -97,9 +96,14 @@ class Obstacle(ABC):
         return create_u_shape(**u_params, rotation_angle=rotation_angle)
 
     def load_relative_node_coords(self) -> list[Node]:
+        """
+        Load relative node coordinates from cached json file,
+        if not present, determine and store
+        """
         cache_dir = Path("obstacles/catalogue/cache")
         cache_dir.mkdir(parents=True, exist_ok=True)
         fn = cache_dir / f"{self.name.replace(' ', '_').lower()}_nodes.json"
+
         if fn.exists():
             with open(fn) as f:
                 data = json.load(f)
@@ -151,6 +155,7 @@ class Obstacle(ABC):
             )
             for c in overlap
         ]
+
         return self.occupied_nodes
 
     def get_placed_part(self) -> Optional[Part]:
@@ -158,7 +163,7 @@ class Obstacle(ABC):
         Returns the obstacle's Part, placed according to self.location.
         Caches the unplaced solid once built. The returned Part is a *located copy*,
         so the cached solid remains in local coordinates.
-        # TODO reavaluate this approach long term
+        # TODO reavaluate this approach long term once obstacles are integrated part of puzzle for optimization
         """
         if self.location is None:
             return None
@@ -290,18 +295,16 @@ class Obstacle(ABC):
         fig.update_layout(title=f"{self.name} obstacle view", template="plotly_dark")
         fig.show()
 
-    def determine_occupied_nodes(
-        self,
-        grid_count: int = 30,
-        show_3d: bool = False,
-    ) -> list[Node]:
+    def determine_occupied_nodes(self, grid_count: int = 30) -> list[Node]:
         """
-        Build a grid of `grid_count^3` cubes of side `node_size`, centered at the world origin,
-        cull by the obstacle’s bounding box ±½ cube, and return the occupied nodes.
+        Determine occupied nodes by testing a `grid_count^3` cube grid around the origin.
 
-        visualize=True → show obstacle + padded bbox + tested cubes.
-        print_node_xyz=True → print a 'raw_coords = [ (i,j,k), ... ]' list,
-                             where i,j,k = node_center / node_size.
+        Parameters:
+            grid_count (int): Number of cubes to evaluate along each axis. The value is
+                coerced to an odd count so the origin is sampled.
+
+        Returns:
+            list[Node]: Nodes whose cube volume intersects the obstacle geometry.
         """
         start_time = time.perf_counter()
         if grid_count % 2 == 0:
@@ -349,22 +352,6 @@ class Obstacle(ABC):
                     if (cube & obstacle_solid).solids():
                         occupied.append(Node(x, y, z, occupied=True))
 
-        if show_3d:
-            # build one combined debug Part
-            with BuildPart() as dbg:
-                # padded bbox as a big box
-                # center + extents
-                cx = (min_pt.X + max_pt.X) / 2
-                cy = (min_pt.Y + max_pt.Y) / 2
-                cz = (min_pt.Z + max_pt.Z) / 2
-                dx = max_pt.X - min_pt.X
-                dy = max_pt.Y - min_pt.Y
-                dz = max_pt.Z - min_pt.Z
-                add(Plane.XY * Pos(cx, cy, cz) * Box(dx, dy, dz))
-
-            dbg.part.color = "#25F3FA36"
-            show((dbg.part, obstacle_solid))
-
         elapsed = time.perf_counter() - start_time
         print(
             f"determine_occupied_nodes took {elapsed:.3f} s – tested {len(tested_centers)} cubes, occupied nodes: {len(occupied)}"
@@ -373,7 +360,7 @@ class Obstacle(ABC):
         return occupied
 
     def determine_overlap_allowed_nodes(self, occupied: list[Node]) -> list[Node]:
-        # cardinal 6‐neigh offsets in world coords
+        """cardinal 6‐neigh offsets in world coords"""
         offs = [
             (self.node_size, 0, 0),
             (-self.node_size, 0, 0),
