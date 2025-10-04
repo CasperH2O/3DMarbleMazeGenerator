@@ -1,7 +1,7 @@
 # puzzle/cases/cylinder.py
 
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 from config import Config
 from puzzle.node import Node
@@ -34,7 +34,7 @@ class CylinderCasing(Casing):
             -self.inner_half_height <= z <= self.inner_half_height
         )
 
-    def get_mounting_waypoints(self, nodes: List[Node]) -> List[Node]:
+    def get_mounting_waypoints(self, nodes: list[Node]) -> list[Node]:
         """
         Generic circular waypoint selection.
         For a cylinder we can choose multiple planes; by default: bottom, mid, top.
@@ -51,7 +51,7 @@ class CylinderCasing(Casing):
             count_per_plane=count,
         )
 
-    def create_nodes(self) -> Tuple[List[Node], Dict[Coordinate, Node], Node]:
+    def create_nodes(self) -> Tuple[list[Node], Dict[Coordinate, Node], Node]:
         # Symmetric value lists
         x_values = frange(-self.inner_radius, self.inner_radius, self.node_size)
         y_values = frange(-self.inner_radius, self.inner_radius, self.node_size)

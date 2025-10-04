@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional
 
-from config import PathCurveType, PathProfileType
+from config import PathCurveType
 
 
 class NodeGridType(Enum):
@@ -35,7 +35,9 @@ class Node:
             x (float): The x-coordinate of the node.
             y (float): The y-coordinate of the node.
             z (float): The z-coordinate of the node.
-            occupied (bool, optional): Indicates if the node is occupied or used in the puzzle. Defaults to False.
+            occupied (bool): Indicates if the node is occupied or used in the puzzle. Defaults to False.
+            overlap_allowed (bool): Determines whether obstacles may overlap at this node
+            position, enabling intentional stacking of geometry when set to True. Defaults to False.
         """
         self.x: float = x
         self.y: float = y
@@ -48,10 +50,6 @@ class Node:
         self.puzzle_end: bool = False  # End of the puzzle
         self.mounting: bool = False  # Mounting node, connects to mounting bridge
 
-        # TODO is path profile type and path curve type required as property for nodes?
-        self.path_profile_type: Optional[PathProfileType] = (
-            None  # Type of path profile shape
-        )
         self.path_curve_type: Optional[PathCurveType] = None  # Type of path curve
         self.used_in_curve: bool = False  # Indicates if node is used in a curve
         self.curve_id = None  # Uniquely match node with detected curve

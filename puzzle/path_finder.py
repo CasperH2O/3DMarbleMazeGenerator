@@ -154,6 +154,10 @@ class AStarPathFinder:
             # Get the node with the lowest f-score from the priority queue
             current_f, current_node = heapq.heappop(open_set)
 
+            # Skip entries that no longer represent the best-known cost for this node
+            if current_f > current_node.f:
+                continue
+
             # If we reached the goal, reconstruct and return the path
             if current_node == goal_node:
                 return self.reconstruct_path(current_node)

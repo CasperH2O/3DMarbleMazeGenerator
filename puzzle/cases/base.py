@@ -57,8 +57,8 @@ class Casing(ABC):
         radius: float,
         z_planes: list[float],
         count_even: int,
-        grid_step: float = None,
-        tolerance: float = None,
+        grid_step: Optional[float] = None,
+        tolerance: Optional[float] = None,
     ) -> list[Node]:
         """
         Add circularly placed nodes on one or more Z-planes.
