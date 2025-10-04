@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
+from build123d import Part
 from ocp_vscode import Camera, set_defaults, set_viewer_config, show, status
 
 
@@ -49,10 +50,8 @@ class Case(ABC):
         pass
 
     @abstractmethod
-    def get_parts(self):
-        """
-        Returns a dictionary of CasePart objects representing the case components.
-        """
+    def get_parts(self) -> list[Part]:
+        """Return the case components as a list Part objects."""
         pass
 
     def preview(self) -> None:

@@ -27,8 +27,9 @@ class CaseCylinder(Case):
         # Core config
         self.diameter = Config.Cylinder.DIAMETER
         self.height = Config.Cylinder.HEIGHT
-        self.panel_thickness = Config.Cylinder.SHELL_THICKNESS
+        self.shell_thickness = Config.Cylinder.SHELL_THICKNESS
         self.number_of_mounting_points = Config.Cylinder.NUMBER_OF_MOUNTING_POINTS
+        self.node_size = Config.Puzzle.NODE_SIZE
 
         # Create enclosure & cut shape
         self.casing = self.create_casing()
@@ -47,7 +48,7 @@ class CaseCylinder(Case):
             with BuildSketch():
                 Circle(radius=self.diameter / 2)
                 Circle(
-                    radius=self.diameter / 2 - self.panel_thickness,
+                    radius=self.diameter / 2 - self.shell_thickness,
                     mode=Mode.SUBTRACT,
                 )
             extrude(amount=self.height / 2, both=True)
@@ -57,10 +58,10 @@ class CaseCylinder(Case):
         # Shape that ensures the case properly hollows out external bodies
         flush_distance_tolerance = 0.4
         inner_diameter = (
-            self.diameter - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+            self.diameter - 2 * self.shell_thickness - 2 * flush_distance_tolerance
         )
         inner_height = (
-            self.height - 2 * self.panel_thickness - 2 * flush_distance_tolerance
+            self.height - 2 * self.shell_thickness - 2 * flush_distance_tolerance
         )
 
         with BuildPart() as cut_shape:
@@ -73,14 +74,13 @@ class CaseCylinder(Case):
     def create_case_assembly(self) -> list[BuildPart]:
         """ """
         tolerance = 0.5
-        shell_thickness = self.panel_thickness
 
         # Casing-shaped solid used only to cut an indent in base parts (has tolerance)
         with BuildPart() as indent_casing:
             with BuildSketch():
                 Circle(radius=(self.diameter + tolerance) / 2)
                 Circle(
-                    radius=(self.diameter + tolerance) / 2 - shell_thickness,
+                    radius=(self.diameter + tolerance) / 2 - self.shell_thickness,
                     mode=Mode.SUBTRACT,
                 )
             extrude(amount=self.height / 2, both=True)
@@ -88,7 +88,9 @@ class CaseCylinder(Case):
         # Long thin rods
         diameter_long = 5.0  # TODO
         r_long = diameter_long / 2
-        h_long = self.height - 10  # reduced to make room for top/bottom discs
+        h_long = (
+            self.height - self.node_size
+        )  # reduced to make room for top/bottom discs
         pattern_r = 28.0  # TODO: tie to actual node pattern
 
         # Short, thicker rods (at multiple Z levels)
@@ -98,13 +100,13 @@ class CaseCylinder(Case):
         z_planes = [0.0, h_long / 2 - h_short / 2, -h_long / 2 + h_short / 2]
 
         # Discs
-        base_r = 55.0
-        base_h = 10.0
+        base_r = (self.diameter + self.node_size) / 2
+        base_h = self.node_size
         bottom_z = -h_long / 2 - base_h / 2
         top_z = h_long / 2 + base_h / 2
 
         # Small radial spokes ("internal path bridges")
-        small_len = 10.0
+        small_len = self.node_size
         inner_pattern_r = pattern_r + 5.0
 
         # bottom case: long rods + short rods + bottom disc
@@ -146,7 +148,9 @@ class CaseCylinder(Case):
         with BuildPart() as internal_path_bridges:
             for z in z_planes:
                 with Locations((0, 0, z)):
-                    with PolarLocations(radius=inner_pattern_r, count=3):
+                    with PolarLocations(
+                        radius=inner_pattern_r, count=self.number_of_mounting_points
+                    ):
                         # rotate cylinder so it points radially
                         with Locations(Location((0, 0, 0), (90, 90, 0))):
                             Cylinder(
@@ -164,7 +168,9 @@ class CaseCylinder(Case):
         # Cut rod clearance holes in top disc, with tolerance for glue
         with BuildPart() as rod_cutter:
             with Locations((0, 0, h_long / 2 + 2.5)):
-                with PolarLocations(radius=pattern_r, count=3):
+                with PolarLocations(
+                    radius=pattern_r, count=self.number_of_mounting_points
+                ):
                     Cylinder(radius=r_long + tolerance, height=5)
 
         # Apply booleans

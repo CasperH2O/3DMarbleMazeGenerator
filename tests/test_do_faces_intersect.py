@@ -1,5 +1,5 @@
 import pytest
-from build123d import Compound, Cone, Edge, Face, Plane
+from build123d import Compound, Cone, Face, Plane
 
 from cad.solid_check import do_faces_intersect
 
@@ -23,11 +23,11 @@ def negative_shape():
 
 def test_do_faces_intersect_positive(positive_shape):
     result = do_faces_intersect(positive_shape)
-    # should return an Edge instance, not False
-    assert isinstance(result, Edge), f"Expected an Edge, got {result!r}"
+    # should report that an intersection exists
+    assert result is True
 
 
 def test_do_faces_intersect_negative(negative_shape):
     result = do_faces_intersect(negative_shape)
-    # should return False
+    # should return False when no intersection is detected
     assert result is False
