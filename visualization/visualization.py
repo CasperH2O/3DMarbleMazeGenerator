@@ -57,6 +57,7 @@ def visualize_path_architect(
         "Top": dict(eye=dict(x=0, y=0, z=1.5)),
     }
 
+    # layout, settings, view buttons
     fig.update_layout(
         title="Path Visualization",
         template="plotly_dark",

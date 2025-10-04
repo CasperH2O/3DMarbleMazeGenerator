@@ -16,13 +16,17 @@ from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node, NodeGridType
 
 
-def plot_nodes(nodes: list[Node], segments: list[PathSegment] | None = None):
+def plot_nodes(
+    nodes: list[Node], segments: list[PathSegment] | None = None
+) -> list[go.Scatter3d]:
     """
     Groups nodes by their primary property so that the legend only displays the primary label,
     while the hover text for each marker shows all applicable flags on separate lines.
 
     Based on segments, any nodes within those segments that are flagged as
     segment_start or segment_end are merged into the local node list
+
+    # TODO some optimization, code consolidation with flags and labels
     """
     # Start with a local copy; don't mutate the caller's list
     all_nodes: list[Node] = list(nodes) if nodes else []
@@ -158,7 +162,7 @@ def plot_nodes(nodes: list[Node], segments: list[PathSegment] | None = None):
     return traces
 
 
-def plot_casing(casing: Case):
+def plot_casing(casing: Case) -> list[go.Scatter3d]:
     if isinstance(casing, SphereCasing):
         return plot_sphere_casing(casing)
     elif isinstance(casing, BoxCasing):
@@ -169,7 +173,7 @@ def plot_casing(casing: Case):
         raise ValueError(f"Unsupported casing type: {type(casing)}")
 
 
-def plot_cylinder_casing(casing: CylinderCasing):
+def plot_cylinder_casing(casing: CylinderCasing) -> list[go.Scatter3d]:
     """
     Draw a minimal wireframe for a vertical cylinder centered at the origin:
     - Top and bottom circles (z = ± half height)
@@ -238,7 +242,7 @@ def plot_cylinder_casing(casing: CylinderCasing):
     return casing_traces
 
 
-def plot_sphere_casing(casing: SphereCasing):
+def plot_sphere_casing(casing: SphereCasing) -> list[go.Scatter3d]:
     theta = np.linspace(0, 2 * np.pi, 100)
     radius = casing.diameter / 2
 
@@ -289,7 +293,7 @@ def plot_sphere_casing(casing: SphereCasing):
     return casing_traces
 
 
-def plot_box_casing(casing: BoxCasing):
+def plot_box_casing(casing: BoxCasing) -> list[go.Scatter3d]:
     half_width = casing.width / 2
     half_height = casing.height / 2
     half_length = casing.length / 2
@@ -350,7 +354,7 @@ def plot_box_casing(casing: BoxCasing):
     return [box_trace]
 
 
-def plot_node_cubes(nodes: list[Node], node_size: float):
+def plot_node_cubes(nodes: list[Node], node_size: float) -> list[go.Scatter3d]:
     """
     Draw a little wire-frame cube (edge length=node_size) centered on each node.
     Returns a list of Scatter3d traces.
@@ -577,10 +581,10 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
     return traces
 
 
-def plot_raw_obstacle_path(path: list, name: str = "Raw Path"):
+def plot_raw_obstacle_path(path: list, name: str = "Raw Path") -> list[go.Scatter3d]:
     """
     Given a list of vector like objects (.X/.Y/.Z),
-    return a single Scatter3d trace plotting them in order as a line.
+    return a list of Scatter3d trace, plotting them in order to create a line.
     """
 
     xs, ys, zs = [], [], []
@@ -601,7 +605,7 @@ def plot_raw_obstacle_path(path: list, name: str = "Raw Path"):
     return [trace]
 
 
-def plot_obstacles_raw_paths(obstacles: list):
+def plot_obstacles_raw_paths(obstacles: list) -> list[go.Scatter3d]:
     """
     Build traces for all placed obstacles (in world coordinates)
     """
@@ -623,7 +627,9 @@ def plot_obstacles_raw_paths(obstacles: list):
     return traces
 
 
-def plot_puzzle_path(path_nodes: list[Node], name: str = "Puzzle Path"):
+def plot_puzzle_path(
+    path_nodes: list[Node], name: str = "Puzzle Path"
+) -> list[go.Scatter3d]:
     """
     Plot the full puzzle path (list of Nodes) as a single line.
     Hidden by default; toggle via legend.
