@@ -34,6 +34,7 @@ class CaseCylinder(Case):
         # Create enclosure & cut shape
         self.casing = self.create_casing()
         self.cut_shape = self.create_cut_shape()
+        self.base_parts = self._create_base_parts()
 
         # Case assembly
         (
@@ -203,6 +204,26 @@ class CaseCylinder(Case):
             self.base_top.part,
             self.internal_path_bridges.part,
         ]
+
+    def get_base_parts(self) -> list[Part]:
+        return self.base_parts
+
+    def _create_base_parts(self) -> list[Part]:
+        tolerance = 0.5
+
+        with BuildPart() as base:
+            with BuildSketch():
+                Circle(radius=self.diameter / 2 + self.node_size)
+            extrude(amount=-self.node_size * 2, taper=-6)
+            with BuildSketch():
+                Circle(radius=self.diameter / 2 + tolerance)
+            extrude(amount=-self.node_size, mode=Mode.SUBTRACT)
+
+        base.part.position = (0, 0, -self.height * 0.5 + self.node_size)
+        base.part.label = CasePart.BASE.value
+        base.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+
+        return [base.part]
 
 
 if __name__ == "__main__":

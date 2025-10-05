@@ -33,7 +33,6 @@ from ocp_vscode import (
     status,
 )
 
-from cad.base import create_box_base, create_circular_base, create_cylinder_base
 from cad.cases.case import CasePart
 from cad.cases.case_box import CaseBox
 from cad.cases.case_cylinder import CaseCylinder
@@ -60,8 +59,8 @@ def main() -> None:
         case_shape=Config.Puzzle.CASE_SHAPE,
     )
 
-    # Create the case and retrieve its parts and the cut shape
-    case_parts, cut_shape = puzzle_casing()
+    # Create the case and retrieve its parts, base, and the cut shape
+    case_parts, base_parts, cut_shape = puzzle_casing()
 
     # Build paths associated with the puzzle and cut them from the case
     standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
@@ -70,14 +69,6 @@ def main() -> None:
 
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
-
-    # Create the base, it's either a box, cylinder or any of the sphere shapes
-    if puzzle.case_shape == CaseShape.BOX:
-        base_parts = create_box_base()
-    if puzzle.case_shape == CaseShape.CYLINDER:
-        base_parts = create_cylinder_base()
-    else:
-        base_parts = create_circular_base()
 
     if standard_paths:
         for idx, part in enumerate(case_parts):
@@ -175,8 +166,8 @@ def main() -> None:
 def puzzle_casing():
     """
     Create the puzzle case based on the configuration and return:
-      - case: The instantiated case object
       - case_parts: A dictionary of CasePart instances belonging to the case
+      - base_parts: Base components associated with the case
       - cut_shape: The shape used to cut paths from the case
     """
     # Create the appropriate case based on configuration
@@ -197,11 +188,12 @@ def puzzle_casing():
 
     # Retrieve parts from the case.
     case_parts = case.get_parts()
+    base_parts = case.get_base_parts()
 
     # Obtain the shape used to cut paths from the case
     cut_shape = case.cut_shape
 
-    return case_parts, cut_shape
+    return case_parts, base_parts, cut_shape
 
 
 def path(puzzle, cut_shape: Part):

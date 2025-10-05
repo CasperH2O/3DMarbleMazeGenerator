@@ -3,7 +3,19 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from build123d import Part
+from build123d import (
+    Align,
+    Axis,
+    BuildPart,
+    Cylinder,
+    Keep,
+    Mode,
+    Part,
+    Plane,
+    Sphere,
+    chamfer,
+    split,
+)
 from ocp_vscode import Camera, set_defaults, set_viewer_config, show, status
 
 
@@ -19,6 +31,7 @@ class CasePart(Enum):
     Enumeration representing the different types of case parts
     """
 
+    BASE = "Base"
     MOUNTING_RING_CLIP_START = "Mounting Clip Start"
     MOUNTING_RING_CLIP_SINGLE = "Mounting Clip Single"
     MOUNTING_RING_CLIPS = "Mounting Clips"
@@ -54,14 +67,87 @@ class Case(ABC):
         """Return the case components as a list Part objects."""
         pass
 
+    @abstractmethod
+    def get_base_parts(self) -> list[Part]:
+        """Return the base components as a list of Part objects."""
+        pass
+
+    @staticmethod
+    def _create_circular_base_parts(
+        sphere_diameter: float,
+        top_color: str,
+        bottom_color: str,
+        edge_color: str,
+    ) -> list[Part]:
+        """
+        Build the standard circular base used by spherical casings.
+        """
+
+        _BASE_TOP_LABEL = "Base Top"
+        _BASE_BOTTOM_LABEL = "Base Bottom"
+        _BASE_EDGE_LABEL = "Base Edge"
+
+        _OUTER_RADIUS = 30.0
+        _INNER_RADIUS = 15.0
+        _CLEARANCE_OFFSET = 7.0
+        _FOOT_OFFSET = 5.0
+        _EDGE_OFFSET = 6.5
+        _CHAMFER_LENGTH = 2.0
+
+        extrusion_amount = -1 * (sphere_diameter / 2 + _CLEARANCE_OFFSET)
+
+        with BuildPart() as base:
+            Cylinder(
+                radius=_OUTER_RADIUS,
+                height=-extrusion_amount,
+                align=(Align.CENTER, Align.CENTER, Align.MAX),
+            )
+            Cylinder(
+                radius=_INNER_RADIUS,
+                height=-extrusion_amount,
+                align=(Align.CENTER, Align.CENTER, Align.MAX),
+                mode=Mode.SUBTRACT,
+            )
+            Sphere(radius=sphere_diameter / 2, mode=Mode.SUBTRACT)
+            chamfer(base.edges().group_by(Axis.Z)[0], length=_CHAMFER_LENGTH)
+            chamfer(base.edges().group_by(Axis.Z)[-1], length=_CHAMFER_LENGTH)
+
+        base_foot = split(
+            objects=base.part,
+            bisect_by=Plane.XY.offset(extrusion_amount + _FOOT_OFFSET),
+            keep=Keep.BOTTOM,
+        )
+        base_edge = split(
+            objects=base.part,
+            bisect_by=Plane.XY.offset(extrusion_amount + _EDGE_OFFSET),
+            keep=Keep.BOTTOM,
+        )
+
+        base.part -= base_foot
+        base.part -= base_edge
+        base_edge -= base_foot
+
+        base.part.label = _BASE_TOP_LABEL
+        base.part.color = top_color
+
+        base_foot.label = _BASE_BOTTOM_LABEL
+        base_foot.color = bottom_color
+
+        base_edge.label = _BASE_EDGE_LABEL
+        base_edge.color = edge_color
+
+        return [base.part, base_foot, base_edge]
+
     def preview(self) -> None:
         """
         Build parts, include the cut shape (hidden) for viewing
         """
 
         parts = self.get_parts() or []
-        objs = [*parts]
+        base_parts = self.get_base_parts() or []
+        objs = [*parts, *base_parts]
         names = [getattr(p, "label", "Part") for p in parts]
+        names.extend(getattr(p, "label", "Part") for p in base_parts)
 
         # include cut shape
         self.cut_shape.part.label = "Cut Shape"

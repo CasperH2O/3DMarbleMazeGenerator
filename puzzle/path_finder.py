@@ -72,6 +72,7 @@ class AStarPathFinder:
             # and allowed only if one node is circular and the other is not.
             node_is_circular = NodeGridType.CIRCULAR.value in node.grid_type
             candidate_is_circular = NodeGridType.CIRCULAR.value in candidate.grid_type
+            
             if diff_count == 1 and (node_is_circular ^ candidate_is_circular):
                 if (
                     puzzle.case_shape == CaseShape.CYLINDER

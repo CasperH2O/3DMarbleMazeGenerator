@@ -67,6 +67,12 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
         self.sphere_flange_inner_radius = self.sphere_flange_inner_diameter / 2
 
         # Create parts
+        self.base_parts = self._create_circular_base_parts(
+            sphere_diameter=self.sphere_outer_diameter,
+            top_color=Config.Puzzle.PATH_COLORS[0],
+            bottom_color=Config.Puzzle.MOUNTING_RING_COLOR,
+            edge_color=Config.Puzzle.PATH_ACCENT_COLOR,
+        )
         (
             self.mounting_ring_clips,
             self.mounting_ring,
@@ -519,6 +525,9 @@ class CaseSphereWithFlangeEnclosedTwoSides(Case):
             self.start_indicator.part,
             self.internal_path_bridges.part,
         ]
+
+    def get_base_parts(self) -> list[Part]:
+        return self.base_parts
 
     def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.5

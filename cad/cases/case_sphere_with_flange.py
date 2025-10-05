@@ -2,7 +2,6 @@
 
 import math
 from copy import copy
-from typing import List
 
 from build123d import (
     Axis,
@@ -53,6 +52,12 @@ class CaseSphereWithFlange(Case):
         self.sphere_flange_radius = self.sphere_flange_diameter / 2
 
         # Create parts
+        self.base_parts = self._create_circular_base_parts(
+            sphere_diameter=self.sphere_outer_diameter,
+            top_color=Config.Puzzle.PATH_COLORS[0],
+            bottom_color=Config.Puzzle.MOUNTING_RING_COLOR,
+            edge_color=Config.Puzzle.PATH_ACCENT_COLOR,
+        )
         self.mounting_ring, self.path_bridges, self.start_text = (
             self.create_mounting_ring()
         )
@@ -231,6 +236,9 @@ class CaseSphereWithFlange(Case):
             self.path_bridges.part,
             self.start_text.part,
         ]
+
+    def get_base_parts(self) -> list[Part]:
+        return self.base_parts
 
     def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.0

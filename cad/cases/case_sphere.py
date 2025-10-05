@@ -1,7 +1,5 @@
 # cad/cases/case_sphere.py
 
-from typing import List
-
 from build123d import (
     BuildPart,
     Mode,
@@ -25,6 +23,12 @@ class CaseSphere(Case):
 
         self.casing = self.create_casing()
         self.cut_shape = self.create_cut_shape()
+        self.base_parts = self._create_circular_base_parts(
+            sphere_diameter=self.diameter,
+            top_color=Config.Puzzle.PATH_COLORS[0],
+            bottom_color=Config.Puzzle.MOUNTING_RING_COLOR,
+            edge_color=Config.Puzzle.PATH_ACCENT_COLOR,
+        )
 
     def create_casing(self) -> BuildPart:
         with BuildPart() as casing:
@@ -40,6 +44,9 @@ class CaseSphere(Case):
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         return [self.casing.part]
+
+    def get_base_parts(self) -> list[Part]:
+        return self.base_parts
 
     def create_cut_shape(self) -> BuildPart:
         flush_distance_tolerance = 0.4  # Ensure flush with case
