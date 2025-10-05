@@ -248,7 +248,7 @@ class PathBuilder:
                 combined_nodes.extend(seg.nodes[1:])
             else:
                 combined_nodes.extend(seg.nodes)
-            return combined_nodes
+        return combined_nodes
 
     def define_standard_segment_path(self, segment: PathSegment) -> PathSegment:
         """
