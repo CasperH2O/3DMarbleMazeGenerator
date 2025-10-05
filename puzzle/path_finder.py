@@ -3,6 +3,7 @@
 import heapq
 from typing import Any, Optional, Set, Tuple
 
+from cad.cases.case import CaseShape
 from puzzle.node import Node, NodeGridType
 from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
 
@@ -26,7 +27,9 @@ class AStarPathFinder:
         Get neighboring nodes for a given node in the grid.
 
         - Cardinal moves (exactly one axis differs using the exact grid offset) are always allowed.
-        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed within a certain range
+        - Near-cardinal moves (diff_count == 1) between a circular and a non-circular node are allowed within a certain range.
+          On cylindrical puzzles, circular nodes can only reach rectangular nodes when the circular node lies on the cylinder axes,
+          This is to prevent rotated paths in the rectangular grid.
         - Moves between two circular nodes, closest two on the same plane
         - Circular node cross-plane links: connect to closest circular node on the plane one step above and one step below (z ± node_size)
 
@@ -67,10 +70,20 @@ class AStarPathFinder:
 
             # Near-cardinal move: exactly one axis differs,
             # and allowed only if one node is circular and the other is not.
-            if diff_count == 1 and (
-                (NodeGridType.CIRCULAR.value in node.grid_type)
-                ^ (NodeGridType.CIRCULAR.value in candidate.grid_type)
-            ):
+            node_is_circular = NodeGridType.CIRCULAR.value in node.grid_type
+            candidate_is_circular = NodeGridType.CIRCULAR.value in candidate.grid_type
+            if diff_count == 1 and (node_is_circular ^ candidate_is_circular):
+                if (
+                    puzzle.case_shape == CaseShape.CYLINDER
+                    and node_is_circular
+                    and not candidate_is_circular
+                    and abs(node.x) > tolerance
+                    and abs(node.y) > tolerance
+                ):
+                    # Cylindrical casings allow circular-to-rectangular moves only along
+                    # the primary axes. Prevents rotated swept paths in the rectangular grid
+                    continue
+
                 # Keep within ~2 steps along that axis
                 if euclidean_distance(node, candidate) <= 2 * node_size - tolerance:
                     neighbors.append((candidate, euclidean_distance(node, candidate)))
