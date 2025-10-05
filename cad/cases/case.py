@@ -23,8 +23,8 @@ class CasePart(Enum):
     MOUNTING_RING_CLIP_SINGLE = "Mounting Clip Single"
     MOUNTING_RING_CLIPS = "Mounting Clips"
     CASING = "Casing"
-    DOME_TOP = "Dome Top"
-    DOME_BOTTOM = "Dome Bottom"
+    CASE_TOP = "Case Top"
+    CASE_BOTTOM = "Case Bottom"
     MOUNTING_RING = "Mounting Ring"
     MOUNTING_RING_TOP = "Mounting Ring Top"
     MOUNTING_RING_BOTTOM = "Mounting Ring Bottom"
@@ -97,7 +97,7 @@ class Case(ABC):
 
         # Show casing solids but hide edges
         set_group(CasePart.CASING.value, shape=1, edges=0)
-        set_group(CasePart.DOME_TOP.value, shape=1, edges=0)
-        set_group(CasePart.DOME_BOTTOM.value, shape=1, edges=0)
+        set_group(CasePart.CASE_TOP.value, shape=1, edges=0)
+        set_group(CasePart.CASE_BOTTOM.value, shape=1, edges=0)
 
         set_viewer_config(states=st)

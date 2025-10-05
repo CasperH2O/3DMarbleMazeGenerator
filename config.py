@@ -83,7 +83,7 @@ class Cylinder:
     DIAMETER = 120.0
     HEIGHT = 180.0
     SHELL_THICKNESS = 4.0
-    NUMBER_OF_MOUNTING_POINTS = 4
+    NUMBER_OF_MOUNTING_POINTS = 3
 
 
 # Path curves and profile configuration

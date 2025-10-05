@@ -211,10 +211,10 @@ class CaseSphereWithFlange(Case):
         self.mounting_ring.part.label = CasePart.MOUNTING_RING.value
         self.mounting_ring.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        self.dome_top.part.label = CasePart.DOME_TOP.value
+        self.dome_top.part.label = CasePart.CASE_TOP.value
         self.dome_top.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        self.dome_bottom.part.label = CasePart.DOME_BOTTOM.value
+        self.dome_bottom.part.label = CasePart.CASE_BOTTOM.value
         self.dome_bottom.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         self.path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value

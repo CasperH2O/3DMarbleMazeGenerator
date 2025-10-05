@@ -443,8 +443,8 @@ def set_viewer():
     # Do not draw lines on the following groups
     groups_to_reset = {
         f"/Group/{CasePart.CASING.value}",
-        f"/Group/{CasePart.DOME_TOP.value}",
-        f"/Group/{CasePart.DOME_BOTTOM.value}",
+        f"/Group/{CasePart.CASE_TOP.value}",
+        f"/Group/{CasePart.CASE_BOTTOM.value}",
         "/Group/Ball Path",
         "/Group/Ball",
     }
@@ -509,8 +509,8 @@ def export_all(case_parts: list[Part], base_parts: list[Part], additional_parts=
         CasePart.START_INDICATOR.value,
     }
     extra_case = {
-        CasePart.DOME_TOP.value,
-        CasePart.DOME_BOTTOM.value,
+        CasePart.CASE_TOP.value,
+        CasePart.CASE_BOTTOM.value,
         CasePart.CASING.value,
         CasePart.MOUNTING_RING_CLIPS.value,
     }

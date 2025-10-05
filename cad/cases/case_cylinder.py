@@ -86,17 +86,19 @@ class CaseCylinder(Case):
             extrude(amount=self.height / 2, both=True)
 
         # Long thin rods
-        diameter_long = 5.0  # TODO
+        diameter_long = 0.5 * self.node_size
         r_long = diameter_long / 2
         h_long = (
             self.height - self.node_size
         )  # reduced to make room for top/bottom discs
-        pattern_r = 28.0  # TODO: tie to actual node pattern
+        pattern_r = (
+            self.diameter - 2 * self.shell_thickness
+        ) / 2 - 2 * self.node_size  # 28.0  # TODO: tie to actual node pattern
 
         # Short, thicker rods (at multiple Z levels)
-        diameter_short = 8.0
+        diameter_short = 0.8 * self.node_size
         r_short = diameter_short / 2
-        h_short = 12.0
+        h_short = 1.5 * self.node_size
         z_planes = [0.0, h_long / 2 - h_short / 2, -h_long / 2 + h_short / 2]
 
         # Discs
@@ -105,9 +107,9 @@ class CaseCylinder(Case):
         bottom_z = -h_long / 2 - base_h / 2
         top_z = h_long / 2 + base_h / 2
 
-        # Small radial spokes ("internal path bridges")
+        # Small radial spokes, mounting and internal path bridges
         small_len = self.node_size
-        inner_pattern_r = pattern_r + 5.0
+        inner_pattern_r = pattern_r + 0.25 * self.node_size
 
         # bottom case: long rods + short rods + bottom disc
         with BuildPart() as bottom_case:
@@ -149,12 +151,13 @@ class CaseCylinder(Case):
             for z in z_planes:
                 with Locations((0, 0, z)):
                     with PolarLocations(
-                        radius=inner_pattern_r, count=self.number_of_mounting_points
+                        radius=inner_pattern_r + 0.2 * self.node_size,
+                        count=self.number_of_mounting_points,
                     ):
                         # rotate cylinder so it points radially
                         with Locations(Location((0, 0, 0), (90, 90, 0))):
                             Cylinder(
-                                radius=r_long / 2, height=small_len * 1.5
+                                radius=r_long / 2, height=small_len
                             )  # TODO improve dimensions and modifiers once paths work properly
 
         # Cut internal path bridges from mounting path bridges
@@ -182,10 +185,10 @@ class CaseCylinder(Case):
         self.casing.part.label = CasePart.CASING.value
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        bottom_case.part.label = "Base"
+        bottom_case.part.label = CasePart.CASE_BOTTOM.value
         bottom_case.part.color = Config.Puzzle.PATH_ACCENT_COLOR
 
-        top_disc.part.label = "Base Top"
+        top_disc.part.label = CasePart.CASE_TOP.value
         top_disc.part.color = Config.Puzzle.PATH_ACCENT_COLOR
 
         internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
