@@ -25,3 +25,7 @@
 ## Development Workflow Tips
 - Install Python dependencies with `pip install -r requirements.txt` before running project scripts or tests.
 - Run targeted tests with `pytest <path>`, e.g., `pytest tests/test_path_architect.py`.
+
+## Directory Access Restrictions
+- Completely ignore and do not read any content inside `cad/prototype/`.
+- Completely ignore and do not read any content inside `cad/obstacles/catalogue/cache/`.
