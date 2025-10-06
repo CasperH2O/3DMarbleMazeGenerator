@@ -1,6 +1,8 @@
 # visualization/visualization_helpers.py
 
+import colorsys
 import math
+import random
 
 import numpy as np
 import plotly.graph_objects as go
@@ -9,7 +11,7 @@ from scipy import interpolate
 
 from cad.cases.case import Case
 from cad.path_segment import PathSegment
-from config import PathCurveModel, PathCurveType
+from config import Config, PathCurveModel, PathCurveType
 from puzzle.cases.box import BoxCasing
 from puzzle.cases.cylinder import CylinderCasing
 from puzzle.cases.sphere import SphereCasing
@@ -170,7 +172,7 @@ def plot_casing(casing: Case) -> list[go.Scatter3d]:
     elif isinstance(casing, CylinderCasing):
         return plot_cylinder_casing(casing)
     else:
-        raise ValueError(f"Unsupported casing type: {type(casing)}")
+        return [go.Scatter3d()]  # Empty graph
 
 
 def plot_cylinder_casing(casing: CylinderCasing) -> list[go.Scatter3d]:
@@ -407,43 +409,27 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
     """
     Build traces for PathSegments. Each (main_index, secondary_index) gets a stable color.
     """
-    if not segments:
-        return []
-
-    # Color palette and stable color mapping per (main_index, secondary_index)
-    colors = [
-        "blue",
-        "green",
-        "red",
-        "purple",
-        "orange",
-        "pink",
-        "brown",
-        "cyan",
-        "magenta",
-        "yellow",
-        "lime",
-        "teal",
-        "olive",
-        "navy",
-        "maroon",
-        "aquamarine",
-        "coral",
-        "gold",
-        "indigo",
-        "lavender",
-    ]
-    segment_colors: dict[tuple[int, int], str] = {}
-    color_index = 0
-
     traces: list[go.Scatter3d] = []
+
+    if not segments:
+        return traces
+
+    # Collect unique keys based main index and secondary_index
+    unique_keys = sorted({(s.main_index, s.secondary_index) for s in segments})
+
+    # Build a maximally-contrasting color list, shuffled but reproducible
+    hsv_colors = _generate_distinct_hsv_colors(
+        len(unique_keys), seed=Config.Puzzle.SEED
+    )
+
+    # Stable mapping: map each unique key to one color
+    segment_colors: dict[tuple[int, int], str] = {
+        seg_key: color for seg_key, color in zip(unique_keys, hsv_colors)
+    }
 
     for segment in segments:
         # Assign unique colors based on main and secondary index
         seg_key = (segment.main_index, segment.secondary_index)
-        if seg_key not in segment_colors:
-            segment_colors[seg_key] = colors[color_index % len(colors)]
-            color_index += 1
         segment_color = segment_colors[seg_key]
 
         # Hover text
@@ -627,9 +613,7 @@ def plot_obstacles_raw_paths(obstacles: list) -> list[go.Scatter3d]:
     return traces
 
 
-def plot_puzzle_path(
-    path_nodes: list[Node], name: str = "Puzzle Path"
-) -> list[go.Scatter3d]:
+def plot_puzzle_path(path_nodes: list[Node]) -> list[go.Scatter3d]:
     """
     Plot the full puzzle path (list of Nodes) as a single line.
     Hidden by default; toggle via legend.
@@ -642,11 +626,40 @@ def plot_puzzle_path(
         y=ys,
         z=zs,
         mode="lines",
-        name=name,
+        name="Puzzle Path",
         line=dict(width=4),
         showlegend=True,
         visible="legendonly",
         hoverinfo="skip",
-        legendgroup=name,
+        legendgroup="Puzzle Path",
     )
     return [trace]
+
+
+def _generate_distinct_hsv_colors(
+    number_of_colors: int,
+    seed: int | None = None,
+) -> list[str]:
+    """
+    Build evenly spaced HSV colors converted to hex, then shuffle once.
+    Using evenly spaced hues gives maximum contrast across the set.
+    """
+    if number_of_colors <= 0:
+        return []
+
+    # Evenly spaced hues
+    hues = [index / number_of_colors for index in range(number_of_colors)]
+
+    hex_colors: list[str] = []
+    for hue in hues:
+        red, green, blue = colorsys.hsv_to_rgb(hue, 1, 1)
+        red_i = int(round(red * 255))
+        green_i = int(round(green * 255))
+        blue_i = int(round(blue * 255))
+        hex_colors.append(f"#{red_i:02X}{green_i:02X}{blue_i:02X}")
+
+    # Deterministic shuffle
+    random_generator = random.Random(seed)
+    random_generator.shuffle(hex_colors)
+
+    return hex_colors
