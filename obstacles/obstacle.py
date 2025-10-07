@@ -508,6 +508,9 @@ class Obstacle(ABC):
         samples = 50
 
         if self.main_path_segment.path is None:
+            self.create_obstacle_geometry()
+
+        if self.main_path_segment.path is None:
             return [Vector(0, 0, 0)]
         ts = linspace(0.0, 1.0, samples)
         return [self.main_path_segment.path @ float(t) for t in ts]
