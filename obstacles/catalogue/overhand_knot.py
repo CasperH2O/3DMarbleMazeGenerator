@@ -16,6 +16,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class OverhandKnotObstacle(Obstacle):
@@ -23,6 +24,25 @@ class OverhandKnotObstacle(Obstacle):
 
     def __init__(self):
         super().__init__(name="Overhand Knot")
+
+        self.entry_path_segment.nodes = [
+            Node(
+                -3 * self.node_size,
+                1 * self.node_size,
+                1 * self.node_size,
+                occupied=True,
+            ),
+            Node(
+                -2 * self.node_size,
+                1 * self.node_size,
+                1 * self.node_size,
+                occupied=True,
+            ),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(1 * self.node_size, -2 * self.node_size, 0, occupied=True),
+            Node(1 * self.node_size, -3 * self.node_size, 0, occupied=True),
+        ]
 
         # Load occupied nodes from cache or determine
         self.load_relative_node_coords()
@@ -134,7 +154,7 @@ class OverhandKnotObstacle(Obstacle):
             # End lead
             Spline([p1, G1], tangents=[t1u, tg1_axis])
 
-        self.path_segment.path = full_path.line
+        self.main_path_segment.path = full_path.line
 
     def model_solid(self) -> Part:
         """
@@ -144,7 +164,7 @@ class OverhandKnotObstacle(Obstacle):
 
         with BuildPart() as obstacle:
             with BuildLine() as line:
-                add(self.path_segment.path)
+                add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
             sweep()

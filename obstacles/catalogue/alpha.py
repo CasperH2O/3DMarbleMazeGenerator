@@ -14,6 +14,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class Alpha(Obstacle):
@@ -21,6 +22,15 @@ class Alpha(Obstacle):
 
     def __init__(self):
         super().__init__(name="Alpha")
+
+        self.entry_path_segment.nodes = [
+            Node(0, -3 * self.node_size, 0, occupied=True),
+            Node(0, -2 * self.node_size, 0, occupied=True),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(-2 * self.node_size, 0, 1 * self.node_size, occupied=True),
+            Node(-3 * self.node_size, 0, 1 * self.node_size, occupied=True),
+        ]
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
@@ -93,7 +103,7 @@ class Alpha(Obstacle):
                 add(spline_line)
                 add(end_line)
 
-        self.path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line
 
     def model_solid(self) -> Part:
         """
@@ -103,7 +113,7 @@ class Alpha(Obstacle):
         with BuildPart() as obstacle:
             # Recreate the path wire from the stored path
             with BuildLine() as line:
-                add(self.path_segment.path)
+                add(self.main_path_segment.path)
 
             # Sketch the path-profile at the START of the path
             with BuildSketch(line.line ^ 0) as s_start:

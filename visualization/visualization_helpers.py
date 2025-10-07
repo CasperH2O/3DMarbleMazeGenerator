@@ -436,9 +436,9 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
         segment_name = (
             f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
             f"Transition Type: {segment.transition_type}<br>"
-            f"Path Curve Model: {segment.curve_model.value}<br>"
+            f"Path Curve Model: {segment.curve_model.value if segment.curve_model is not None else 'N/A'}<br>"
             f"Curve Type: {segment.curve_type}<br>"
-            f"Path Profile Type: {segment.path_profile_type.value}"
+            f"Path Profile Type: {segment.path_profile_type.value if segment.path_profile_type is not None else 'N/A'}"
         )
 
         # Compute curve samples for this segment

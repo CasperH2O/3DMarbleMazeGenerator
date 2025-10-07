@@ -14,6 +14,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class QuestionMark(Obstacle):
@@ -21,6 +22,15 @@ class QuestionMark(Obstacle):
 
     def __init__(self):
         super().__init__(name="Question Mark")
+
+        self.entry_path_segment.nodes = [
+            Node(0, -4 * self.node_size, 0, occupied=True),
+            Node(0, -3 * self.node_size, 0, occupied=True),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(-1 * self.node_size, 0, 0, occupied=True),
+            Node(-1 * self.node_size, -1 * self.node_size, 0, occupied=True),
+        ]
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
@@ -50,7 +60,7 @@ class QuestionMark(Obstacle):
                 add(spline_line)
                 add(arc_line)
 
-        self.path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line
 
     def model_solid(self) -> Part:
         """
@@ -60,7 +70,7 @@ class QuestionMark(Obstacle):
 
         with BuildPart() as obstacle:
             with BuildLine() as line:
-                add(self.path_segment.path)
+                add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
             sweep()

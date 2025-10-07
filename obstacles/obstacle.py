@@ -26,11 +26,13 @@ from cad.path_profile_type_shapes import PathProfileType, create_u_shape
 from cad.path_segment import PathSegment
 from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node
+from puzzle.utils.enums import PathCurveModel
 from visualization.visualization_helpers import (
     plot_casing,
     plot_node_cubes,
     plot_nodes,
     plot_raw_obstacle_path,
+    plot_segments,
 )
 
 
@@ -48,27 +50,28 @@ class Obstacle(ABC):
         Initializes an obstacle instance.
         """
         self.name: str = name
+        self.node_size = config.Puzzle.NODE_SIZE
+
         # Placement attributes (to be set by the manager/placer)
         self.location: Optional[Location] = Location(Pos(Vector(0, 0, 0)))  # Position
         self.grid_origin: tuple[float, float, float] | None = None
         self.rotation_angles_deg: tuple[int, int, int] | None = None
 
-        # Connection points (to be determined after CAD design)
-        # Should correspond to specific nodes in the main grid
-        self.entry_node: Optional[Node] = None
-        self.exit_node: Optional[Node] = None
-
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
-        self.path_segment: Optional[PathSegment] = PathSegment(
+        self.main_path_segment: Optional[PathSegment] = PathSegment(
             nodes=[(0, 0, 0)], main_index=0, secondary_index=0
         )
 
-        self._raw_unit_coords = [(0, 0, 0)]
-
-        self.node_size = config.Puzzle.NODE_SIZE
+        # Connection path path segment (to be determined during obstacle design)
+        self.entry_path_segment: PathSegment = PathSegment(
+            nodes=[], main_index=0, secondary_index=0
+        )
+        self.exit_path_segment: PathSegment = PathSegment(
+            nodes=[], main_index=1, secondary_index=0
+        )
 
     @abstractmethod
     def create_obstacle_geometry(self):
@@ -113,6 +116,11 @@ class Obstacle(ABC):
             self.create_obstacle_geometry()
 
             occ_nodes = self.determine_occupied_nodes()
+
+            # TODO not sure if we want to determine overlap allowed nodes for occupied entry/exit path segment nodes
+            occ_nodes.extend(self.entry_path_segment.nodes)
+            occ_nodes.extend(self.exit_path_segment.nodes)
+
             occ = [
                 dict(
                     x=n.x / self.node_size,
@@ -146,6 +154,7 @@ class Obstacle(ABC):
             )
             for c in occ
         ]
+
         self.overlap_nodes = [
             Node(
                 c["x"] * self.node_size,
@@ -193,15 +202,24 @@ class Obstacle(ABC):
         """
         Return entry/exit in *local* coordinates (before placement).
         Uses the start and end of the obstacle's path.
+
+        # TODO some code duplication going on, improve get main, entry and exit nodes
         """
+        nodes = self.get_relative_entry_exit_nodes()
+        if nodes is not None:
+            entry_node, exit_node = nodes
+            return Vector(entry_node.x, entry_node.y, entry_node.z), Vector(
+                exit_node.x, exit_node.y, exit_node.z
+            )
+
         # Ensure the path exists even when node cache made geometry optional
-        if getattr(self.path_segment, "path", None) is None:
+        if self.main_path_segment.path is None:
             self.create_obstacle_geometry()
-        if self.path_segment.path is None:
+        if self.main_path_segment.path is None:
             return None
 
-        start = self.path_segment.path @ 0
-        end = self.path_segment.path @ 1
+        start = self.main_path_segment.path @ 0
+        end = self.main_path_segment.path @ 1
         return Vector(start.X, start.Y, start.Z), Vector(end.X, end.Y, end.Z)
 
     def get_placed_entry_exit_coords(self) -> Optional[Tuple[tuple, tuple]]:
@@ -211,17 +229,85 @@ class Obstacle(ABC):
         if self.location is None:
             return None
 
-        rel = self.get_relative_entry_exit_coords()
-        if rel is None:
-            return None
-        relative_entry, relative_exit = rel
+        relative_nodes = self.get_relative_entry_exit_nodes()
+        if relative_nodes is not None:
+            entry_node, exit_node = relative_nodes
+            entry_loc = self.location * Location(
+                Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
+            )
+            exit_loc = self.location * Location(
+                Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
+            )
+        else:
+            rel = self.get_relative_entry_exit_coords()
+            if rel is None:
+                return None
+            relative_entry, relative_exit = rel
 
-        entry_loc = self.location * Location(relative_entry)
-        exit_loc = self.location * Location(relative_exit)
+            entry_loc = self.location * Location(relative_entry)
+            exit_loc = self.location * Location(relative_exit)
 
         entry_coord = (entry_loc.position.X, entry_loc.position.Y, entry_loc.position.Z)
         exit_coord = (exit_loc.position.X, exit_loc.position.Y, exit_loc.position.Z)
+
         return entry_coord, exit_coord
+
+    def get_relative_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
+        """
+        Return the local-space entry and exit nodes for the obstacle.
+
+        Prefers the dedicated entry and exit path segments and falls back to the
+        primary path segment if they are not populated.
+        """
+
+        entry_node: Optional[Node] = None
+        exit_node: Optional[Node] = None
+
+        entry_node = self.entry_path_segment.nodes[0]
+        exit_node = self.exit_path_segment.nodes[-1]
+
+        if entry_node is not None and exit_node is not None:
+            return entry_node, exit_node
+
+        # Fall back to obstacle main path
+        start = self.main_path_segment.path @ 0
+        end = self.main_path_segment.path @ 1
+        return Vector(start.X, start.Y, start.Z), Vector(end.X, end.Y, end.Z)
+
+    def get_placed_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
+        """
+        Return the entry and exit nodes transformed into world coordinates.
+        """
+
+        if self.location is None:
+            return None
+
+        relative_nodes = self.get_relative_entry_exit_nodes()
+        if relative_nodes is None:
+            return None
+
+        entry_node, exit_node = relative_nodes
+        entry_loc = self.location * Location(
+            Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
+        )
+        exit_loc = self.location * Location(
+            Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
+        )
+
+        placed_entry = Node(
+            entry_loc.position.X,
+            entry_loc.position.Y,
+            entry_loc.position.Z,
+            occupied=True,
+        )
+        placed_exit = Node(
+            exit_loc.position.X,
+            exit_loc.position.Y,
+            exit_loc.position.Z,
+            occupied=True,
+        )
+
+        return placed_entry, placed_exit
 
     def set_placement(self, location: Location):
         """TODO Directly sets the obstacle's placement location."""
@@ -282,6 +368,10 @@ class Obstacle(ABC):
         self.create_obstacle_geometry()
         path = self.sample_obstacle_path()
         for trace in plot_raw_obstacle_path(path, name=f"{self.name} Raw Path"):
+            fig.add_trace(trace)
+
+        # Entry and exit path visualization
+        for trace in plot_segments([self.entry_path_segment, self.exit_path_segment]):
             fig.add_trace(trace)
 
         # Casing, for reference only
@@ -413,10 +503,10 @@ class Obstacle(ABC):
         """Local (not placed) sample points along obstacle path"""
         samples = 50
 
-        if self.path_segment.path is None:
+        if self.main_path_segment.path is None:
             return [Vector(0, 0, 0)]
         ts = linspace(0.0, 1.0, samples)
-        return [self.path_segment.path @ float(t) for t in ts]
+        return [self.main_path_segment.path @ float(t) for t in ts]
 
     def sample_obstacle_path_world(self) -> list[Vector]:
         """Sample points in world coordinates ie placed location"""

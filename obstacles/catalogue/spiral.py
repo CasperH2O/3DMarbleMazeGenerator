@@ -13,6 +13,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class Spiral(Obstacle):
@@ -22,6 +23,25 @@ class Spiral(Obstacle):
         super().__init__(name="Spiral")
 
         self.use_frenet = True
+
+        self.entry_path_segment.nodes = [
+            Node(1 * self.node_size, -2 * self.node_size, 0, occupied=True),
+            Node(1 * self.node_size, -1 * self.node_size, 0, occupied=True),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(
+                1 * self.node_size,
+                1 * self.node_size,
+                2 * self.node_size,
+                occupied=True,
+            ),
+            Node(
+                1 * self.node_size,
+                2 * self.node_size,
+                2 * self.node_size,
+                occupied=True,
+            ),
+        ]
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
@@ -50,7 +70,7 @@ class Spiral(Obstacle):
                 add(helper_helix)
                 add(end_line)
 
-        self.path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line
 
     def model_solid(self) -> Part:
         """
@@ -60,7 +80,7 @@ class Spiral(Obstacle):
 
         with BuildPart() as obstacle:
             with BuildLine() as line:
-                add(self.path_segment.path)
+                add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
             sweep(is_frenet=True)
