@@ -352,16 +352,20 @@ class Obstacle(ABC):
         fig = go.Figure()
         # Occupied nodes and cubes
         occupied_nodes = self.get_placed_node_coordinates(self.occupied_nodes)
-        for t in plot_nodes(occupied_nodes):
+        for t in plot_nodes(nodes=occupied_nodes, group_name="Occupied Nodes"):
             fig.add_trace(t)
-        for t in plot_node_cubes(occupied_nodes, self.node_size):
+        for t in plot_node_cubes(
+            nodes=occupied_nodes, node_size=self.node_size, group_name="Occupied Nodes"
+        ):
             fig.add_trace(t)
 
         # Overlap nodes and cubes
         overlap_nodes = self.get_placed_node_coordinates(self.overlap_nodes)
-        for t in plot_nodes(overlap_nodes):
+        for t in plot_nodes(nodes=overlap_nodes, group_name="Overlap Nodes"):
             fig.add_trace(t)
-        for t in plot_node_cubes(overlap_nodes, self.node_size):
+        for t in plot_node_cubes(
+            nodes=overlap_nodes, node_size=self.node_size, group_name="Overlap Nodes"
+        ):
             fig.add_trace(t)
 
         # Sample points along path segment edge for visualization

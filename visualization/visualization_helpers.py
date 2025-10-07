@@ -19,7 +19,7 @@ from puzzle.node import Node, NodeGridType
 
 
 def plot_nodes(
-    nodes: list[Node], segments: list[PathSegment] | None = None
+    nodes: list[Node], segments: list[PathSegment] | None = None, group_name: str = ""
 ) -> list[go.Scatter3d]:
     """
     Groups nodes by their primary property so that the legend only displays the primary label,
@@ -156,7 +156,7 @@ def plot_nodes(
                 color=color_map.get(primary, "green"), size=size_map.get(primary, 1)
             ),
             name=primary,  # Legend shows only the primary flag.
-            legendgroup=primary,
+            legendgroup=group_name,
             text=coords["hover"],  # Custom detailed info (all flags, with line breaks).
             hovertemplate="X: %{x}<br>Y: %{y}<br>Z: %{z}<br>%{text}<extra></extra>",
         )
@@ -356,7 +356,9 @@ def plot_box_casing(casing: BoxCasing) -> list[go.Scatter3d]:
     return [box_trace]
 
 
-def plot_node_cubes(nodes: list[Node], node_size: float) -> list[go.Scatter3d]:
+def plot_node_cubes(
+    nodes: list[Node], node_size: float, group_name: str = ""
+) -> list[go.Scatter3d]:
     """
     Draw a little wire-frame cube (edge length=node_size) centered on each node.
     Returns a list of Scatter3d traces.
@@ -400,6 +402,7 @@ def plot_node_cubes(nodes: list[Node], node_size: float) -> list[go.Scatter3d]:
                     line=dict(width=1, color="gray"),
                     opacity=0.5,
                     showlegend=False,
+                    legendgroup=group_name,
                 )
             )
     return traces

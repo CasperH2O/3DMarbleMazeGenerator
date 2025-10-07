@@ -7,7 +7,7 @@ Registry for all obstacle types.
 # obstacles/obstacle_registry.py
 import importlib
 import pkgutil
-from typing import Dict, List, Type
+from typing import Dict, Type
 
 from obstacles.obstacle import Obstacle
 
