@@ -1,5 +1,6 @@
 # obstacles/obstacle_manager.py
 
+import math
 import random
 import time
 from collections import Counter
@@ -19,6 +20,16 @@ from puzzle.node import Node
 def _quantize_coord(val: float, node_size: float) -> float:
     """Snap a coordinate to the nearest grid multiple to avoid floating-point drift."""
     return round(val / node_size) * node_size
+
+
+def _snap_near_grid(value: float, node_size: float, *, tol: float = 1e-6) -> float:
+    """Return the grid-aligned value when the input is already very close to one."""
+
+    scaled = value / node_size
+    rounded = round(scaled)
+    if math.isclose(scaled, rounded, rel_tol=tol, abs_tol=tol):
+        return rounded * node_size
+    return value
 
 
 class ObstacleManager:
@@ -376,10 +387,22 @@ class ObstacleManager:
         zmin = self.bounds["z"][0] + negz + inset
         zmax = self.bounds["z"][1] - posz - inset
 
+        # Snap bounds that are numerically close to the grid to avoid tiny artifacts
+        xmin = _snap_near_grid(xmin, self.node_size)
+        xmax = _snap_near_grid(xmax, self.node_size)
+        ymin = _snap_near_grid(ymin, self.node_size)
+        ymax = _snap_near_grid(ymax, self.node_size)
+        zmin = _snap_near_grid(zmin, self.node_size)
+        zmax = _snap_near_grid(zmax, self.node_size)
+
         # Filter nodes to those that keep all transformed nodes inside the grid
+        eps = self.node_size * 1e-6
         candidates = [
             n
             for n in self.nodes
-            if (xmin <= n.x <= xmax) and (ymin <= n.y <= ymax) and (zmin <= n.z <= zmax)
+            if (xmin - eps <= n.x <= xmax + eps)
+            and (ymin - eps <= n.y <= ymax + eps)
+            and (zmin - eps <= n.z <= zmax + eps)
         ]
-        return candidates, (xmin, xmax, ymin, ymax, zmin, zmax)
+        bounds = tuple(round(val, 6) for val in (xmin, xmax, ymin, ymax, zmin, zmax))
+        return candidates, bounds
