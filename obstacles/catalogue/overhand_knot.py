@@ -293,7 +293,7 @@ class OverhandKnotObstacle(Obstacle):
 
 
 # Register obstacle
-register_obstacle("OverhandKnot", OverhandKnotObstacle)
+register_obstacle("Overhand Knot", OverhandKnotObstacle)
 
 if __name__ == "__main__":
     # Create

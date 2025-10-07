@@ -10,6 +10,7 @@ from build123d import Axis, Rotation, Vector
 
 import obstacles.catalogue  # ensure registration
 from config import Config
+from puzzle.utils.enums import ObstacleType
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
@@ -62,12 +63,21 @@ class ObstacleManager:
         # Placement
         if Config.Obstacles.ENABLED:
             available = get_available_obstacles()
+            normalized_config_types: list[str] = []
+            for configured_type in Config.Obstacles.ALLOWED_TYPES:
+                if isinstance(configured_type, ObstacleType):
+                    normalized_config_types.append(configured_type.value)
+                elif isinstance(configured_type, str):
+                    normalized_config_types.append(configured_type)
+                else:
+                    normalized_config_types.append(str(configured_type))
+
             # Keep order from config; filter out unknowns gracefully.
-            allowed = [t for t in Config.Obstacles.ALLOWED_TYPES if t in available]
+            allowed = [t for t in normalized_config_types if t in available]
             if not allowed:
                 print(
                     f"No allowed obstacle types found from config list "
-                    f"{Config.Obstacles.ALLOWED_TYPES}. Available: {available}"
+                    f"{normalized_config_types}. Available: {available}"
                 )
             else:
                 print(f"Allowed obstacle types (ordered): {allowed}")
