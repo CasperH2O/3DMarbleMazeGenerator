@@ -31,7 +31,6 @@ from visualization.visualization_helpers import (
     plot_node_cubes,
     plot_nodes,
     plot_raw_obstacle_path,
-    plot_segments,
 )
 
 
@@ -61,15 +60,8 @@ class Obstacle(ABC):
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
 
-        # Connection path segment (to be determined during obstacle design)
-        self.entry_path_segment: PathSegment = PathSegment(
-            nodes=[], main_index=0, secondary_index=0
-        )
         self.main_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=1
-        )
-        self.exit_path_segment: PathSegment = PathSegment(
-            nodes=[], main_index=0, secondary_index=2
         )
 
     @abstractmethod
@@ -116,9 +108,14 @@ class Obstacle(ABC):
 
             occ_nodes = self.determine_occupied_nodes()
 
-            # TODO not sure if we want to determine overlap allowed nodes for occupied entry/exit path segment nodes
-            occ_nodes.extend(self.entry_path_segment.nodes)
-            occ_nodes.extend(self.exit_path_segment.nodes)
+            # TODO re-evaluate whether entry/exit nodes should contribute to overlap detection
+            entry_exit_nodes = self.get_relative_entry_exit_nodes()
+            if entry_exit_nodes is not None:
+                existing = {(n.x, n.y, n.z) for n in occ_nodes}
+                for node in entry_exit_nodes:
+                    if (node.x, node.y, node.z) not in existing:
+                        occ_nodes.append(node)
+                        existing.add((node.x, node.y, node.z))
 
             occ = [
                 dict(
@@ -197,30 +194,6 @@ class Obstacle(ABC):
 
         return nodes
 
-    def get_relative_entry_exit_coords(self) -> Optional[Tuple[Vector, Vector]]:
-        """
-        Return entry/exit in *local* coordinates (before placement).
-        Uses the start and end of the obstacle's path.
-
-        # TODO some code duplication going on, improve get main, entry and exit nodes
-        """
-        nodes = self.get_relative_entry_exit_nodes()
-        if nodes is not None:
-            entry_node, exit_node = nodes
-            return Vector(entry_node.x, entry_node.y, entry_node.z), Vector(
-                exit_node.x, exit_node.y, exit_node.z
-            )
-
-        # Ensure the path exists even when node cache made geometry optional
-        if self.main_path_segment.path is None:
-            self.create_obstacle_geometry()
-        if self.main_path_segment.path is None:
-            return None
-
-        start = self.main_path_segment.path @ 0
-        end = self.main_path_segment.path @ 1
-        return Vector(start.X, start.Y, start.Z), Vector(end.X, end.Y, end.Z)
-
     def get_placed_entry_exit_coords(self) -> Optional[Tuple[tuple, tuple]]:
         """
         Entry/exit in *world* coordinates after placement (self.location).
@@ -229,22 +202,16 @@ class Obstacle(ABC):
             return None
 
         relative_nodes = self.get_relative_entry_exit_nodes()
-        if relative_nodes is not None:
-            entry_node, exit_node = relative_nodes
-            entry_loc = self.location * Location(
-                Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
-            )
-            exit_loc = self.location * Location(
-                Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
-            )
-        else:
-            rel = self.get_relative_entry_exit_coords()
-            if rel is None:
-                return None
-            relative_entry, relative_exit = rel
+        if relative_nodes is None:
+            return None
 
-            entry_loc = self.location * Location(relative_entry)
-            exit_loc = self.location * Location(relative_exit)
+        entry_node, exit_node = relative_nodes
+        entry_loc = self.location * Location(
+            Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
+        )
+        exit_loc = self.location * Location(
+            Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
+        )
 
         entry_coord = (entry_loc.position.X, entry_loc.position.Y, entry_loc.position.Z)
         exit_coord = (exit_loc.position.X, exit_loc.position.Y, exit_loc.position.Z)
@@ -252,26 +219,34 @@ class Obstacle(ABC):
         return entry_coord, exit_coord
 
     def get_relative_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
-        """
-        Return the local-space entry and exit nodes for the obstacle.
+        """Return the local-space entry and exit nodes derived from the main path."""
 
-        Prefers the dedicated entry and exit path segments and falls back to the
-        primary path segment if they are not populated.
-        """
+        if self.main_path_segment.path is None:
+            self.create_obstacle_geometry()
 
-        entry_node: Optional[Node] = None
-        exit_node: Optional[Node] = None
+        if self.main_path_segment.path is None:
+            return None
 
-        entry_node = self.entry_path_segment.nodes[0]
-        exit_node = self.exit_path_segment.nodes[-1]
-
-        if entry_node is not None and exit_node is not None:
-            return entry_node, exit_node
-
-        # Fall back to obstacle main path
         start = self.main_path_segment.path @ 0
         end = self.main_path_segment.path @ 1
-        return Vector(start.X, start.Y, start.Z), Vector(end.X, end.Y, end.Z)
+
+        def _snap(value: float) -> float:
+            return round(value / self.node_size) * self.node_size
+
+        entry_node = Node(
+            _snap(start.X),
+            _snap(start.Y),
+            _snap(start.Z),
+            occupied=True,
+        )
+        exit_node = Node(
+            _snap(end.X),
+            _snap(end.Y),
+            _snap(end.Z),
+            occupied=True,
+        )
+
+        return entry_node, exit_node
 
     def get_placed_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
         """
@@ -371,10 +346,6 @@ class Obstacle(ABC):
         self.create_obstacle_geometry()
         path = self.sample_obstacle_path()
         for trace in plot_raw_obstacle_path(path, name=f"{self.name} Raw Path"):
-            fig.add_trace(trace)
-
-        # Entry and exit path visualization
-        for trace in plot_segments([self.entry_path_segment, self.exit_path_segment]):
             fig.add_trace(trace)
 
         # Casing, for reference only

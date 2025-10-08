@@ -16,7 +16,6 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
-from puzzle.node import Node
 
 
 class OverhandKnotObstacle(Obstacle):
@@ -24,25 +23,6 @@ class OverhandKnotObstacle(Obstacle):
 
     def __init__(self):
         super().__init__(name="Overhand Knot")
-
-        self.entry_path_segment.nodes = [
-            Node(
-                -3 * self.node_size,
-                1 * self.node_size,
-                1 * self.node_size,
-                occupied=True,
-            ),
-            Node(
-                -2 * self.node_size,
-                1 * self.node_size,
-                1 * self.node_size,
-                occupied=True,
-            ),
-        ]
-        self.exit_path_segment.nodes = [
-            Node(1 * self.node_size, -2 * self.node_size, 0, occupied=True),
-            Node(1 * self.node_size, -3 * self.node_size, 0, occupied=True),
-        ]
 
         # Load occupied nodes from cache or determine
         self.load_relative_node_coords()

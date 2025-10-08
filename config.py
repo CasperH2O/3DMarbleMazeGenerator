@@ -39,7 +39,7 @@ class Obstacles:
         ObstacleType.U_TURN,
         ObstacleType.OMEGA,
     ]
-    MAX_TO_PLACE = 5  # target number of obstacles to place (total)
+    MAX_TO_PLACE = 6  # target number of obstacles to place (total)
     ATTEMPTS_PER_PLACEMENT = 25  # random tries per single obstacle instance
     PER_TYPE_LIMIT = 1  # optional cap per obstacle type (None = unlimited)
 
