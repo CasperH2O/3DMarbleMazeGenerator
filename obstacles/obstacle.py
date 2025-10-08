@@ -26,7 +26,6 @@ from cad.path_profile_type_shapes import PathProfileType, create_u_shape
 from cad.path_segment import PathSegment
 from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node
-from puzzle.utils.enums import PathCurveModel
 from visualization.visualization_helpers import (
     plot_casing,
     plot_node_cubes,
@@ -61,16 +60,16 @@ class Obstacle(ABC):
         self._part: Optional[Part] = None
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
-        self.main_path_segment: Optional[PathSegment] = PathSegment(
-            nodes=[(0, 0, 0)], main_index=0, secondary_index=0
-        )
 
-        # Connection path path segment (to be determined during obstacle design)
+        # Connection path segment (to be determined during obstacle design)
         self.entry_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=0
         )
+        self.main_path_segment: PathSegment = PathSegment(
+            nodes=[], main_index=0, secondary_index=1
+        )
         self.exit_path_segment: PathSegment = PathSegment(
-            nodes=[], main_index=1, secondary_index=0
+            nodes=[], main_index=0, secondary_index=2
         )
 
     @abstractmethod

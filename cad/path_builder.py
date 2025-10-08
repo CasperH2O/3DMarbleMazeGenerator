@@ -707,8 +707,8 @@ class PathBuilder:
 
         # Fallback, build as a COMPOUND of standard sub‐segments
         print(
+            f"Segment {segment.main_index}.{segment.secondary_index}, spline not possible"
             f"Falling back to COMPOUND for segment "
-            f"{segment.main_index}.{segment.secondary_index}, spline not possible"
         )
 
         # Handle different node grid types, create sub segments

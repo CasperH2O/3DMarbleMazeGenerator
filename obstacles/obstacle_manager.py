@@ -241,31 +241,31 @@ class ObstacleManager:
     def _is_placement_valid(self, obstacle: Obstacle, debug: bool = False) -> bool:
         """Checks if the proposed placement is valid (inside grid, no collisions)."""
         # Transform and quantize nodes
-        occ = [
+        occupied_nodes = [
             Node(n.x, n.y, n.z, occupied=True) for n in (obstacle.occupied_nodes or [])
         ]
-        overlap = [
+        overlap_nodes = [
             Node(n.x, n.y, n.z, overlap_allowed=True)
             for n in (obstacle.overlap_nodes or [])
         ]
-        obstacle.get_placed_node_coordinates(occ)
-        obstacle.get_placed_node_coordinates(overlap)
+        obstacle.get_placed_node_coordinates(occupied_nodes)
+        obstacle.get_placed_node_coordinates(overlap_nodes)
 
         # Quantize coordinates to avoid drift
-        for n in occ + overlap:
+        for n in occupied_nodes + overlap_nodes:
             n.x = _quantize_coord(n.x, self.node_size)
             n.y = _quantize_coord(n.y, self.node_size)
             n.z = _quantize_coord(n.z, self.node_size)
 
         # Boundary check
-        for n in occ + overlap:
+        for n in occupied_nodes + overlap_nodes:
             if (n.x, n.y, n.z) not in self.node_dict:
                 if debug:
                     print(f"    Node {(n.x, n.y, n.z)} is outside grid.")
                 return False
 
         # Collision check
-        for n in occ:
+        for n in occupied_nodes:
             if (n.x, n.y, n.z) in self.occupied_positions:
                 if debug:
                     print(f"    Node {(n.x, n.y, n.z)} collides.")
