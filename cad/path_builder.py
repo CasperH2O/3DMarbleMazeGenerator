@@ -413,6 +413,169 @@ class PathBuilder:
 
         return segment
 
+    def _generate_spline_control_point_options(
+        self, sub_path_points: list[Vector]
+    ) -> list[list[Vector]]:
+        """Return ordered spline control point options for a segment."""
+
+        if len(sub_path_points) < 2:
+            return []
+
+        first_point = sub_path_points[0]
+        last_point = sub_path_points[-1]
+
+        # Option 1: Use only the first and last nodes.
+        # This creates the simplest possible spline between start and end points.
+        option1 = [first_point, last_point]
+
+        # Option 2: Use the first node, every third node in between, and the last node.
+        # This reduces the number of intermediate points to simplify the spline.
+        middle_points = sub_path_points[1:-2:3]
+        option2 = [first_point, *middle_points, last_point]
+
+        # Option 3: Use all nodes.
+        # This attempts to create a spline that passes through every node.
+        option3 = list(sub_path_points)
+
+        return [option1, option2, option3]
+
+    def _compute_spline_orientation(
+        self,
+        segment: PathSegment,
+        previous_segment: Optional[PathSegment],
+        previous_swept_segment: Optional[PathSegment],
+        help_path: Polyline,
+    ) -> tuple[float, float]:
+        """Compute profile rotation angles for a spline segment."""
+
+        # Start with -90 angle to orientate the profile sketch "right way up"
+        angle_path_line_previous = -90
+
+        if previous_segment and previous_segment.path is not None:
+            # Determine the rotation angle between the path line of the current
+            # segment and the previous segment
+            loc1 = previous_segment.path ^ 1
+            loc2 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
+            angle_path_line_previous += loc2.y_axis.direction.get_signed_angle(
+                loc1.y_axis.direction, loc2.z_axis.direction
+            )
+
+        # Determine the angle where profile matches the previous segment
+        profile_reference_segment: Optional[PathSegment] = previous_swept_segment
+        if profile_reference_segment is None and previous_segment is not None:
+            profile_reference_segment = (
+                previous_segment if previous_segment.path_body is not None else None
+            )
+
+        angle_profile_rotation_match = (
+            self.determine_path_profile_angle(
+                profile_reference_segment, segment, angle_path_line_previous
+            )
+            if profile_reference_segment is not None
+            else 0
+        )
+
+        # Determine spline path end angle for additional end of path profile
+        # rotation due to help path tangent
+        loc1 = help_path ^ 1
+        loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
+        angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(
+            loc1.y_axis.direction, loc2.z_axis.direction
+        )
+
+        # Compute base angle (the sum of the previous segment angle and the profile match)
+        base_angle = angle_path_line_previous + angle_profile_rotation_match
+        # Compute the difference between the desired end-of-path angle and the
+        # base angle, normalized to the range (-180, 180)
+        angle_diff = normalize_angle(angle_profile_end_of_path - base_angle)
+
+        # Choose twist_offset based on the sign of angle_diff.
+        # (This rule gives:
+        #   - twist_offset = 0 if the desired end-of-path aligns with the base angle,
+        #   - twist_offset = -90 if the difference is positive,
+        #   - twist_offset =  90 if the difference is negative.)
+        if abs(angle_diff) < 1e-6:
+            twist_offset = 0
+        elif angle_diff > 0:
+            twist_offset = -90
+        else:
+            twist_offset = 90
+
+        # Compute the adjustment.
+        # The final sketch angle corrected by the twist offset to match the
+        # end-of-path angle. That is, if twist_offset is -90, we require:
+        #       final_angle2 + 90 == angle_profile_end_of_path,
+        # and if twist_offset is 90:
+        #       final_angle2 - 90 == angle_profile_end_of_path.
+        if twist_offset == -90:
+            computed_adjustment = (angle_profile_end_of_path - 90) - base_angle
+        elif twist_offset == 90:
+            computed_adjustment = (angle_profile_end_of_path + 90) - base_angle
+        else:
+            computed_adjustment = angle_profile_end_of_path - base_angle
+
+        # Final sketch angles
+        angle_sketch_1_final = base_angle
+        angle_sketch_2_final = base_angle + computed_adjustment
+
+        return angle_sketch_1_final, angle_sketch_2_final
+
+    def _build_start_and_end_profile_and_sweep(
+        self,
+        segment: PathSegment,
+        profile_type: PathProfileType,
+        start_angle: float,
+        end_angle: float,
+        profile_attr_name: str,
+        body_attr_name: str,
+        sweep_label: str,
+    ) -> Optional[BuildPart]:
+        """
+        Create start and end profiles and multi sweep them along the segment path.
+        # TODO Not super happy with setattr
+        """
+
+        path_parameters = self.path_profile_type_parameters.get(profile_type.value, {})
+        # Store profile sketch based on path profile registry
+        profile_function = PROFILE_TYPE_FUNCTIONS.get(profile_type, create_u_shape)
+
+        profile_start = profile_function(**path_parameters, rotation_angle=start_angle)
+        profile_end = profile_function(**path_parameters, rotation_angle=end_angle)
+
+        setattr(segment, profile_attr_name, profile_start)
+
+        if profile_end.faces()[0].inner_wires():
+            # This is to handle OCCT sweep functionality (BRepOffsetAPI_MakePipeShell)
+            # which does not support holes and only takes a Wire
+            # Applicable for O shaped path profile segments
+            body = sweep_single_profile(
+                segment=segment,
+                profile=profile_start,
+                transition_type=segment.transition_type,
+                sweep_label=sweep_label,
+            )
+        else:
+            with BuildPart() as body:
+                with BuildLine() as segment_path_line:
+                    add(segment.path)
+                with BuildSketch(
+                    segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
+                ) as start_section:
+                    add(profile_start)
+                with BuildSketch(
+                    segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
+                ) as end_section:
+                    add(profile_end)
+
+                sweep(
+                    sections=[start_section.sketch, end_section.sketch],
+                    path=segment_path_line.line,
+                    multisection=True,
+                )
+
+        setattr(segment, body_attr_name, body)
+        return body
+
     def create_spline_segment(
         self,
         segment: PathSegment,
@@ -428,61 +591,17 @@ class PathBuilder:
         """
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
-
-        def option1():
-            """
-            Option 1: Use only the first and last nodes.
-            This creates the simplest possible spline between start and end points.
-            """
-            if len(sub_path_points) >= 2:
-                return [sub_path_points[0], sub_path_points[-1]]
-            else:
-                return None
-
-        def option2():
-            """
-            Option 2: Use the first node, every third node in between, and the last node.
-            This reduces the number of intermediate points to simplify the spline.
-            """
-            if len(sub_path_points) >= 2:
-                return (
-                    [sub_path_points[0]]
-                    + sub_path_points[1:-2:3]
-                    + [sub_path_points[-1]]
-                )
-            else:
-                return None
-
-        def option3():
-            """
-            Option 3: Use all nodes.
-            This attempts to create a spline that passes through every node.
-            """
-            if len(sub_path_points) >= 2:
-                return sub_path_points
-            else:
-                return None
-
-        # Define the options for spline point combinations that will be attempted
-        options = [option1, option2, option3]
+        options = self._generate_spline_control_point_options(sub_path_points)
+        help_path = Polyline(sub_path_points)
 
         # Try each option
-        for opt_idx, option in enumerate(options, 1):
+        for opt_idx, spline_points in enumerate(options, 1):
             # Debug statement indicating which option is being tried
             # print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
-
-            # Try the option
-            spline_points = option()
 
             if spline_points is None or len(spline_points) < 2:
                 print(f"Option {opt_idx}: Not enough points to create a spline.")
                 continue
-
-            # Polyline helper path for tangents at start and end of spline
-            help_path = Polyline(sub_path_points)
-
-            # previous_segment
-            # next_segment
 
             # Create the spline with tangents
             segment.path = Spline(
@@ -490,253 +609,79 @@ class PathBuilder:
                 tangents=[previous_segment.path % 1, next_segment.path % 0],
             )
 
-            # Debug statement indicating sweep attempt
-            """
-            print(
-                f"Attempting to test sweep with Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}"
-            )
-            """
-
-            # Start with -90 angle to orientate the profile sketch "right way up"
-            angle_path_line_previous = -90
-
-            # Determine the rotation angle between the path line of the current segment and the previous segment
-            loc1 = previous_segment.path ^ 1
-            loc2 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
-            angle_path_line_previous += loc2.y_axis.direction.get_signed_angle(
-                loc1.y_axis.direction, loc2.z_axis.direction
-            )
-
-            # Determine the angle where profile matches  the previous segment
-            profile_reference_segment: Optional[PathSegment] = previous_swept_segment
-            if profile_reference_segment is None and previous_segment is not None:
-                profile_reference_segment = (
-                    previous_segment if previous_segment.path_body is not None else None
+            # Determine final angles for start and end sketch
+            angle_sketch_1_final, angle_sketch_2_final = (
+                self._compute_spline_orientation(
+                    segment,
+                    previous_segment,
+                    previous_swept_segment,
+                    help_path,
                 )
-
-            angle_profile_rotation_match = (
-                self.determine_path_profile_angle(
-                    profile_reference_segment, segment, angle_path_line_previous
-                )
-                if profile_reference_segment is not None
-                else 0
-            )
-
-            # Determine spline path end angle for additional end of path profile rotation due to help path tangent
-            loc1 = help_path ^ 1
-            loc2 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
-            angle_profile_end_of_path = loc2.y_axis.direction.get_signed_angle(
-                loc1.y_axis.direction, loc2.z_axis.direction
-            )
-
-            # Compute base angle (the sum of the previous segment angle and the profile match)
-            base_angle = angle_path_line_previous + angle_profile_rotation_match
-
-            # Compute the difference between the desired end-of-path angle and the base angle,
-            # normalized to the range (-180, 180)
-            angle_diff = normalize_angle(angle_profile_end_of_path - base_angle)
-
-            # Choose twist_offset based on the sign of angle_diff.
-            # (This rule gives:
-            #   - twist_offset = 0 if the desired end-of-path aligns with the base angle,
-            #   - twist_offset = -90 if the difference is positive,
-            #   - twist_offset =  90 if the difference is negative.)
-            if abs(angle_diff) < 1e-6:
-                twist_offset = 0
-            elif angle_diff > 0:
-                twist_offset = -90
-            else:
-                twist_offset = 90
-
-            # Compute the adjustment.
-            # The final sketch angle corrected by the twist offset to match the end-of-path angle.
-            # That is, if twist_offset is -90, we require:
-            #       final_angle2 + 90 == angle_profile_end_of_path,
-            # and if twist_offset is 90:
-            #       final_angle2 - 90 == angle_profile_end_of_path.
-            if twist_offset == -90:
-                computed_adjustment = (angle_profile_end_of_path - 90) - base_angle
-            elif twist_offset == 90:
-                computed_adjustment = (angle_profile_end_of_path + 90) - base_angle
-            else:  # twist_offset == 0
-                computed_adjustment = angle_profile_end_of_path - base_angle
-
-            # Final sketch angles:
-            angle_sketch_1_final = base_angle
-            angle_sketch_2_final = base_angle + computed_adjustment
-
-            # Get parameters for the path profile type
-            path_parameters = self.path_profile_type_parameters.get(
-                segment.path_profile_type.value, {}
-            )
-
-            # Store path profile sketch based on path profile registry
-            path_profile_function = PROFILE_TYPE_FUNCTIONS.get(
-                segment.path_profile_type, create_u_shape
-            )
-            segment.path_profile = path_profile_function(
-                **path_parameters, rotation_angle=angle_sketch_1_final
-            )
-            path_profile_end = path_profile_function(
-                **path_parameters, rotation_angle=angle_sketch_2_final
             )
 
             try:
-                # print(f"Sweeping for segment {segment.main_index}.{segment.secondary_index}")
-
-                # Sweep for the main path body, use regular sweep in case of internal inner wires
-                # otherwise, use multi sweep
-                # This is to handle OCCT sweep functionality (BRepOffsetAPI_MakePipeShell)
-                # doesn't support holes and only takes a Wire
-                if len(path_profile_end.faces()[0].inner_wires()) > 0:
-                    segment.path_body = sweep_single_profile(
-                        segment=segment,
-                        profile=segment.path_profile,
-                        transition_type=Transition.RIGHT,
-                    )
-                else:
-                    with BuildPart() as segment.path_body:
-                        with BuildLine() as segment_path_line:
-                            add(segment.path)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                0, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s1:
-                            add(segment.path_profile)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                1, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s2:
-                            add(path_profile_end)
-
-                        sweep(
-                            sections=[s1.sketch, s2.sketch],
-                            path=segment_path_line.line,
-                            multisection=True,
-                        )
+                # Sweep for the main path body
+                path_body = self._build_start_and_end_profile_and_sweep(
+                    segment=segment,
+                    profile_type=segment.path_profile_type,
+                    start_angle=angle_sketch_1_final,
+                    end_angle=angle_sketch_2_final,
+                    profile_attr_name="path_profile",
+                    body_attr_name="path_body",
+                    sweep_label="Path",
+                )
 
                 # Check if bodies are valid
-                if not segment.path_body.part.is_valid():
+                if path_body is None or not path_body.part.is_valid():
                     print(
                         f"Check segment {segment.main_index}.{segment.secondary_index} has an invalid path body?"
                     )
 
                 # Check if body is valid, try other approach if faces intersect
-                if do_faces_intersect(segment.path_body.part):
+                if path_body and do_faces_intersect(path_body.part):
                     print(
-                        f"Spline option {opt_idx}, main body self-intersection on segment "
-                        f"{segment.main_index}.{segment.secondary_index}"
+                        f"Segment {segment.main_index}.{segment.secondary_index}, "
+                        f"spline option {opt_idx}, main body self-intersection"
                     )
                     continue
 
                 # Create the accent profile if the segment has an accent profile type
                 if segment.accent_profile_type is not None:
-                    # Get parameters for the accent profile type
-                    accent_path_parameters = self.path_profile_type_parameters.get(
-                        segment.accent_profile_type.value, {}
+                    accent_body = self._build_start_and_end_profile_and_sweep(
+                        segment=segment,
+                        profile_type=segment.accent_profile_type,
+                        start_angle=angle_sketch_1_final,
+                        end_angle=angle_sketch_2_final,
+                        profile_attr_name="accent_profile",
+                        body_attr_name="accent_body",
+                        sweep_label="Accent",
                     )
-
-                    # Store accent color profile sketch based on path profile registry
-                    accent_profile_function = PROFILE_TYPE_FUNCTIONS.get(
-                        segment.accent_profile_type, create_u_shape
-                    )
-                    segment.accent_profile = accent_profile_function(
-                        **accent_path_parameters, rotation_angle=angle_sketch_1_final
-                    )
-                    path_profile_end = accent_profile_function(
-                        **accent_path_parameters, rotation_angle=angle_sketch_2_final
-                    )
-
-                    # Sweep for the accent body
-                    with BuildPart() as segment.accent_body:
-                        with BuildLine() as segment_path_line:
-                            add(segment.path)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                0, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s1:
-                            add(segment.accent_profile)
-                        with BuildSketch(
-                            segment.path.location_at(
-                                1, frame_method=FrameMethod.CORRECTED
-                            )
-                        ) as s2:
-                            add(path_profile_end)
-                        sweep(
-                            [s1.sketch, s2.sketch],
-                            segment_path_line.line,
-                            multisection=True,
-                        )
 
                     # Check if body is valid, try other approach if faces intersect
-                    if segment.accent_body and do_faces_intersect(
-                        segment.accent_body.part
-                    ):
+                    if accent_body and do_faces_intersect(accent_body.part):
                         print(
-                            f"Spline option {opt_idx}, accent body self-intersection on segment "
-                            f"{segment.main_index}.{segment.secondary_index}"
+                            f"Segment {segment.main_index}.{segment.secondary_index}, "
+                            f"spline option {opt_idx}, accent body self-intersection"
                         )
                         continue
 
                 # Create the support profile if the segment has a support profile type
                 if segment.support_profile_type is not None:
-                    # Get parameters for the support profile type
-                    support_path_parameters = self.path_profile_type_parameters.get(
-                        segment.support_profile_type.value, {}
+                    support_body = self._build_start_and_end_profile_and_sweep(
+                        segment=segment,
+                        profile_type=segment.support_profile_type,
+                        start_angle=angle_sketch_1_final,
+                        end_angle=angle_sketch_2_final,
+                        profile_attr_name="support_profile",
+                        body_attr_name="support_body",
+                        sweep_label="Support",
                     )
-
-                    # Store support profile sketch based on path profile registry
-                    support_profile_function = PROFILE_TYPE_FUNCTIONS.get(
-                        segment.support_profile_type, create_u_shape
-                    )
-                    segment.support_profile = support_profile_function(
-                        **support_path_parameters, rotation_angle=angle_sketch_1_final
-                    )
-                    path_profile_end = support_profile_function(
-                        **support_path_parameters, rotation_angle=angle_sketch_2_final
-                    )
-
-                    # This is to handle OCCT sweep functionality (BRepOffsetAPI_MakePipeShell)
-                    # doesn't support holes and only takes a Wire
-                    if len(path_profile_end.faces()[0].inner_wires()) > 0:
-                        segment.support_body = sweep_single_profile(
-                            segment=segment,
-                            profile=segment.support_profile,
-                            transition_type=Transition.RIGHT,
-                        )
-                    else:
-                        # Sweep for the support body
-                        with BuildPart() as segment.support_body:
-                            with BuildLine() as segment_path_line:
-                                add(segment.path)
-                            with BuildSketch(
-                                segment.path.location_at(
-                                    0, frame_method=FrameMethod.CORRECTED
-                                )
-                            ) as s1:
-                                add(segment.support_profile)
-                            with BuildSketch(
-                                segment.path.location_at(
-                                    1, frame_method=FrameMethod.CORRECTED
-                                )
-                            ) as s2:
-                                add(path_profile_end)
-                            sweep(
-                                [s1.sketch, s2.sketch],
-                                segment_path_line.line,
-                                multisection=True,
-                            )
 
                     # Check if body is valid, try other approach if faces intersect
-                    if segment.support_body and do_faces_intersect(
-                        segment.support_body.part
-                    ):
+                    if support_body and do_faces_intersect(support_body.part):
                         print(
-                            f"Spline option {opt_idx}, support body self-intersection on segment "
-                            f"{segment.main_index}.{segment.secondary_index}"
+                            f"Segment {segment.main_index}.{segment.secondary_index}, "
+                            f"spline option {opt_idx}, support body self-intersection"
                         )
                         continue
 
@@ -777,7 +722,7 @@ class PathBuilder:
                 segment, [n1, n2], is_circ
             )
 
-            # Let your normal polylines/arcs get built
+            # Build normal polylines/arcs
             sub_segment = self.define_standard_segment_path(sub_segment)
             sub_segments.append(sub_segment)
 
@@ -796,7 +741,9 @@ class PathBuilder:
         )
 
     def combine_final_path_bodies(self):
-        # Combine separate segment path bodies depending on divide options
+        """
+        Combine separate segment path bodies depending on divide options
+        """
         num_divisions = Config.Manufacturing.DIVIDE_PATHS_IN
 
         # Collect all the path bodies by main_index
