@@ -11,10 +11,10 @@ from build123d import Axis, Rotation, Vector
 
 import obstacles.catalogue  # ensure registration
 from config import Config
-from puzzle.utils.enums import ObstacleType
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 def _quantize_coord(val: float, node_size: float) -> float:
@@ -70,6 +70,11 @@ class ObstacleManager:
         self.seed = Config.Puzzle.SEED
         random.seed(self.seed)
         np.random.seed(self.seed)
+
+        # Cache unique possible orientations for obstacles
+        self.UNIQUE_24_EULER_XYZ: list[tuple[int, int, int]] = (
+            self._generate_24_xyz_orientations()
+        )
 
         # Placement
         if Config.Obstacles.ENABLED:
@@ -181,14 +186,11 @@ class ObstacleManager:
             obstacle = cls()
 
             # Random rotation (grid-friendly 90° steps)
-            angles = [0, 90, 180, 270]
-            ax = random.choice(angles)
-            ay = random.choice(angles)
-            az = random.choice(angles)
-            obstacle.rotate(Rotation(Axis.X, ax))
-            obstacle.rotate(Rotation(Axis.Y, ay))
-            obstacle.rotate(Rotation(Axis.Z, az))
-            obstacle.rotation_angles_deg = (ax, ay, az)
+            angle_x, angle_y, angle_z = random.choice(self.UNIQUE_24_EULER_XYZ)
+            obstacle.rotate(Rotation(Axis.X, angle_x))
+            obstacle.rotate(Rotation(Axis.Y, angle_y))
+            obstacle.rotate(Rotation(Axis.Z, angle_z))
+            obstacle.rotation_angles_deg = (angle_x, angle_y, angle_z)
 
             # Candidate nodes restricted to interior for this rotation
             interior_nodes, region = self._interior_candidates(obstacle)
@@ -406,3 +408,74 @@ class ObstacleManager:
         ]
         bounds = tuple(round(val, 6) for val in (xmin, xmax, ymin, ymax, zmin, zmax))
         return candidates, bounds
+
+    @staticmethod
+    def _generate_24_xyz_orientations() -> List[Tuple[int, int, int]]:
+        """
+        Return 24 unique (angle_x, angle_y, angle_z) with angles in {0, 90, 180, 270},
+        deduped by the final rotation matrix for the X->Y->Z apply order.
+        """
+        cos_sin_lookup: Dict[int, Tuple[int, int]] = {
+            0: (1, 0),
+            90: (0, 1),
+            180: (-1, 0),
+            270: (0, -1),
+            # Angles are multiples of 90°, so exact integers are fine.
+        }
+
+        def matrix_multiply(a: list[list[int]], b: list[list[int]]) -> list[list[int]]:
+            result: list[list[int]] = [
+                [
+                    a[row][0] * b[0][col]
+                    + a[row][1] * b[1][col]
+                    + a[row][2] * b[2][col]
+                    for col in range(3)
+                ]
+                for row in range(3)
+            ]
+            return result
+
+        def matrix_key(m: list[list[int]]) -> Tuple[int, ...]:
+            return (
+                m[0][0],
+                m[0][1],
+                m[0][2],
+                m[1][0],
+                m[1][1],
+                m[1][2],
+                m[2][0],
+                m[2][1],
+                m[2][2],
+            )
+
+        def rot_x(angle_deg: int) -> list[list[int]]:
+            c, s = cos_sin_lookup[angle_deg % 360]
+            return [[1, 0, 0], [0, c, -s], [0, s, c]]
+
+        def rot_y(angle_deg: int) -> list[list[int]]:
+            c, s = cos_sin_lookup[angle_deg % 360]
+            return [[c, 0, s], [0, 1, 0], [-s, 0, c]]
+
+        def rot_z(angle_deg: int) -> list[list[int]]:
+            c, s = cos_sin_lookup[angle_deg % 360]
+            return [[c, -s, 0], [s, c, 0], [0, 0, 1]]
+
+        unique: Dict[Tuple[int, ...], Tuple[int, int, int]] = {}
+        angle_choices = (0, 90, 180, 270)
+
+        for angle_x in angle_choices:
+            rx = rot_x(angle_x)
+            for angle_y in angle_choices:
+                ry = rot_y(angle_y)
+                for angle_z in angle_choices:
+                    rz = rot_z(angle_z)
+                    # Apply order: X -> Y -> Z
+                    # Final transform (column-vector convention): Rz * Ry * Rx
+                    final_matrix = matrix_multiply(rz, matrix_multiply(ry, rx))
+                    key = matrix_key(final_matrix)
+                    if key not in unique:
+                        unique[key] = (angle_x, angle_y, angle_z)
+                    if len(unique) == 24:
+                        return list(unique.values())
+
+        return list(unique.values())
