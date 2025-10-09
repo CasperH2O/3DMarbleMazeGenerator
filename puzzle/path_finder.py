@@ -72,7 +72,7 @@ class AStarPathFinder:
             # and allowed only if one node is circular and the other is not.
             node_is_circular = NodeGridType.CIRCULAR.value in node.grid_type
             candidate_is_circular = NodeGridType.CIRCULAR.value in candidate.grid_type
-            
+
             if diff_count == 1 and (node_is_circular ^ candidate_is_circular):
                 if (
                     puzzle.case_shape == CaseShape.CYLINDER
@@ -345,18 +345,23 @@ class AStarPathFinder:
         start node. It aims for an even distribution of mounting vs. non-mounting
         waypoints and ensures all mounting waypoints are included.
         """
-        # --- 1. Initialization ---
+
+        # Compute waypoint lists with
         all_waypoints = [node for node in puzzle.nodes if node.waypoint]
         if not all_waypoints:
-            # print("No waypoints defined in the puzzle.")
             return []
-
         initial_mounting = [node for node in all_waypoints if node.mounting]
         initial_non_mounting = [node for node in all_waypoints if not node.mounting]
 
+        # Gather obstacle entry/exit nodes and build entry exit mapping
+        entry_to_exit: dict[Node, Node] = {}
+        for obstacle in puzzle.obstacle_manager.placed_obstacles:
+            entry_to_exit[obstacle.entry_node] = obstacle.exit_node
+
+        # Start at the beginning, check we have one
         start_node = puzzle.start_node
         if not start_node:
-            # This case should ideally not happen based on node_creator logic
+            # This should never happen, indicates failure in node creator
             print("Error: Puzzle start node not found.")
             return []
 
@@ -369,12 +374,11 @@ class AStarPathFinder:
         if start_node in remaining_non_mounting:
             remaining_non_mounting.remove(start_node)
 
-        # --- 2. Distribution Logic Setup ---
+        # Distribution Logic Setup
         # Calculate the target number of non-mounting waypoints per "gap" between mounting waypoints.
         # A "gap" occurs before the first mounting WP, between consecutive mounting WPs, and after the last one.
-        num_gaps_for_distribution = (
-            len(remaining_mounting) + 1
-        )  # Includes potential segments before first / after last mounting WP.
+        num_gaps_for_distribution = len(remaining_mounting) + 1
+        # Includes potential segments before first / after last mounting WP.
         if num_gaps_for_distribution > 0 and remaining_non_mounting:
             # Target ratio for distributing non-mounting nodes among the gaps related to mounting nodes
             target_non_mounting_per_gap = (
@@ -385,31 +389,31 @@ class AStarPathFinder:
             # Set high if non-mounts exist (add them all), else 0.
             target_non_mounting_per_gap = float("inf") if remaining_non_mounting else 0
 
-        # --- 3. Path Construction Loop ---
+        # Path Construction Loop
         total_path: list[Node] = [start_node]  # Start the path with the initial node
         current_node: Node = start_node
         # Keep track of waypoints added to the path to avoid duplicates and verify completion
         visited_waypoints: Set[Node] = {start_node} if start_node.waypoint else set()
 
+        visited_waypoints: set[Node] = {start_node} if start_node.waypoint else set()
+
         # State variables to guide waypoint type selection for distribution
         last_visited_was_mounting: bool = start_node_is_mounting
-        # Count non-mounting waypoints added since the last mounting one was added
         non_mounting_count_since_last_mount: int = (
             0 if start_node_is_mounting else (1 if start_node.waypoint else 0)
         )
 
-        # Loop until all waypoints (both types) have been visited
+        # Visit all the waypoints
         while remaining_mounting or remaining_non_mounting:
-            # --- Decide which type of waypoint to target next ---
+            # Decide which type of waypoint to target next
             target_mounting: bool
             if not remaining_mounting:
-                target_mounting = False  # Can only target non-mounting
+                target_mounting = False
             elif not remaining_non_mounting:
-                target_mounting = True  # Must target mounting
+                target_mounting = True
             else:
                 # Core distribution logic:
                 if last_visited_was_mounting:
-                    # Just added a mounting node, ideally start the next gap with non-mounting
                     target_mounting = False
                 else:
                     # Last added was non-mounting. Check if the current gap is "full".
@@ -423,10 +427,8 @@ class AStarPathFinder:
                         # Gap is full enough, time to target the next mounting node
                         target_mounting = True
 
-            # --- Select candidates and find the best path ---
-            candidates: list[Node]
-
-            # Guard against too many non mounting waypoints after final mounting waypoint
+            # Select candidates and find the best path
+            # Guard against to many non mounting waypoints after final mounting waypoint
             if (
                 target_mounting
                 and len(remaining_mounting) == 1
@@ -435,33 +437,26 @@ class AStarPathFinder:
                 target_mounting = False
 
             candidate_type_str = "Mounting" if target_mounting else "Non-Mounting"
+            candidates: list[Node] = (
+                remaining_mounting if target_mounting else remaining_non_mounting
+            )
 
-            if target_mounting:
-                candidates = remaining_mounting
-            else:
-                candidates = remaining_non_mounting
-
-            # If the preferred type has no candidates left, switch to the other type
+            # If no candidates availible, switch to the other type
             if not candidates:
-                # print(f"No candidates for preferred type {candidate_type_str}. Switching target.")
                 target_mounting = not target_mounting
                 candidate_type_str = "Mounting" if target_mounting else "Non-Mounting"
-                if target_mounting:
-                    candidates = remaining_mounting
-                else:
-                    candidates = remaining_non_mounting
-
-                # If still no candidates, all waypoints must have been processed
+                candidates = (
+                    remaining_mounting if target_mounting else remaining_non_mounting
+                )
                 if not candidates:
-                    # print("No remaining waypoints of either type. Exiting loop.")
                     break
 
-            # Find the closest reachable candidate of the chosen type
+            # Find the closest reachable node of the desired type
             chosen_node, chosen_path = self._find_best_path_to_candidate(
                 current_node, candidates, puzzle
             )
 
-            # --- Process the chosen path ---
+            # Process the chosen path
             if chosen_node and chosen_path:
                 # Mark nodes in the new path segment as occupied (excluding the start node of the segment)
                 self.occupy_path(chosen_path[1:])
@@ -490,11 +485,36 @@ class AStarPathFinder:
                             non_mounting_count_since_last_mount += 1
                         last_visited_was_mounting = False
 
+                # Advance current node to the end of this segment
                 current_node = chosen_path[-1]
 
+                # Teleport, obstacle entry to exit.
+                # If segment ended on an obstacle entry, jump to mapped exit
+                # Treat EXIT as the visited non-mounting waypoint.
+                mapped_exit = entry_to_exit.get(current_node)
+                if mapped_exit is not None and mapped_exit is not current_node:
+                    # Append as a zero-length hop for downstream visibility
+                    if not mapped_exit.occupied:
+                        mapped_exit.occupied = True
+                    total_path.append(mapped_exit)
+
+                    # Treat it as visiting a (non-mounting) waypoint
+                    mapped_exit.waypoint = True
+                    mapped_exit.mounting = False
+                    visited_waypoints.add(mapped_exit)
+                    if mapped_exit in remaining_non_mounting:
+                        remaining_non_mounting.remove(mapped_exit)
+                    # Update distribution counters
+                    if last_visited_was_mounting:
+                        non_mounting_count_since_last_mount = 1
+                    else:
+                        non_mounting_count_since_last_mount += 1
+                    last_visited_was_mounting = False
+
+                    # Continue planning from the exit node
+                    current_node = mapped_exit
+
             else:
-                # Critical failure: Couldn't reach any remaining candidate of the required type.
-                # This might indicate an issue with the node grid, obstacles, or waypoint placement.
                 print(
                     f"\nError: Could not find a path to any remaining {candidate_type_str} waypoint from ({current_node.x:.1f}, {current_node.y:.1f}, {current_node.z:.1f})."
                 )
@@ -503,13 +523,10 @@ class AStarPathFinder:
                 )
                 self._verify_mounting_waypoints_visited(
                     initial_mounting, visited_waypoints, start_node
-                )  # Report missed mounting WPs
-                # return what we have thus far for debugging
+                )
                 return total_path
 
-        # --- 4. Final Checks and Cleanup ---
-
-        # Verify all initial mounting waypoints were included
+        # Veryify all mounting waypoints were included
         self._verify_mounting_waypoints_visited(
             initial_mounting, visited_waypoints, start_node
         )
@@ -519,14 +536,12 @@ class AStarPathFinder:
 
         # Mark the actual last node of the final path as the puzzle end
         if total_path:
-            # Ensure no other node has the puzzle_end flag
             for node in puzzle.nodes:
                 node.puzzle_end = False
             total_path[-1].puzzle_end = True
         else:
             print("Warning: No path generated.")
 
-        # print(f"--- connect_waypoints Finished. Final Path Length: {len(total_path)} nodes ---")
         return total_path
 
     def reset_nodes(self, nodes: list[Node]) -> None:

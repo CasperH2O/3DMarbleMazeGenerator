@@ -60,6 +60,7 @@ class Obstacle(ABC):
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
 
+        # Object path segment, path
         self.main_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=1
         )
@@ -140,7 +141,7 @@ class Obstacle(ABC):
                     {"occupied_nodes": occ, "overlap_allowed": overlap}, f, indent=2
                 )
 
-        # rebuild Node objects in world‐space
+        # rebuild node grid coordinates for puzzle node size
         self.occupied_nodes = [
             Node(
                 c["x"] * self.node_size,
@@ -239,6 +240,7 @@ class Obstacle(ABC):
             _snap(start.Z),
             occupied=True,
         )
+
         exit_node = Node(
             _snap(end.X),
             _snap(end.Y),
@@ -251,6 +253,7 @@ class Obstacle(ABC):
     def get_placed_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
         """
         Return the entry and exit nodes transformed into world coordinates.
+        # TODO some akward recreation of nodes going on here
         """
 
         if self.location is None:
@@ -274,6 +277,7 @@ class Obstacle(ABC):
             entry_loc.position.Z,
             occupied=True,
         )
+
         placed_exit = Node(
             exit_loc.position.X,
             exit_loc.position.Y,

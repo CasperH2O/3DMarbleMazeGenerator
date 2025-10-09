@@ -292,6 +292,7 @@ class ObstacleManager:
 
     def _assign_entry_exit_nodes(self, obstacle: Obstacle):
         """Find closest nodes to entry/exit and mark them (if obstacle provides such coords)."""
+        # TODO some consolidation of marking these nodes and aligning them with the grid, happens both here and in obstacle class
         coords = obstacle.get_placed_entry_exit_coords()
         if not coords:
             print(" No entry/exit coords.")
@@ -310,11 +311,11 @@ class ObstacleManager:
             obstacle.entry_node = entry_node
             entry_node.waypoint = True
             entry_node.occupied = True
-            entry_node.obstacle_entry = obstacle
+            entry_node.is_obstacle_entry = True
         if exit_node and exit_node != entry_node:
             obstacle.exit_node = exit_node
             exit_node.occupied = True
-            exit_node.obstacle_exit = obstacle
+            exit_node.is_obstacle_exit = True
         elif exit_node == entry_node:
             print(f"Warning: Entry and Exit nodes are the same for {obstacle.name}")
 

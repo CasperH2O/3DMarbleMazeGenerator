@@ -63,5 +63,9 @@ class Node:
 
         self.grid_type = []  # List of grid types (e.g., "rectangular", "circular")
 
+        # Obstacle markers
+        self.is_obstacle_entry: bool = False
+        self.is_obstacle_exit: bool = False
+
     def __lt__(self, other):
         return self.f < other.f  # For priority queue (heapq)
