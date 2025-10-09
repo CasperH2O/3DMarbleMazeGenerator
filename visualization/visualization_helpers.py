@@ -3,6 +3,7 @@
 import colorsys
 import math
 import random
+from typing import Iterable, List, Tuple
 
 import numpy as np
 import plotly.graph_objects as go
@@ -552,6 +553,10 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
             y_vals = [n.y for n in segment.nodes]
             z_vals = [n.z for n in segment.nodes]
 
+        # Obstacle paths are instant, break up into line for visual indication
+        if segment.is_obstacle:
+            x_vals, y_vals, z_vals = _dashed_line(x_vals, y_vals, z_vals)
+
         # Plot this curve
         traces.append(
             go.Scatter3d(
@@ -559,7 +564,7 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                 y=y_vals,
                 z=z_vals,
                 mode="lines",
-                name=f"Segment {segment.main_index}.{segment.secondary_index}",
+                name=f"Segment {segment.main_index}.{segment.secondary_index}{' (Obstacle)' if segment.is_obstacle else ''}",
                 line=dict(color=segment_color),
                 hoverinfo="text",
                 text=segment_name,
@@ -666,3 +671,67 @@ def _generate_distinct_hsv_colors(
     random_generator.shuffle(hex_colors)
 
     return hex_colors
+
+
+def _dashed_line(
+    x_vals: Iterable[float],
+    y_vals: Iterable[float],
+    z_vals: Iterable[float],
+) -> Tuple[List[float], List[float], List[float]]:
+    """
+    Build Scatter3d-compatible arrays (with None separators) that render a dashed
+    straight line between the first and last XYZ points provided.
+
+    Only uses start and end xyz values.
+    """
+    start_point = (float(x_vals[0]), float(y_vals[0]), float(z_vals[0]))
+    end_point = (float(x_vals[-1]), float(y_vals[-1]), float(z_vals[-1]))
+    num_dashes = 5
+    gap_ratio = 0.6
+
+    delta_x = end_point[0] - start_point[0]
+    delta_y = end_point[1] - start_point[1]
+    delta_z = end_point[2] - start_point[2]
+
+    total_length = math.sqrt(delta_x**2 + delta_y**2 + delta_z**2)
+    if total_length == 0:
+        # Degenerate case: points coincide -> nothing to draw as a line
+        return [start_point[0]], [start_point[1]], [start_point[2]]
+
+    # Compute dash & gap as fractions of the full param t in [0, 1]
+    # One cycle = dash + gap. We aim for ~num_dashes cycles over [0,1].
+    cycle_count = max(1, int(num_dashes))
+    dash_fraction = 1.0 / (cycle_count * (1.0 + gap_ratio))
+    gap_fraction = dash_fraction * gap_ratio
+
+    def lerp(start_value: float, end_value: float, t: float) -> float:
+        return start_value + (end_value - start_value) * t
+
+    xs: List[float] = []
+    ys: List[float] = []
+    zs: List[float] = []
+
+    t_cursor = 0.0
+    epsilon = 1e-9  # guard against floating-point drift, tiny dash
+
+    while t_cursor < 1.0 - epsilon:
+        # Dash segment [t_cursor, t_dash_end]
+        t_dash_end = min(t_cursor + dash_fraction, 1.0)
+
+        x0 = lerp(start_point[0], end_point[0], t_cursor)
+        y0 = lerp(start_point[1], end_point[1], t_cursor)
+        z0 = lerp(start_point[2], end_point[2], t_cursor)
+
+        x1 = lerp(start_point[0], end_point[0], t_dash_end)
+        y1 = lerp(start_point[1], end_point[1], t_dash_end)
+        z1 = lerp(start_point[2], end_point[2], t_dash_end)
+
+        # Emit one visible dash segment, then a separator None to create a gap
+        xs.extend([x0, x1, None])
+        ys.extend([y0, y1, None])
+        zs.extend([z0, z1, None])
+
+        # Advance past the gap
+        t_cursor = t_dash_end + gap_fraction
+
+    return xs, ys, zs

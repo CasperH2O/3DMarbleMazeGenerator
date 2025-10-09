@@ -1,6 +1,7 @@
 # cad/path_architect.py
 
 import random
+from typing import Dict, Optional
 
 from build123d import Transition, Vector
 
@@ -12,18 +13,28 @@ from cad.path_profile_type_shapes import (
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
 from config import Config, PathCurveModel, PathCurveType
+from obstacles.obstacle import Obstacle
 from puzzle.node import Node, NodeGridType
 
 from . import curve_detection
 
 
 class PathArchitect:
-    def __init__(self, nodes: list[Node]):
+    def __init__(self, nodes: list[Node], obstacles: Optional[list["Obstacle"]] = None):
         # Inputs
         self.nodes = nodes
         self.segments: list[PathSegment] = []
         self.main_index_counter = 1  # Main index counter
         self.secondary_index_counters = {}  # Dictionary to track secondary indices per main_index
+
+        # TODO, clean up, better understandable
+        self.obstacle_by_entry: Dict[Node, "Obstacle"] = {}
+        if obstacles:
+            self.obstacle_by_entry = {
+                obstacle.entry_node: obstacle
+                for obstacle in obstacles
+                if getattr(obstacle, "entry_node", None) is not None
+            }
 
         # Configuration parameters
         self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
@@ -36,6 +47,7 @@ class PathArchitect:
 
         # Process the path
         self.split_path_into_segments()
+
         self.assign_path_properties()
 
         self.detect_curves_and_adjust_segments()
@@ -43,11 +55,13 @@ class PathArchitect:
         self.adjust_segments()
 
         self.create_start_ramp()
+
         self.create_finish_box()
 
         self.assign_path_transition_types()
 
         self.create_support_materials()
+
         self.accent_color_paths()
 
         self.reindex_segments()
@@ -75,6 +89,26 @@ class PathArchitect:
         for node in node_iter:
             current_segment_nodes.append(node)
 
+            # Check if this node is an obstacle entry node
+            obstacle = self.obstacle_by_entry.get(node)
+            if obstacle is not None:
+                if len(current_segment_nodes) > 1:
+                    self._create_segment(
+                        current_segment_nodes, main_index=self.main_index_counter
+                    )
+                    self.main_index_counter += 1
+                elif current_segment_nodes and self.segments:
+                    self.segments[-1].nodes.extend(current_segment_nodes)
+                current_segment_nodes = []
+
+                obstacle_segment = self._create_obstacle_segment(
+                    obstacle, main_index=self.main_index_counter
+                )
+                if obstacle_segment is not None:
+                    self.segments.append(obstacle_segment)
+                    self.main_index_counter += 1
+                continue
+
             if node.waypoint and not node.mounting:
                 waypoint_counter += 1
                 if waypoint_counter % self.waypoint_change_interval == 0:
@@ -95,6 +129,40 @@ class PathArchitect:
     def _create_segment(self, nodes: list[Node], main_index: int):
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
+
+    def _create_obstacle_segment(
+        self, obstacle: "Obstacle", main_index: int
+    ) -> PathSegment | None:
+        nodes: list[Node] = [obstacle.entry_node, obstacle.exit_node]
+        segment = PathSegment(nodes, main_index=main_index)
+        segment.copy_attributes_from(obstacle.main_path_segment)
+        # TODO some duplication going on here/stuff in the wrong spot, check attributes update
+        segment.is_obstacle = True
+        segment.lock_path = True
+
+        path = obstacle.main_path_segment.path
+
+        # TODO, double check, this might not be needed or might be the best point in time to create the path?
+        if path is None:
+            obstacle.create_obstacle_geometry()
+            path = obstacle.main_path_segment.path
+
+        if path is not None:
+            location = obstacle.location
+            # TODO not sure about this, location might already be up to date or leave location update to obstacle method?
+            if location is not None:
+                if hasattr(path, "located"):
+                    path = path.located(location)
+                elif hasattr(path, "moved"):
+                    path = path.moved(location)
+                else:
+                    try:
+                        path = location * path  # type: ignore[operator]
+                    except Exception:
+                        pass
+            segment.path = path
+
+        return segment
 
     def _harmonise_circular_transitions(self) -> None:
         """
@@ -120,8 +188,8 @@ class PathArchitect:
                 NodeGridType.CIRCULAR.value in end_a.grid_type
                 and NodeGridType.CIRCULAR.value in start_b.grid_type
                 and len(seg_a.nodes) >= 2
-                and not NodeGridType.CIRCULAR.value
-                in second_last_a.grid_type  # seg-A’s 2nd-last is non-circ
+                and NodeGridType.CIRCULAR.value
+                not in second_last_a.grid_type  # seg-A’s 2nd-last is non-circ
             ):
                 print(
                     f"Harmonise circular transitions pattern A being done for segments: "
@@ -160,8 +228,8 @@ class PathArchitect:
                 NodeGridType.CIRCULAR.value in end_a.grid_type
                 and NodeGridType.CIRCULAR.value in start_b.grid_type
                 and len(seg_b.nodes) >= 2
-                and not NodeGridType.CIRCULAR.value
-                in seg_b.nodes[1].grid_type  # 2nd-node non-circ
+                and NodeGridType.CIRCULAR.value
+                not in seg_b.nodes[1].grid_type  # 2nd-node non-circ
             ):
                 print(
                     f"Harmonise circular transitions pattern B being done for segments: "
@@ -299,6 +367,9 @@ class PathArchitect:
         curve_id_counter = 1  # Initialize the curve ID counter
         while i < len(self.segments):
             segment = self.segments[i]
+            if segment.is_obstacle:
+                i += 1
+                continue
             if segment.curve_model == PathCurveModel.COMPOUND:
                 sub_segments = [segment]
                 new_split_segments = []

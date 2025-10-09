@@ -82,7 +82,9 @@ class Puzzle:
         self.total_path: list[Node] = self.path_finder.connect_waypoints(self)
 
         # Process the path segments
-        self.path_architect: PathArchitect = PathArchitect(self.total_path)
+        self.path_architect: PathArchitect = PathArchitect(
+            self.total_path, self.obstacle_manager.placed_obstacles
+        )
 
     def define_mounting_waypoints(self) -> None:
         """
