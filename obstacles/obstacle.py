@@ -238,34 +238,34 @@ class Obstacle(ABC):
         return entry_coord, exit_coord
 
     def get_relative_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
-        """Return the local-space entry and exit nodes derived from the main path."""
+        """Return the local-space entry and exit nodes for the obstacle.
 
+        Prefer the explicit entry/exit helper segments if present; fall back
+        to the main path’s start/end otherwise.
+        """
+        entry_nodes = self.entry_path_segment.nodes
+        exit_nodes = self.exit_path_segment.nodes
+
+        def _snap(v: float) -> float:
+            return round(v / self.node_size) * self.node_size
+
+        if entry_nodes and exit_nodes:
+            e0 = entry_nodes[0]
+            x1 = exit_nodes[-1]
+            entry_node = Node(_snap(e0.x), _snap(e0.y), _snap(e0.z), occupied=True)
+            exit_node = Node(_snap(x1.x), _snap(x1.y), _snap(x1.z), occupied=True)
+            return entry_node, exit_node
+
+        # Fallback to main path start/end if helpers are missing
         if self.main_path_segment.path is None:
             self.create_obstacle_geometry()
-
         if self.main_path_segment.path is None:
             return None
 
         start = self.main_path_segment.path @ 0
         end = self.main_path_segment.path @ 1
-
-        def _snap(value: float) -> float:
-            return round(value / self.node_size) * self.node_size
-
-        entry_node = Node(
-            _snap(start.X),
-            _snap(start.Y),
-            _snap(start.Z),
-            occupied=True,
-        )
-
-        exit_node = Node(
-            _snap(end.X),
-            _snap(end.Y),
-            _snap(end.Z),
-            occupied=True,
-        )
-
+        entry_node = Node(_snap(start.X), _snap(start.Y), _snap(start.Z), occupied=True)
+        exit_node = Node(_snap(end.X), _snap(end.Y), _snap(end.Z), occupied=True)
         return entry_node, exit_node
 
     def get_placed_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:

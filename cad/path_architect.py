@@ -85,13 +85,21 @@ class PathArchitect:
             # If less than two nodes, include all nodes
             node_iter = self.nodes
 
-        # Continue with the rest of the nodes
+        pending_exit_to_skip: Node | None = (
+            None  # skip the next node if it is this obstacle's mapped exit
+        )
+
         for node in node_iter:
+            # If we just inserted obstacle triplet, the very next node in total_path is the teleported exit.
+            if pending_exit_to_skip is not None and node is pending_exit_to_skip:
+                pending_exit_to_skip = None
+                continue  # skip adding this one; the EXIT SINGLE already starts here
+
             current_segment_nodes.append(node)
 
-            # Check if this node is an obstacle entry node
             obstacle = self.obstacle_by_entry.get(node)
             if obstacle is not None:
+                # Close any open segment before the obstacle
                 if len(current_segment_nodes) > 1:
                     self._create_segment(
                         current_segment_nodes, main_index=self.main_index_counter
@@ -101,12 +109,15 @@ class PathArchitect:
                     self.segments[-1].nodes.extend(current_segment_nodes)
                 current_segment_nodes = []
 
-                obstacle_segment = self._create_obstacle_segment(
+                # Insert the 3 obstacle segments with shared main_index and incremental secondary_index
+                obstacle_segments = self._create_obstacle_segments(
                     obstacle, main_index=self.main_index_counter
                 )
-                if obstacle_segment is not None:
-                    self.segments.append(obstacle_segment)
+                if obstacle_segments:
+                    self.segments.extend(obstacle_segments)
                     self.main_index_counter += 1
+                    # ensure we don't immediately start another segment at the teleported exit
+                    pending_exit_to_skip = obstacle.exit_node
                 continue
 
             if node.waypoint and not node.mounting:
@@ -130,40 +141,76 @@ class PathArchitect:
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
 
-    def _create_obstacle_segment(
+    def _create_obstacle_segments(
         self, obstacle: "Obstacle", main_index: int
-    ) -> PathSegment | None:
-        nodes: list[Node] = [obstacle.entry_node, obstacle.exit_node]
-        segment = PathSegment(nodes, main_index=main_index)
-        segment.copy_attributes_from(obstacle.main_path_segment)
-        # TODO some duplication going on here/stuff in the wrong spot, check attributes update
-        segment.use_frenet = obstacle.main_path_segment.use_frenet
-        segment.is_obstacle = True
-        segment.lock_path = True
+    ) -> list[PathSegment]:
+        """Create [entry SINGLE] → [main locked] → [exit SINGLE] for one obstacle."""
+        segments: list[PathSegment] = []
 
-        path = obstacle.main_path_segment.path
+        # World-place helper nodes (copy first to avoid mutating obstacle state)
+        def world_nodes(local_nodes: list[Node]) -> list[Node]:
+            if not local_nodes:
+                return []
+            copies = [Node(n.x, n.y, n.z) for n in local_nodes]
+            obstacle.get_placed_node_coordinates(copies)
+            return copies
 
-        # TODO, double check, this might not be needed or might be the best point in time to create the path?
-        if path is None:
+        entry_world = world_nodes(obstacle.entry_path_segment.nodes)
+        exit_world = world_nodes(obstacle.exit_path_segment.nodes)
+
+        # 1) Entry SINGLE (leave path creation to PathBuilder)
+        if len(entry_world) >= 2:
+            entry_seg = PathSegment(
+                nodes=entry_world,
+                main_index=main_index,
+                secondary_index=0,
+            )
+            entry_seg.copy_attributes_from(obstacle.main_path_segment)
+            entry_seg.curve_model = PathCurveModel.SINGLE
+            # not locked; we want normal adjustment behaviour
+            segments.append(entry_seg)
+
+        # 2) Main locked segment (nodes align with inner ends of helper stubs when available)
+        if obstacle.main_path_segment.path is None:
             obstacle.create_obstacle_geometry()
-            path = obstacle.main_path_segment.path
+        located_path = obstacle.main_path_segment.path
+        if obstacle.location is not None and hasattr(located_path, "located"):
+            located_path = located_path.located(obstacle.location)
 
-        if path is not None:
-            location = obstacle.location
-            # TODO not sure about this, location might already be up to date or leave location update to obstacle method?
-            if location is not None:
-                if hasattr(path, "located"):
-                    path = path.located(location)
-                elif hasattr(path, "moved"):
-                    path = path.moved(location)
-                else:
-                    try:
-                        path = location * path  # type: ignore[operator]
-                    except Exception:
-                        pass
-            segment.path = path
+        # Minimal 2-node backbone for continuity
+        if entry_world and exit_world:
+            main_nodes = [entry_world[-1], exit_world[0]]
+        else:
+            # Fallback to actual path endpoints if helpers are missing
+            p0 = located_path @ 0
+            p1 = located_path @ 1
+            main_nodes = [Node(p0.X, p0.Y, p0.Z), Node(p1.X, p1.Y, p1.Z)]
 
-        return segment
+        main_seg = PathSegment(
+            nodes=main_nodes,
+            main_index=main_index,
+            secondary_index=len(segments),
+        )
+        main_seg.copy_attributes_from(obstacle.main_path_segment)
+        main_seg.is_obstacle = True
+        main_seg.lock_path = True  # keep the placed obstacle geometry
+        main_seg.path = located_path
+        # curve_model left as None → assign_path_properties will set COMPOUND for is_obstacle
+        segments.append(main_seg)
+
+        # 3) Exit SINGLE (leave path creation to PathBuilder)
+        if len(exit_world) >= 2:
+            exit_seg = PathSegment(
+                nodes=exit_world,
+                main_index=main_index,
+                secondary_index=len(segments),
+            )
+            exit_seg.copy_attributes_from(obstacle.main_path_segment)
+            exit_seg.curve_model = PathCurveModel.SINGLE
+            # not locked
+            segments.append(exit_seg)
+
+        return segments
 
     def _harmonise_circular_transitions(self) -> None:
         """
@@ -317,10 +364,13 @@ class PathArchitect:
             # Select random types from the available lists
             # TODO don't set for obstacle paths, altough path is not adjusted... Improve a bit more
             segment.path_profile_type = random.choice(available_profile_types)
-            if segment.is_obstacle:
-                segment.curve_model = PathCurveModel.COMPOUND
-            else:
-                segment.curve_model = random.choice(available_curve_models)
+            # IMPORTANT: do not overwrite a curve_model that is already set
+            if segment.curve_model is None:
+                if segment.is_obstacle:
+                    # Only the locked main obstacle needs to be COMPOUND by default
+                    segment.curve_model = PathCurveModel.COMPOUND
+                else:
+                    segment.curve_model = random.choice(available_curve_models)
 
             # Update previous types for next round
             previous_profile_type = segment.path_profile_type
