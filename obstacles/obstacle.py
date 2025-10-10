@@ -31,6 +31,7 @@ from visualization.visualization_helpers import (
     plot_node_cubes,
     plot_nodes,
     plot_raw_obstacle_path,
+    plot_segments,
 )
 
 
@@ -61,9 +62,15 @@ class Obstacle(ABC):
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
 
-        # Object path segment, path
+        # Connection path segment (to be determined during obstacle design)
+        self.entry_path_segment: PathSegment = PathSegment(
+            nodes=[], main_index=0, secondary_index=0
+        )
         self.main_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=1
+        )
+        self.exit_path_segment: PathSegment = PathSegment(
+            nodes=[], main_index=0, secondary_index=2
         )
 
     @abstractmethod
@@ -116,7 +123,7 @@ class Obstacle(ABC):
 
             occ_nodes = self.determine_occupied_nodes()
 
-            # TODO re-evaluate whether entry/exit nodes should contribute to overlap detection
+            # TODO add nodes from entry and exit path to ensure they are not blocked
             entry_exit_nodes = self.get_relative_entry_exit_nodes()
             if entry_exit_nodes is not None:
                 existing = {(n.x, n.y, n.z) for n in occ_nodes}
@@ -361,6 +368,10 @@ class Obstacle(ABC):
         self.create_obstacle_geometry()
         path = self.sample_obstacle_path()
         for trace in plot_raw_obstacle_path(path, name=f"{self.name} Raw Path"):
+            fig.add_trace(trace)
+
+        # Entry and exit path visualization
+        for trace in plot_segments([self.entry_path_segment, self.exit_path_segment]):
             fig.add_trace(trace)
 
         # Casing, for reference only

@@ -13,6 +13,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class UTurn(Obstacle):
@@ -20,6 +21,15 @@ class UTurn(Obstacle):
 
     def __init__(self):
         super().__init__(name="U Turn")
+
+        self.entry_path_segment.nodes = [
+            Node(0, -1 * self.node_size, 0, occupied=True),
+            Node(0, 0, 0, occupied=True),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(0, 0, -1 * self.node_size, occupied=True),
+            Node(0, -1 * self.node_size, -1 * self.node_size, occupied=True),
+        ]
 
         # Load occupied nodes from cache or determine
         self.load_relative_node_coords()

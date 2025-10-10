@@ -14,6 +14,7 @@ from build123d import (
 
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
+from puzzle.node import Node
 
 
 class Alpha(Obstacle):
@@ -21,6 +22,15 @@ class Alpha(Obstacle):
 
     def __init__(self):
         super().__init__(name="Alpha")
+
+        self.entry_path_segment.nodes = [
+            Node(0, -3 * self.node_size, 0, occupied=True),
+            Node(0, -2 * self.node_size, 0, occupied=True),
+        ]
+        self.exit_path_segment.nodes = [
+            Node(-2 * self.node_size, 0, 1 * self.node_size, occupied=True),
+            Node(-3 * self.node_size, 0, 1 * self.node_size, occupied=True),
+        ]
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
