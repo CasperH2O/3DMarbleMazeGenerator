@@ -137,6 +137,7 @@ class PathArchitect:
         segment = PathSegment(nodes, main_index=main_index)
         segment.copy_attributes_from(obstacle.main_path_segment)
         # TODO some duplication going on here/stuff in the wrong spot, check attributes update
+        segment.use_frenet = obstacle.main_path_segment.use_frenet
         segment.is_obstacle = True
         segment.lock_path = True
 
@@ -314,8 +315,12 @@ class PathArchitect:
                 available_curve_models.remove(previous_curve_model)
 
             # Select random types from the available lists
+            # TODO don't set for obstacle paths, altough path is not adjusted... Improve a bit more
             segment.path_profile_type = random.choice(available_profile_types)
-            segment.curve_model = random.choice(available_curve_models)
+            if segment.is_obstacle:
+                segment.curve_model = PathCurveModel.COMPOUND
+            else:
+                segment.curve_model = random.choice(available_curve_models)
 
             # Update previous types for next round
             previous_profile_type = segment.path_profile_type
@@ -336,7 +341,7 @@ class PathArchitect:
         transition = Transition.ROUND  # Starting with 'round'
 
         for segment in self.segments:
-            # Check if segment already has a transition type, skip if so
+            # Check if segment already has a transition type, skip if so, also covers obstacles
             # TODO, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
             if segment.transition_type is not None:
                 continue

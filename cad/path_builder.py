@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from build123d import (
     Bezier,
@@ -159,6 +159,9 @@ class PathBuilder:
         Process each (sub) segment to define its path.
         """
         for segment in segments:
+            if segment.lock_path:
+                # Segment (obstacle) has pre-defined geometry and must not be regenerated
+                continue
             if segment.curve_model != PathCurveModel.SPLINE:
                 segment = self.define_standard_segment_path(segment)
 
@@ -309,8 +312,18 @@ class PathBuilder:
                 segment.path = RadiusArc(
                     start_point=first, end_point=last, radius=distance_to_center
                 )
+
         elif len(sub_path_points) >= 2:
-            segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
+            # FIXME TODO HACK duplicates points are slipping in due to incorrect path with obstacle adjust start end node
+
+            # Remove duplicate points slipping in
+            cleaned_points = remove_duplicate_vectors(
+                sub_path_points, tolerance=1e-6, dedupe_all=False
+            )
+
+            # Still ensure there are at least two points to form a segment
+            if len(cleaned_points) >= 2:
+                segment.path = Polyline([(p.X, p.Y, p.Z) for p in cleaned_points])
         else:
             print(
                 f"Define standard segment found an issue with this point: {sub_path_points[0]}"
@@ -371,7 +384,11 @@ class PathBuilder:
 
         # Sweep for the main path body
         segment.path_body = sweep_single_profile(
-            segment, segment.path_profile, segment.transition_type, "Path"
+            segment,
+            segment.path_profile,
+            segment.transition_type,
+            "Path",
+            is_frenet=segment.use_frenet,
         )
 
         # Create the accent profile if the segment has an accent profile type
@@ -389,7 +406,11 @@ class PathBuilder:
             )
             # Sweep for the accent body
             segment.accent_body = sweep_single_profile(
-                segment, segment.accent_profile, segment.transition_type, "Accent"
+                segment,
+                segment.accent_profile,
+                segment.transition_type,
+                "Accent",
+                is_frenet=segment.use_frenet,
             )
 
         # Create the support profile if the segment has a support profile type
@@ -408,7 +429,11 @@ class PathBuilder:
             )
             # Sweep for the support body
             segment.support_body = sweep_single_profile(
-                segment, segment.support_profile, segment.transition_type, "Support"
+                segment,
+                segment.support_profile,
+                segment.transition_type,
+                "Support",
+                is_frenet=segment.use_frenet,
             )
 
         return segment
@@ -553,6 +578,7 @@ class PathBuilder:
                 profile=profile_start,
                 transition_type=segment.transition_type,
                 sweep_label=sweep_label,
+                is_frenet=segment.use_frenet,
             )
         else:
             with BuildPart() as body:
@@ -1229,6 +1255,7 @@ def sweep_single_profile(
     profile: Sketch,
     transition_type: Transition,
     sweep_label: str = "Path",
+    is_frenet: bool = False,
 ) -> Part | None:
     """
     Helper for sweeping a single profile (main path, accent, or support).
@@ -1242,7 +1269,7 @@ def sweep_single_profile(
             # Create the path profile sketch on the work plane
             with BuildSketch(path_line.line ^ 0) as sketch_path_profile:
                 add(profile)
-            sweep(transition=transition_type)
+            sweep(transition=transition_type, is_frenet=is_frenet)
 
         # Debugging / visualization
 
@@ -1293,3 +1320,70 @@ def normalize_angle(angle: float) -> float:
 def is_close_to_origin(vec: Vector, tol=1e-5) -> bool:
     """Check if a vector is close to the origin within a tolerance."""
     return vec.length < tol
+
+
+def _vectors_almost_equal(a: Vector, b: Vector, tolerance: float) -> bool:
+    """Component-wise comparison with an absolute tolerance."""
+    return (
+        abs(a.X - b.X) <= tolerance
+        and abs(a.Y - b.Y) <= tolerance
+        and abs(a.Z - b.Z) <= tolerance
+    )
+
+
+def _quantize_key(point: Vector, tolerance: float) -> tuple[int, int, int]:
+    """
+    Map a point to a grid cell key so we can deduplicate with a set.
+    This avoids O(n^2) scans for global dedupe.
+    """
+    return (
+        round(point.X / tolerance),
+        round(point.Y / tolerance),
+        round(point.Z / tolerance),
+    )
+
+
+def remove_duplicate_vectors(
+    points: Iterable[Vector],
+    tolerance: float = 1e-6,
+    dedupe_all: bool = False,
+) -> list[Vector]:
+    """
+    Remove duplicate vectors with a tolerance, preserving order.
+
+    - If dedupe_all is False (default), only removes consecutive duplicates.
+    - If dedupe_all is True, removes any duplicates anywhere in the sequence.
+
+    Returns a new list of Vectors.
+    """
+    points_list = list(points)
+    if not points_list:
+        return []
+
+    if not dedupe_all:
+        # Fast path: collapse runs of equal points
+        cleaned: list[Vector] = [points_list[0]]
+        for point in points_list[1:]:
+            if not _vectors_almost_equal(point, cleaned[-1], tolerance):
+                cleaned.append(point)
+        return cleaned
+
+    # Global dedupe with quantized keys (order-preserving)
+    cleaned = []
+    seen_keys: set[tuple[int, int, int]] = set()
+    for point in points_list:
+        key = _quantize_key(point, tolerance)
+        if key in seen_keys:
+            # Key already seen; skip point
+            continue
+        # Resolve possible key collision by verifying with exact tolerance check
+        collision = False
+        for existing in cleaned:
+            if _vectors_almost_equal(point, existing, tolerance):
+                collision = True
+                break
+        if collision:
+            continue
+        seen_keys.add(key)
+        cleaned.append(point)
+    return cleaned

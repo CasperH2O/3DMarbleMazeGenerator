@@ -21,8 +21,6 @@ class Spiral(Obstacle):
     def __init__(self):
         super().__init__(name="Spiral")
 
-        self.use_frenet = True
-
         # Load nodes from cache or determine
         self.load_relative_node_coords()
 
@@ -51,6 +49,7 @@ class Spiral(Obstacle):
                 add(end_line)
 
         self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.use_frenet = True
 
     def model_solid(self) -> Part:
         """
@@ -63,7 +62,7 @@ class Spiral(Obstacle):
                 add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
-            sweep(is_frenet=True)
+            sweep(is_frenet=self.main_path_segment.use_frenet)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
 

@@ -41,6 +41,7 @@ class UTurn(Obstacle):
             )
 
         self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.transition_type = Transition.ROUND
 
     def model_solid(self) -> Part:
         """
@@ -53,7 +54,7 @@ class UTurn(Obstacle):
                 add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
-            sweep(transition=Transition.RIGHT)
+            sweep(transition=self.main_path_segment.transition_type)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
 
