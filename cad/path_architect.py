@@ -319,6 +319,11 @@ class PathArchitect:
         previous_profile_type = None
         previous_curve_model = None
 
+        obstacle_main_indices = {
+            segment.main_index for segment in self.segments if segment.is_obstacle
+        }
+        obstacle_profile_type_by_main: dict[int, PathProfileType] = {}
+
         for segment in self.segments:
             # Check if the segment contains any mounting node
             has_mounting_node = any(node.mounting for node in segment.nodes)
@@ -346,13 +351,18 @@ class PathArchitect:
                 available_profile_types = self.path_profile_types.copy()
                 available_curve_models = self.path_curve_models.copy()
 
-            # Exclude previous types if possible
-            # For path profile type
-            if (
-                previous_profile_type in available_profile_types
-                and len(available_profile_types) > 1
-            ):
-                available_profile_types.remove(previous_profile_type)
+            # Determine whether this segment is part of an obstacle triplet and, if so,
+            # whether a shared profile has already been chosen for its main_index.
+            is_obstacle_group = segment.main_index in obstacle_main_indices
+            shared_profile = obstacle_profile_type_by_main.get(segment.main_index)
+
+            # Exclude previous types if possible when we are about to choose a new profile.
+            if shared_profile is None:
+                if (
+                    previous_profile_type in available_profile_types
+                    and len(available_profile_types) > 1
+                ):
+                    available_profile_types.remove(previous_profile_type)
 
             # For path curve model
             if (
@@ -363,7 +373,14 @@ class PathArchitect:
 
             # Select random types from the available lists
             # TODO don't set for obstacle paths, altough path is not adjusted... Improve a bit more
-            segment.path_profile_type = random.choice(available_profile_types)
+            if shared_profile is not None:
+                segment.path_profile_type = shared_profile
+            else:
+                segment.path_profile_type = random.choice(available_profile_types)
+                if is_obstacle_group:
+                    obstacle_profile_type_by_main[segment.main_index] = (
+                        segment.path_profile_type
+                    )
             # IMPORTANT: do not overwrite a curve_model that is already set
             if segment.curve_model is None:
                 if segment.is_obstacle:
