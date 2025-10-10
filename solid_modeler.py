@@ -65,7 +65,7 @@ def main() -> None:
     # Build paths associated with the puzzle and cut them from the case
     standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
 
-    obstacles = build_obstacle_path_bodies(puzzle)
+    obstacle_extras = build_obstacle_path_body_extras(puzzle)
 
     # Create the ball and ball path
     ball, ball_path = ball_and_path_indicators(puzzle)
@@ -146,7 +146,7 @@ def main() -> None:
         standard_paths,
         support_path,
         coloring_path,
-        obstacles,
+        obstacle_extras,
         ball,
         ball_path,
     )
@@ -253,18 +253,18 @@ def path(puzzle, cut_shape: Part):
     return standard_path_bodies, support_path, coloring_path
 
 
-def build_obstacle_path_bodies(puzzle: Puzzle) -> list[Part]:
+def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
     """
-    Obstacle bodies for puzzle (WIP)
+    Obstacle path body extras that are not part of sweep
     """
     parts: list[Part] = []
 
     for idx, obstacle in enumerate(puzzle.obstacle_manager.placed_obstacles, start=1):
-        placed_part = obstacle.get_placed_part()
+        placed_part = obstacle.get_placed_obstacle_extras()
 
         # Label and color individually
         part = Part(placed_part)
-        part.label = f"Obstacle {idx} - {obstacle.name}"
+        part.label = f"Obstacle {idx} - {obstacle.name} extra's"
         part.color = Config.Puzzle.PATH_COLORS[0]
 
         parts.append(part)
@@ -375,7 +375,7 @@ def display_parts(
     standard_paths,
     support_path,
     coloring_path,
-    obstacles,
+    obstacle_extras,
     ball,
     ball_path,
 ):
@@ -397,8 +397,8 @@ def display_parts(
             parts_to_color.append(support_path)
         if coloring_path:
             parts_to_color.append(coloring_path)
-        if obstacles:
-            parts_to_color.append(obstacles)
+        if obstacle_extras:
+            parts_to_color.append(obstacle_extras)
 
         _apply_generic_distinct_colors_per_part(parts_to_color)
 
@@ -419,8 +419,9 @@ def display_parts(
     if coloring_path:
         show_object(coloring_path)
 
-    for obstacle in obstacles:
-        show_object(obstacle)
+    for obstacle_extra in obstacle_extras:
+        # TODO improve if there is no extra "is not None" doesnt do the trick
+        show_object(obstacle_extra)
 
     # Display the ball and its path
     show_object(ball)

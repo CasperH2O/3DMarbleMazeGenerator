@@ -57,6 +57,7 @@ class Obstacle(ABC):
 
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
+        self._part_extras: Optional[Part] = None
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
 
@@ -76,7 +77,13 @@ class Obstacle(ABC):
     @abstractmethod
     def model_solid(self) -> Part:
         """
-        Returns solid model of obstacle
+        Returns solid model of obstacle, swept path
+        """
+        pass
+
+    def model_solid_extras(self) -> Part:
+        """
+        Returns solid model of obstacle extra's ie part's not from path sweep
         """
         pass
 
@@ -164,9 +171,9 @@ class Obstacle(ABC):
 
         return self.occupied_nodes
 
-    def get_placed_part(self) -> Optional[Part]:
+    def get_placed_obstacle_extras(self) -> Optional[Part]:
         """
-        Returns the obstacle's Part, placed according to self.location.
+        Returns the obstacle's extras, placed according to self.location.
         Caches the unplaced solid once built. The returned Part is a *located copy*,
         so the cached solid remains in local coordinates.
         # TODO reavaluate this approach long term once obstacles are integrated part of puzzle for optimization
@@ -175,10 +182,14 @@ class Obstacle(ABC):
             return None
 
         # Build the local-space solid
-        self._part = self.model_solid()
+        self._part_extras = self.model_solid_extras()
+
+        # Not all obstacles have extra's
+        if self._part_extras is None:
+            return None
 
         # Return a located copy
-        return self._part.located(self.location)
+        return self._part_extras.located(self.location)
 
     def get_placed_node_coordinates(self, nodes: list[Node]) -> list[Node]:
         """
