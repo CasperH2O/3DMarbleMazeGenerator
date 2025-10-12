@@ -23,12 +23,12 @@ class Alpha(Obstacle):
         super().__init__(name="Alpha")
 
         self.entry_path_segment.nodes = [
-            Node(0, -3 * self.node_size, 0, occupied=True),
             Node(0, -2 * self.node_size, 0, occupied=True),
+            Node(0, -1 * self.node_size, 0, occupied=True),
         ]
         self.exit_path_segment.nodes = [
+            Node(-1 * self.node_size, 0, 1 * self.node_size, occupied=True),
             Node(-2 * self.node_size, 0, 1 * self.node_size, occupied=True),
-            Node(-3 * self.node_size, 0, 1 * self.node_size, occupied=True),
         ]
 
         # Load nodes from cache or determine
@@ -39,7 +39,7 @@ class Alpha(Obstacle):
 
         # Start line, simple straight
         with BuildLine() as start_line:
-            Polyline((0, -2 * self.node_size, 0), (0, 0, 0))
+            Polyline((0, -1 * self.node_size, 0), (0, 0, 0))
         # Bezier for the curve, 4 points of a square at different heights
         with BuildLine() as bezier_line:
             size = 4  # Scale/size
@@ -53,7 +53,7 @@ class Alpha(Obstacle):
         with BuildLine() as end_line:
             Polyline(
                 (0, 0, 1 * self.node_size),
-                (-2 * self.node_size, 0, 1 * self.node_size),
+                (-1 * self.node_size, 0, 1 * self.node_size),
             )
 
         with BuildLine() as obstacle_line:
