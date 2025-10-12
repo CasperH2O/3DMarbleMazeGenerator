@@ -326,7 +326,7 @@ class PathBuilder:
                 segment.path = Polyline([(p.X, p.Y, p.Z) for p in cleaned_points])
         else:
             print(
-                f"Define standard segment found an issue with this point: {sub_path_points[0]}"
+                f"Define standard segment received a segment with a single point: {sub_path_points[0]}"
             )
 
         return segment

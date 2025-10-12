@@ -210,6 +210,7 @@ class Obstacle(ABC):
         for n in nodes:
             loc = self.location * Location(Pos(Vector(n.x, n.y, n.z)))
             n.x, n.y, n.z = loc.position.X, loc.position.Y, loc.position.Z
+            # TODO, perhaps snap here to grid?
 
         return nodes
 

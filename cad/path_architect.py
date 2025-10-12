@@ -15,6 +15,7 @@ from cad.path_segment import PathSegment, _node_to_vector, is_same_location, mid
 from config import Config, PathCurveModel, PathCurveType
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node, NodeGridType
+from puzzle.utils.geometry import snap
 
 from . import curve_detection
 
@@ -153,6 +154,10 @@ class PathArchitect:
                 return []
             copies = [Node(n.x, n.y, n.z) for n in local_nodes]
             obstacle.get_placed_node_coordinates(copies)
+            for node in copies:
+                node.x = snap(round(node.x / self.node_size) * self.node_size)
+                node.y = snap(round(node.y / self.node_size) * self.node_size)
+                node.z = snap(round(node.z / self.node_size) * self.node_size)
             return copies
 
         entry_world = world_nodes(obstacle.entry_path_segment.nodes)
