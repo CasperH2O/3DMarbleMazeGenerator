@@ -27,11 +27,12 @@ class Alpha(Obstacle):
             Node(0, -1 * self.node_size, 0, occupied=True),
         ]
         self.exit_path_segment.nodes = [
-            Node(-1 * self.node_size, 0, 1 * self.node_size, occupied=True),
-            Node(-2 * self.node_size, 0, 1 * self.node_size, occupied=True),
+            Node(-1 * self.node_size, 0, 2 * self.node_size, occupied=True),
+            Node(-2 * self.node_size, 0, 2 * self.node_size, occupied=True),
         ]
 
         # Load nodes from cache or determine
+        self.overlap_percentage = 2.0
         self.load_relative_node_coords()
 
     def create_obstacle_geometry(self):
@@ -45,15 +46,15 @@ class Alpha(Obstacle):
             size = 4  # Scale/size
             Bezier(
                 (0, 0, 0),  # start
-                (0, size * self.node_size, 0.25 * self.node_size),  # top left
-                (size * self.node_size, size * self.node_size, 0.5 * self.node_size),
-                (size * self.node_size, 0, 0.75 * self.node_size),  # bottom right
-                (0, 0, 1 * self.node_size),  # end
+                (0, size * self.node_size, 0.5 * self.node_size),  # top left
+                (size * self.node_size, size * self.node_size, 1.0 * self.node_size),
+                (size * self.node_size, 0, 1.5 * self.node_size),  # bottom right
+                (0, 0, 2 * self.node_size),  # end
             )
         with BuildLine() as end_line:
             Polyline(
-                (0, 0, 1 * self.node_size),
-                (-1 * self.node_size, 0, 1 * self.node_size),
+                (0, 0, 2 * self.node_size),
+                (-1 * self.node_size, 0, 2 * self.node_size),
             )
 
         with BuildLine() as obstacle_line:
@@ -86,6 +87,7 @@ class Alpha(Obstacle):
                 sections=[s_start.sketch, s_end.sketch],
                 path=line.line,
                 multisection=True,
+                is_frenet=True,
             )
 
         obstacle.part.label = f"{self.name} Obstacle Solid"

@@ -22,7 +22,10 @@ from numpy import linspace
 from ocp_vscode import show
 
 import config
-from cad.path_profile_type_shapes import PathProfileType, create_u_shape
+from cad.path_profile_type_shapes import (
+    PROFILE_TYPE_FUNCTIONS,
+    PathProfileType,
+)
 from cad.path_segment import PathSegment
 from puzzle.cases.sphere import SphereCasing
 from puzzle.node import Node
@@ -59,8 +62,12 @@ class Obstacle(ABC):
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
         self._part_extras: Optional[Part] = None
+        self.overlap_percentage = 5
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
+
+        # Path profile selections for visualization and debugging
+        self.path_profile_type: PathProfileType = PathProfileType.U_SHAPE
 
         # Connection path segment (to be determined during obstacle design)
         self.entry_path_segment: PathSegment = PathSegment(
@@ -94,15 +101,27 @@ class Obstacle(ABC):
         """
         pass
 
+    """
     @staticmethod
     def default_path_profile_type(rotation_angle: float = -90) -> Face:
-        """
+        
         Return default U path profile type shape for sweep
-        """
+        
         u_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS[
-            PathProfileType.U_SHAPE.value
+            PathProfileType.RECTANGLE_SHAPE.value
         ]
-        return create_u_shape(**u_params, rotation_angle=rotation_angle)
+        return create_rectangle_shape(**u_params, rotation_angle=rotation_angle)
+    """
+
+    def default_path_profile_type(self, rotation_angle: float = -90) -> Face:
+        """Build the configured path profile shape for use in sweeps."""
+        profile_type = self.path_profile_type
+        profile_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS.get(
+            profile_type.value, {}
+        )
+        profile_factory = PROFILE_TYPE_FUNCTIONS.get(profile_type)
+
+        return profile_factory(**profile_params, rotation_angle=rotation_angle)
 
     def load_relative_node_coords(self) -> list[Node]:
         """
@@ -390,42 +409,55 @@ class Obstacle(ABC):
         """
         Determine occupied nodes by testing a `grid_count^3` cube grid around the origin.
 
+        A node is considered occupied iff the intersection volume between the node's cube
+        and the obstacle solid is >= `min_overlap_pct` percent of the cube's volume.
+
         Parameters:
             grid_count (int): Number of cubes to evaluate along each axis. The value is
                 coerced to an odd count so the origin is sampled.
+            min_overlap_pct (float): Minimum % of cube volume that must be overlapped by
+                the obstacle for the node to be marked occupied. Example: 5.0 -> 5%.
 
         Returns:
-            list[Node]: Nodes whose cube volume intersects the obstacle geometry.
+            list[Node]: Nodes whose cube volume overlaps the obstacle geometry
+                        by at least `min_overlap_pct` percent.
         """
         start_time = time.perf_counter()
+
+        # Convert overlap percentage to fraction [0.0, 1.0]
+        min_overlap_pct = self.overlap_percentage
+        overlap_threshold = max(0.0, min(min_overlap_pct, 100.0)) / 100.0
+
+        # Prepare node grid
+        node_size = config.Puzzle.NODE_SIZE
         if grid_count % 2 == 0:
             grid_count += 1
-
-        node_size = config.Puzzle.NODE_SIZE
         half = grid_count // 2
         coords = [(i * node_size) for i in range(-half, half + 1)]
 
-        # get obstacle solid
+        # Create obstacle solid with fully filled rectangle sweep
+        # Swap back and forth the original type
+        original_profile_type = self.path_profile_type  # Store
+        # self.path_profile_type = PathProfileType.RECTANGLE_SHAPE
         obstacle_solid = self.model_solid()
-        if obstacle_solid is None:
-            raise RuntimeError("Obstacle not created yet")
+        self.path_profile_type = original_profile_type  # Restore
 
-        # fetch the raw bounding box
+        # fetch the raw bounding box and pad by half a node so we don't miss border cells
         bbox = obstacle_solid.bounding_box()
-        orig_min = bbox.min  # Vector of (xmin, ymin, zmin)
-        orig_max = bbox.max  # Vector of (xmax, ymax, zmax)
+        orig_min = bbox.min  # Vector(xmin, ymin, zmin)
+        orig_max = bbox.max  # Vector(xmax, ymax, zmax)
 
         pad = node_size / 2.0
-
-        # manually build the padded corners
         min_pt = Vector(orig_min.X - pad, orig_min.Y - pad, orig_min.Z - pad)
         max_pt = Vector(orig_max.X + pad, orig_max.Y + pad, orig_max.Z + pad)
 
         occupied: list[Node] = []
-        # collect cube‐positions (for visualize)
-        tested_centers = []
+        tested_centers: list[tuple[float, float, float]] = []
 
-        # cull cubes outside of bounding box, determine intersection
+        cube_volume = node_size**3
+        # tiny tolerance to avoid floating-point chatter around the threshold
+        eps = 1e-9 * cube_volume
+
         for x in coords:
             if x < min_pt.X or x > max_pt.X:
                 continue
@@ -440,12 +472,34 @@ class Obstacle(ABC):
                     cube = (
                         Plane.XY * Pos(x, y, z) * Box(node_size, node_size, node_size)
                     )
-                    if (cube & obstacle_solid).solids():
+
+                    # Boolean intersect
+                    inter = cube & obstacle_solid
+
+                    if inter is None:
+                        continue
+
+                    solids = inter.solids()
+                    if not solids:
+                        if x == 0.0 and y == 0.0 and z == 0.0:
+                            print("xyz 0.0")
+                        continue
+
+                    # Sum volumes in case the intersection yields multiple solids
+                    overlap_volume = 0.0
+                    for s in solids:
+                        overlap_volume += s.volume
+
+                    # Check the treshold
+                    if overlap_volume + eps >= overlap_threshold * cube_volume:
                         occupied.append(Node(x, y, z, occupied=True))
 
         elapsed = time.perf_counter() - start_time
         print(
-            f"determine_occupied_nodes took {elapsed:.3f} s – tested {len(tested_centers)} cubes, occupied nodes: {len(occupied)}"
+            f"determine_occupied_nodes took {elapsed:.3f} s – "
+            f"tested {len(tested_centers)} cubes, "
+            f"occupied nodes: {len(occupied)}, "
+            f"threshold: {min_overlap_pct:.2f}%"
         )
 
         return occupied
