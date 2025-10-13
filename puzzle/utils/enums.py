@@ -44,3 +44,4 @@ class Theme(Enum):
     MARBLE = "marble"
     GLOW_IN_THE_DARK = "glow_in_the_dark"
     HIGH_CONTRAST = "high_contrast"
+    ULTRA_MARINE = "ultra_marine"
