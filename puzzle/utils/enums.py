@@ -8,12 +8,14 @@ class ObstacleType(Enum):
     Enumeration representing the obstacles
     """
 
+    ALPHA = "Alpha"
+    ARROW = "Arrow"
+    GOSPER_CURVE = "Gosper Curve"
     OMEGA = "Omega"
     OVERHAND_KNOT = "Overhand Knot"
     QUESTION_MARK = "Question Mark"
     SPIRAL = "Spiral"
     U_TURN = "U Turn"
-    ALPHA = "Alpha"
 
 
 class PathCurveModel(Enum):

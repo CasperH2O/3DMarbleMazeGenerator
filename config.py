@@ -37,7 +37,9 @@ class Obstacles:
         ObstacleType.QUESTION_MARK,
         ObstacleType.SPIRAL,
         ObstacleType.U_TURN,
+        ObstacleType.ARROW,
         ObstacleType.OMEGA,
+        ObstacleType.GOSPER_CURVE,
     ]
     MAX_TO_PLACE = 2  # target number of obstacles to place (total)
     ATTEMPTS_PER_PLACEMENT = 25  # random tries per single obstacle instance

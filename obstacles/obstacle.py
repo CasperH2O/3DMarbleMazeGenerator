@@ -19,7 +19,7 @@ from build123d import (
     Vector,
 )
 from numpy import linspace
-from ocp_vscode import show
+from ocp_vscode import Camera, set_defaults, show
 
 import config
 from cad.path_profile_type_shapes import (
@@ -62,7 +62,7 @@ class Obstacle(ABC):
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None
         self._part_extras: Optional[Part] = None
-        self.overlap_percentage = 5
+        self.overlap_percentage = 5  # Can be adjusted on a per obstacle basis
         self.occupied_nodes: Optional[list[Node]] = None
         self.overlap_nodes: Optional[list[Node]] = None
 
@@ -596,6 +596,8 @@ class Obstacle(ABC):
             name="Overlap Node",
             color="#00444900",
         )
+
+        set_defaults(reset_camera=Camera.KEEP)
 
         # show everything with custom group names
         show(
