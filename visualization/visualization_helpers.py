@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from geomdl import BSpline, utilities
 from scipy import interpolate
 
-from cad.cases.case import Case
+from cad.cases.case_model_base import Case
 from cad.path_segment import PathSegment
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.grid_layouts.grid_layout_box import BoxCasing

@@ -1,4 +1,4 @@
-# puzzle/grid_layouts/cylinder.py
+# puzzle/grid_layouts/grid_layout_cylinder.py
 
 import math
 from typing import Dict, Tuple

@@ -1,4 +1,4 @@
-# cad/cases/case_sphere_with_flange.py
+# cad/cases/case_model_sphere_with_flange.py
 
 import math
 from copy import copy
@@ -25,7 +25,7 @@ from build123d import (
     revolve,
 )
 
-from cad.cases.case import Case, CasePart
+from cad.cases.case_model_base import Case, CasePart
 from config import Config
 
 

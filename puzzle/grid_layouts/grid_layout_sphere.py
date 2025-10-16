@@ -1,4 +1,4 @@
-# puzzle/grid_layouts/sphere.py
+# puzzle/grid_layouts/grid_layout_sphere.py
 
 import math
 from typing import Dict, Tuple

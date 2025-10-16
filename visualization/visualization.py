@@ -2,7 +2,7 @@
 
 import plotly.graph_objects as go
 
-from cad.cases.case import Case
+from cad.cases.case_model_base import Case
 from cad.path_segment import PathSegment
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node

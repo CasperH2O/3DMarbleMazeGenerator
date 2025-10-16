@@ -1,4 +1,4 @@
-# puzzle/grid_layouts/box.py
+# puzzle/grid_layouts/grid_layout_box.py
 
 from typing import Dict, Tuple
 

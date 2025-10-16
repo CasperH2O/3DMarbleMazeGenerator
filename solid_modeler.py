@@ -33,12 +33,12 @@ from ocp_vscode import (
     status,
 )
 
-from cad.cases.case import CasePart
-from cad.cases.case_box import CaseBox
-from cad.cases.case_cylinder import CaseCylinder
-from cad.cases.case_sphere import CaseSphere
-from cad.cases.case_sphere_with_flange import CaseSphereWithFlange
-from cad.cases.case_sphere_with_flange_enclosed_two_sides import (
+from cad.cases.case_model_base import CasePart
+from cad.cases.case_model_box import CaseBox
+from cad.cases.case_model_cylinder import CaseCylinder
+from cad.cases.case_model_sphere import CaseSphere
+from cad.cases.case_model_sphere_with_flange import CaseSphereWithFlange
+from cad.cases.case_model_sphere_with_flange_enclosed_two_sides import (
     CaseSphereWithFlangeEnclosedTwoSides,
 )
 from cad.path_builder import PathBuilder, PathTypes

@@ -1,6 +1,6 @@
 # config.py
 
-from cad.cases.case import (
+from cad.cases.case_model_base import (
     CaseManufacturer,
     CaseShape,
 )

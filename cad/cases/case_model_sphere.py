@@ -1,4 +1,4 @@
-# cad/cases/case_sphere.py
+# cad/cases/case_model_sphere.py
 
 from build123d import (
     BuildPart,
@@ -9,7 +9,7 @@ from build123d import (
     offset,
 )
 
-from cad.cases.case import Case, CasePart
+from cad.cases.case_model_base import Case, CasePart
 from config import Config
 
 

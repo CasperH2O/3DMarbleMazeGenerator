@@ -1,4 +1,4 @@
-# cad/cases/case_sphere_with_flange_enclosed_two_sides.py
+# cad/cases/case_model_sphere_with_flange_enclosed_two_sides.py
 
 import math
 from copy import copy
@@ -32,7 +32,7 @@ from build123d import (
     split,
 )
 
-from cad.cases.case import Case, CasePart
+from cad.cases.case_model_base import Case, CasePart
 from config import Config
 
 

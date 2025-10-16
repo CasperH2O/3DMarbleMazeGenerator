@@ -3,7 +3,7 @@
 import heapq
 from typing import Any, Optional, Set, Tuple
 
-from cad.cases.case import CaseShape
+from cad.cases.case_model_base import CaseShape
 from puzzle.node import Node, NodeGridType
 from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
 

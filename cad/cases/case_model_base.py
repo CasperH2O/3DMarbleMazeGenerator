@@ -1,4 +1,4 @@
-# cad/cases/case.py
+# cad/cases/case_model_base.py
 
 from abc import ABC, abstractmethod
 from enum import Enum

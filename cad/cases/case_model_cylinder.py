@@ -1,4 +1,4 @@
-# cad/cases/case_cylinder.py
+# cad/cases/case_model_cylinder.py
 
 from build123d import (
     Axis,
@@ -18,7 +18,7 @@ from build123d import (
 )
 from ocp_vscode import show_object
 
-from cad.cases.case import Case, CasePart
+from cad.cases.case_model_base import Case, CasePart
 from config import Config
 
 

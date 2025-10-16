@@ -1,4 +1,4 @@
-# cad/cases/case_box.py
+# cad/cases/case_model_box.py
 
 from build123d import (
     Box,
@@ -12,7 +12,7 @@ from build123d import (
     offset,
 )
 
-from cad.cases.case import Case, CasePart
+from cad.cases.case_model_base import Case, CasePart
 from config import Config
 
 

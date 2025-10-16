@@ -1,6 +1,6 @@
 # manufacturers/playtastic.py
 
-from cad.cases.case import CaseShape
+from cad.cases.case_model_base import CaseShape
 
 
 def apply_base_overrides(puzzle, sphere, box, path):
