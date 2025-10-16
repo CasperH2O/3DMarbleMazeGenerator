@@ -142,7 +142,9 @@ class CaseCylinder(Case):
             # External mounting bridge: small radial spokes
             for z in z_planes:
                 with Locations((0, 0, z)):
-                    with PolarLocations(radius=inner_pattern_r, count=3):
+                    with PolarLocations(
+                        radius=inner_pattern_r, count=self.number_of_mounting_points
+                    ):
                         # rotate cylinder so it points radially
                         with Locations(Location((0, 0, 0), (90, 90, 0))):
                             Cylinder(radius=r_long, height=small_len)
