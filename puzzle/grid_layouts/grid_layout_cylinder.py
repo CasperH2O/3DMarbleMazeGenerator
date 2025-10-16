@@ -1,13 +1,13 @@
-# puzzle/cases/cylinder.py
+# puzzle/grid_layouts/cylinder.py
 
 import math
 from typing import Dict, Tuple
 
 from config import Config
 from puzzle.node import Node, NodeGridType
-from puzzle.utils.geometry import frange, squared_distance_xyz
+from puzzle.utils.geometry import frange
 
-from .base import Casing
+from .grid_layout_base import Casing
 
 Coordinate = Tuple[float, float, float]
 

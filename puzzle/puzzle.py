@@ -9,9 +9,9 @@ import numpy as np
 from cad.path_architect import PathArchitect
 from config import CaseShape, Config
 from obstacles.obstacle_manager import ObstacleManager
-from puzzle.cases.box import BoxCasing
-from puzzle.cases.cylinder import CylinderCasing
-from puzzle.cases.sphere import SphereCasing
+from puzzle.grid_layouts.grid_layout_box import BoxCasing
+from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
+from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node, NodeGridType
 from puzzle.path_finder import AStarPathFinder
 from puzzle.utils.geometry import key3

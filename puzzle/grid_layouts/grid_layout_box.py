@@ -1,4 +1,4 @@
-# puzzle/cases/box.py
+# puzzle/grid_layouts/box.py
 
 from typing import Dict, Tuple
 
@@ -6,7 +6,7 @@ from config import Config
 from puzzle.node import Node
 from puzzle.utils.geometry import frange, squared_distance_xyz
 
-from .base import Casing
+from .grid_layout_base import Casing
 
 Coordinate = Tuple[float, float, float]
 

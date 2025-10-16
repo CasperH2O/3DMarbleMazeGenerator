@@ -1,4 +1,4 @@
-# puzzle/cases/base.py
+# puzzle/grid_layouts/base.py
 
 import math
 from abc import ABC, abstractmethod

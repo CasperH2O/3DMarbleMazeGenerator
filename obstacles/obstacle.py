@@ -27,7 +27,7 @@ from cad.path_profile_type_shapes import (
     PathProfileType,
 )
 from cad.path_segment import PathSegment
-from puzzle.cases.sphere import SphereCasing
+from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from visualization.visualization_helpers import (
     plot_casing,

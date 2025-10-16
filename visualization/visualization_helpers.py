@@ -13,9 +13,9 @@ from scipy import interpolate
 from cad.cases.case import Case
 from cad.path_segment import PathSegment
 from config import Config, PathCurveModel, PathCurveType
-from puzzle.cases.box import BoxCasing
-from puzzle.cases.cylinder import CylinderCasing
-from puzzle.cases.sphere import SphereCasing
+from puzzle.grid_layouts.grid_layout_box import BoxCasing
+from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
+from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node, NodeGridType
 
 

@@ -1,4 +1,4 @@
-# puzzle/cases/sphere.py
+# puzzle/grid_layouts/sphere.py
 
 import math
 from typing import Dict, Tuple
@@ -7,7 +7,7 @@ from config import Config
 from puzzle.node import Node
 from puzzle.utils.geometry import frange
 
-from .base import Casing
+from .grid_layout_base import Casing
 
 Coordinate = Tuple[float, float, float]
 
