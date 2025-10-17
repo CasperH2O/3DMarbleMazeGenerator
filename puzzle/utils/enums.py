@@ -26,6 +26,7 @@ class PathCurveModel(Enum):
     SINGLE = "single"
     COMPOUND = "compound"
     SPLINE = "spline"
+    OBSTACLE = "obstacle"
 
 
 class PathCurveType(Enum):

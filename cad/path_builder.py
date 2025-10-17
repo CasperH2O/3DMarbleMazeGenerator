@@ -126,7 +126,11 @@ class PathBuilder:
             )
             """
 
-            if segment.curve_model in (PathCurveModel.COMPOUND, PathCurveModel.SINGLE):
+            if segment.curve_model in (
+                PathCurveModel.COMPOUND,
+                PathCurveModel.SINGLE,
+                PathCurveModel.OBSTACLE,
+            ):
                 # Sweep the segment.
                 segment = self.sweep_standard_segment(
                     segment=segment,
