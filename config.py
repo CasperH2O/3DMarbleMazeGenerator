@@ -11,7 +11,7 @@ from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Them
 # Puzzle configuration
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.GENERIC
-    THEME = Theme.GENERIC
+    THEME = Theme.ULTRA_MARINE
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm

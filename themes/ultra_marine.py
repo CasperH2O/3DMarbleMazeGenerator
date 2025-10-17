@@ -8,11 +8,11 @@ def apply_overrides(
     """
     Set white, blue and bolt gun metal theme
     """
-    puzzle.BALL_COLOR = "#7A7373"  # Metal
+    puzzle.BALL_COLOR = "#464646"  # Metal
     puzzle.PATH_COLORS = [
         "#4166F5",
     ]  # Ultra marine blue
     puzzle.PATH_ACCENT_COLOR = "#F5F2EA"  # White
     puzzle.TEXT_COLOR = "#F5F2EA"  # White
-    puzzle.MOUNTING_RING_COLOR = "#F4C131"  # Gold
+    puzzle.MOUNTING_RING_COLOR = "#464646"  # Dark metal grey
     manufacturing.DIVIDE_PATHS_IN = 1
