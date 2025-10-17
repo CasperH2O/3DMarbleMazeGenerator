@@ -556,7 +556,7 @@ class Obstacle(ABC):
 
     def sample_obstacle_path(self) -> list[Vector]:
         """Local (not placed) sample points along obstacle path"""
-        samples = 50
+        samples = 35
 
         if self.main_path_segment.path is None:
             self.create_obstacle_geometry()

@@ -7,14 +7,12 @@ from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from build123d import Axis, Rotation, Vector
+from build123d import Extrinsic, Pos, Rotation
 
-import obstacles.catalogue  # ensure registration
 from config import Config
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
-from puzzle.utils.enums import ObstacleType
 
 
 def _quantize_coord(val: float, node_size: float) -> float:
@@ -76,53 +74,37 @@ class ObstacleManager:
             self._generate_24_xyz_orientations()
         )
 
-        # Placement
-        if Config.Obstacles.ENABLED:
-            available = get_available_obstacles()
-            normalized_config_types: list[str] = []
-            for configured_type in Config.Obstacles.ALLOWED_TYPES:
-                if isinstance(configured_type, ObstacleType):
-                    normalized_config_types.append(configured_type.value)
-                elif isinstance(configured_type, str):
-                    normalized_config_types.append(configured_type)
-                else:
-                    normalized_config_types.append(str(configured_type))
-
-            # Keep order from config; filter out unknowns gracefully.
-            allowed = [t for t in normalized_config_types if t in available]
-            if not allowed:
-                print(
-                    f"No allowed obstacle types found from config list "
-                    f"{normalized_config_types}. Available: {available}"
-                )
-            else:
-                print(f"Allowed obstacle types (ordered): {allowed}")
-
-            start_time = time.perf_counter()
-            self.place_obstacles(
-                num_to_place=Config.Obstacles.MAX_TO_PLACE,
-                allowed_types=allowed if allowed else available,
-                attempts_per_placement=Config.Obstacles.ATTEMPTS_PER_PLACEMENT,
-                per_type_limit=Config.Obstacles.PER_TYPE_LIMIT,
-            )
-            end_time = time.perf_counter()
-            self.placement_time = end_time - start_time
-            self._print_placement_summary()
+        # Manual placement
+        manual_counts = None
+        if Config.Obstacles.MANUAL_PLACEMENT_ENABLED:
+            manual_counts = self._apply_manual_placements()
         else:
-            print("Obstacle placement disabled via config.")
+            print("Manual obstacle placement disabled via config.")
 
-    def place_obstacles(
+        # Automatic (random) placement
+        if Config.Obstacles.RANDOM_PLACEMENT_ENABLED:
+            self._apply_automatic_placements(manual_counts)
+        else:
+            print("Automatic obstacle placement disabled via config.")
+
+        # Summary of obstacle placement
+        self._print_placement_summary()
+
+    def randomly_place_obstacles(
         self,
         num_to_place: int,
         allowed_types: Optional[list[str]] = None,
         attempts_per_placement: int = 200,
         per_type_limit: Optional[int] = None,
+        initial_counts: Optional[Counter] = None,
     ):
         """
         Round-robin placement:
         - Cycle through allowed types in order.
         - For each type, try up to 'attempts_per_placement' random placements.
         - If placed, move to the next type; repeat cycles until number to place is reached or no progress.
+
+        Initial counts ensures including of per-type counts with already manual placed obstacles.
         """
         types = allowed_types[:] if allowed_types else get_available_obstacles()
         if not types:
@@ -130,14 +112,15 @@ class ObstacleManager:
             return
 
         total_target = max(0, int(num_to_place))
-        counts = Counter()
+        counts = Counter(initial_counts) if initial_counts else Counter()  # <— NEW
         placed_total = 0
         cycle_idx = 0
 
         print(
             f"Starting placement: Target={total_target}, "
             f"AttemptsPerPlacement={attempts_per_placement}, "
-            f"PerTypeLimit={per_type_limit}"
+            f"PerTypeLimit={per_type_limit}, "
+            f"SeedCounts={dict(counts)}"  # <— NEW (debug)
         )
 
         while placed_total < total_target:
@@ -177,6 +160,115 @@ class ObstacleManager:
                 print("No further placements possible with current constraints.")
                 break
 
+    def _apply_automatic_placements(self, manual_counts: Counter):
+        """
+        Place all obstacles from Config.Obstacles.ALLOWED_TYPES.
+        """
+        # Check config with what is availible
+        available = get_available_obstacles()
+        obstacle_types: list[str] = []
+        for configured_type in Config.Obstacles.ALLOWED_TYPES:
+            obstacle_types.append(configured_type.value)
+
+        # Keep order from config; filter out unknowns gracefully.
+        allowed = [t for t in obstacle_types if t in available]
+        if not allowed:
+            print(
+                f"No allowed obstacle types found from config list "
+                f"{obstacle_types}. Available: {available}"
+            )
+        else:
+            print(f"Allowed obstacle types (ordered): {allowed}")
+
+        start_time = time.perf_counter()
+
+        # random round-robin, seeded with the manual counts
+        self.randomly_place_obstacles(
+            num_to_place=Config.Obstacles.MAX_TO_PLACE,
+            allowed_types=allowed if allowed else available,
+            attempts_per_placement=Config.Obstacles.ATTEMPTS_PER_PLACEMENT,
+            per_type_limit=Config.Obstacles.PER_TYPE_LIMIT,
+            initial_counts=manual_counts,
+        )
+
+        end_time = time.perf_counter()
+        self.placement_time = end_time - start_time
+
+    def _apply_manual_placements(
+        self,
+    ) -> Counter:
+        """
+        Place all enabled manual obstacles from Config.Obstacles.MANUAL_PLACEMENTS.
+
+        Returns:
+            Counter with counts per obstacle name for all successfully placed manuals.
+        """
+        manual_counts: Counter = Counter()
+
+        # Fetch the list; if missing or empty, nothing to do.
+        manual_specs = getattr(Config.Obstacles, "MANUAL_PLACEMENTS", None)
+        if not manual_specs:
+            return manual_counts
+
+        print("\n=== Manual placements ===")
+        for index, spec in enumerate(manual_specs, start=1):
+            enabled = bool(spec.get("enabled", False))
+            obstacle_name = spec.get("name")
+            if not enabled:
+                print(f" Manual #{index}, {obstacle_name}: disabled -> skipping")
+                continue
+
+            origin_tuple = tuple(spec.get("origin", (0.0, 0.0, 0.0)))
+            rotation_tuple = tuple(
+                spec.get("rotation", spec.get("orientation", (0.0, 0.0, 0.0)))
+            )
+
+            # Build and place the obstacle exactly at the requested pose (snapped to grid)
+            cls = get_obstacle_class(obstacle_name)
+            obstacle = cls()
+
+            # Compose a single absolute world pose:
+            #  - Rotation about WORLD axes (no axis drift)
+            #  - Translation in WORLD coordinates (independent of rotation)
+            angle_x, angle_y, angle_z = map(float, rotation_tuple)
+            origin_x, origin_y, origin_z = map(float, origin_tuple)
+
+            # snap origin to grid before building the pose
+            qx = _quantize_coord(origin_x, self.node_size)
+            qy = _quantize_coord(origin_y, self.node_size)
+            qz = _quantize_coord(origin_z, self.node_size)
+
+            world_R = Rotation(X=angle_x, Y=angle_y, Z=angle_z, ordering=Extrinsic.XYZ)
+            world_T = Pos(X=qx, Y=qy, Z=qz)
+
+            # Absolute placement in one go
+            obstacle.set_placement(world_T * world_R)
+            obstacle.rotation_angles_deg = (angle_x, angle_y, angle_z)
+            obstacle.grid_origin = (qx, qy, qz)
+            print(
+                f" Manual #{index}: '{obstacle_name}' origin={obstacle.grid_origin}, rot={(angle_x, angle_y, angle_z)}"
+            )
+
+            # Validate space on the node grid
+            is_valid = self._is_placement_valid(obstacle, debug=True)
+            print(f"  -> Manual placement valid? {is_valid}")
+            if not is_valid:
+                print(f"  -> Manual #{index} FAILED validation -> not placed")
+                continue
+
+            # Succesful place, include obstacle
+            self.placed_obstacles.append(obstacle)
+            self._occupy_nodes_for_obstacle(obstacle)
+            self._assign_entry_exit_nodes(obstacle)
+
+            manual_counts[obstacle_name] += 1
+
+        if manual_counts:
+            print(f"Manual placements done. Counts: {dict(manual_counts)}")
+        else:
+            print("No manual placements were made.")
+        return manual_counts
+
     def _try_place_one(self, obstacle_name: str, max_attempts: int) -> bool:
         """Try to place a single obstacle instance of the given type. Returns True on success."""
         cls = get_obstacle_class(obstacle_name)
@@ -187,31 +279,27 @@ class ObstacleManager:
 
             # Random rotation (grid-friendly 90° steps)
             angle_x, angle_y, angle_z = random.choice(self.UNIQUE_24_EULER_XYZ)
-            obstacle.rotate(Rotation(Axis.X, angle_x))
-            obstacle.rotate(Rotation(Axis.Y, angle_y))
-            obstacle.rotate(Rotation(Axis.Z, angle_z))
+            R = Rotation(angle_x, angle_y, angle_z, ordering=Extrinsic.XYZ)
+            obstacle.set_placement(R)
             obstacle.rotation_angles_deg = (angle_x, angle_y, angle_z)
 
             # Candidate nodes restricted to interior for this rotation
             interior_nodes, region = self._interior_candidates(obstacle)
 
-            # Fallback to all nodes if nothing fits interior (e.g., huge obstacle)
+            # Choose a candidate (fallback: full grid)
             pool = interior_nodes if interior_nodes else self.nodes
             target = random.choice(pool)
 
-            # Translate to target & snap origin to grid
-            obstacle.translate(Vector(target.x, target.y, target.z))
-            # Snap origin to grid
+            # Snap target origin to grid and compose a single absolute pose
             ox = _quantize_coord(target.x, self.node_size)
             oy = _quantize_coord(target.y, self.node_size)
             oz = _quantize_coord(target.z, self.node_size)
+            T = Pos(ox, oy, oz)
+
+            obstacle.set_placement(T * R)  # final absolute pose
             obstacle.grid_origin = (ox, oy, oz)
 
-            # Move by the delta from current position to snapped position
-            p = obstacle.location.position
-            obstacle.translate(Vector(ox - p.X, oy - p.Y, oz - p.Z))
-
-            # Debug info
+            # Debug prints
             if interior_nodes:
                 xmin, xmax, ymin, ymax, zmin, zmax = region
                 print(
@@ -225,6 +313,7 @@ class ObstacleManager:
                     f"rot={obstacle.rotation_angles_deg} | no interior fit, using full grid"
                 )
 
+            # Validate
             valid = self._is_placement_valid(obstacle, debug=True)
             print(f"  -> Placement valid? {valid}")
             if valid:
@@ -379,6 +468,8 @@ class ObstacleManager:
         """
         Build a candidate list of nodes strictly inside the grid bounds by the
         rotation-aware margins (overlap nodes) plus an optional extra inset.
+
+        TODO should visualize and debug this to double check
         """
         (negx, posx), (negy, posy), (negz, posz) = self._rotated_axis_margins(obstacle)
         inset = inset_nodes * self.node_size

@@ -30,7 +30,7 @@ class Puzzle:
 
 
 class Obstacles:
-    ENABLED = True  # obstacle on/off switch.
+    RANDOM_PLACEMENT_ENABLED = True  # random obstacle on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
         ObstacleType.ALPHA,
         ObstacleType.OVERHAND_KNOT,
@@ -41,9 +41,28 @@ class Obstacles:
         ObstacleType.OMEGA,
         ObstacleType.GOSPER_CURVE,
     ]
-    MAX_TO_PLACE = 2  # target number of obstacles to place (total)
-    ATTEMPTS_PER_PLACEMENT = 25  # random tries per single obstacle instance
+    MAX_TO_PLACE = 5  # target number of obstacles to place (total)
+    ATTEMPTS_PER_PLACEMENT = 5  # random tries per single obstacle instance
     PER_TYPE_LIMIT = 1  # optional cap per obstacle type (None = unlimited)
+    # Manual obstacle placement (processed before random placement)
+    # name: ObstacleType
+    # origin: world coords (x, y, z) in mm
+    # rotation: Euler XYZ degrees (x, y, z) increments of 90 degrees
+    MANUAL_PLACEMENT_ENABLED = False  # global manual obstacle placement on/off switch
+    MANUAL_PLACEMENTS = (
+        {
+            "enabled": True,
+            "name": ObstacleType.OMEGA.value,
+            "origin": (0.0, 10.0, 0.0),
+            "orientation": (90.0, 0.0, 0.0),
+        },
+        {
+            "enabled": True,
+            "name": ObstacleType.ARROW.value,
+            "origin": (0.0, -10.0, 0.0),
+            "orientation": (90.0, 0.0, 0.0),
+        },
+    )
 
 
 # Manufacturing configuration
@@ -85,7 +104,7 @@ class Cylinder:
     DIAMETER = 120.0
     HEIGHT = 180.0
     SHELL_THICKNESS = 4.0
-    NUMBER_OF_MOUNTING_POINTS = 3
+    NUMBER_OF_MOUNTING_POINTS = 2
 
 
 # Path curves and profile configuration
