@@ -46,9 +46,9 @@ class Alpha(Obstacle):
             size = 4  # Scale/size
             Bezier(
                 (0, 0, 0),  # start
-                (0, size * self.node_size, 0.5 * self.node_size),  # top left
+                (0, size * self.node_size, 0 * self.node_size),  # top left
                 (size * self.node_size, size * self.node_size, 1.0 * self.node_size),
-                (size * self.node_size, 0, 1.5 * self.node_size),  # bottom right
+                (size * self.node_size, 0, 2 * self.node_size),  # bottom right
                 (0, 0, 2 * self.node_size),  # end
             )
         with BuildLine() as end_line:
