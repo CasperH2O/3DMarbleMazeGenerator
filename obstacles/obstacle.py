@@ -16,6 +16,7 @@ from build123d import (
     Plane,
     Pos,
     Rotation,
+    Transition,
     Vector,
 )
 from numpy import linspace
@@ -76,6 +77,7 @@ class Obstacle(ABC):
         self.main_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=1
         )
+        self.main_path_segment.transition_type = Transition.TRANSFORMED
         self.exit_path_segment: PathSegment = PathSegment(
             nodes=[], main_index=0, secondary_index=2
         )

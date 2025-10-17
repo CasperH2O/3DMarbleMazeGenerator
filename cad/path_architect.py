@@ -149,6 +149,7 @@ class PathArchitect:
         segments: list[PathSegment] = []
 
         # World-place helper nodes (copy first to avoid mutating obstacle state)
+        # TODO, move this to obstacle somehow
         def world_nodes(local_nodes: list[Node]) -> list[Node]:
             if not local_nodes:
                 return []
@@ -163,7 +164,7 @@ class PathArchitect:
         entry_world = world_nodes(obstacle.entry_path_segment.nodes)
         exit_world = world_nodes(obstacle.exit_path_segment.nodes)
 
-        # 1) Entry SINGLE (leave path creation to PathBuilder)
+        # Entry segment single
         if len(entry_world) >= 2:
             entry_seg = PathSegment(
                 nodes=entry_world,
@@ -172,38 +173,32 @@ class PathArchitect:
             )
             entry_seg.copy_attributes_from(obstacle.main_path_segment)
             entry_seg.curve_model = PathCurveModel.SINGLE
-            # not locked; we want normal adjustment behaviour
             segments.append(entry_seg)
 
-        # 2) Main locked segment (nodes align with inner ends of helper stubs when available)
+        # Main segment, the obstacle path
         if obstacle.main_path_segment.path is None:
             obstacle.create_obstacle_geometry()
         located_path = obstacle.main_path_segment.path
+        # TODO, check this located stuff
         if obstacle.location is not None and hasattr(located_path, "located"):
             located_path = located_path.located(obstacle.location)
 
-        # Minimal 2-node backbone for continuity
+        # Minimal 2-node backbone for continuity and visualization
         if entry_world and exit_world:
             main_nodes = [entry_world[-1], exit_world[0]]
-        else:
-            # Fallback to actual path endpoints if helpers are missing
-            p0 = located_path @ 0
-            p1 = located_path @ 1
-            main_nodes = [Node(p0.X, p0.Y, p0.Z), Node(p1.X, p1.Y, p1.Z)]
 
-        main_seg = PathSegment(
-            nodes=main_nodes,
-            main_index=main_index,
-            secondary_index=len(segments),
-        )
-        main_seg.copy_attributes_from(obstacle.main_path_segment)
+        main_seg = obstacle.main_path_segment
+        main_seg.nodes = main_nodes
+        main_seg.main_index = main_index
+        main_seg.secondary_index = len(segments)
         main_seg.is_obstacle = True
         main_seg.lock_path = True  # keep the placed obstacle geometry
-        main_seg.path = located_path
-        # curve_model left as None → assign_path_properties will set COMPOUND for is_obstacle
+        main_seg.curve_model = PathCurveModel.OBSTACLE
+        main_seg.transition_type = obstacle.main_path_segment.transition_type
+
         segments.append(main_seg)
 
-        # 3) Exit SINGLE (leave path creation to PathBuilder)
+        # Exit segment single
         if len(exit_world) >= 2:
             exit_seg = PathSegment(
                 nodes=exit_world,
