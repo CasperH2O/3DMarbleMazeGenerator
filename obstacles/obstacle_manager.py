@@ -294,6 +294,7 @@ class ObstacleManager:
 
             # No canditates for this orientation
             if len(pool) == 0:
+                attempts += 1
                 continue
 
             # Choose a candidate
