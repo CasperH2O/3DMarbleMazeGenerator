@@ -286,8 +286,17 @@ class ObstacleManager:
             # Candidate nodes restricted to interior for this rotation
             interior_nodes, region = self._interior_candidates(obstacle)
 
-            # Choose a candidate (fallback: full grid)
-            pool = interior_nodes if interior_nodes else self.nodes
+            # Check for unoccupied nodes for origin placement
+            pool: list[Node] = []
+            for node in interior_nodes:
+                if (node.x, node.y, node.z) not in self.occupied_positions:
+                    pool.append(node)
+
+            # No canditates for this orientation
+            if len(pool) == 0:
+                continue
+
+            # Choose a candidate
             target = random.choice(pool)
 
             # Snap target origin to grid and compose a single absolute pose
@@ -300,18 +309,12 @@ class ObstacleManager:
             obstacle.grid_origin = (ox, oy, oz)
 
             # Debug prints
-            if interior_nodes:
-                xmin, xmax, ymin, ymax, zmin, zmax = region
-                print(
-                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
-                    f"rot={obstacle.rotation_angles_deg} | interior candidates={len(interior_nodes)} "
-                    f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
-                )
-            else:
-                print(
-                    f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
-                    f"rot={obstacle.rotation_angles_deg} | no interior fit, using full grid"
-                )
+            xmin, xmax, ymin, ymax, zmin, zmax = region
+            print(
+                f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
+                f"rot={obstacle.rotation_angles_deg} | interior candidates={len(interior_nodes)} | placement pool={len(pool)} "
+                f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
+            )
 
             # Validate
             valid = self._is_placement_valid(obstacle, debug=True)
@@ -468,8 +471,6 @@ class ObstacleManager:
         """
         Build a candidate list of nodes strictly inside the grid bounds by the
         rotation-aware margins (overlap nodes) plus an optional extra inset.
-
-        TODO should visualize and debug this to double check
         """
         (negx, posx), (negy, posy), (negz, posz) = self._rotated_axis_margins(obstacle)
         inset = inset_nodes * self.node_size
