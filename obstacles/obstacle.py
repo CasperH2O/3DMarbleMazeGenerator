@@ -573,9 +573,19 @@ class Obstacle(ABC):
         pts = self.sample_obstacle_path()
         if self.location is None:
             return pts
-        placed = []
-        for p in pts:
-            loc = self.location * Location(p)
+
+        # TODO fix this properly with improved local and world position get methods
+        # When PathArchitect locks the main path segment after applying the
+        # obstacle's world transform, sampling already returns world-space
+        # coordinates. Skip reapplying the placement transform in that case to
+        # avoid rotating/translating twice in visualizations.
+        if self.main_path_segment.lock_path and self.main_path_segment.path is not None:
+            return pts
+
+        placed: list[Vector] = []
+        for point in pts:
+            loc = self.location * Location(point)
+
             placed.append(Vector(loc.position.X, loc.position.Y, loc.position.Z))
         return placed
 

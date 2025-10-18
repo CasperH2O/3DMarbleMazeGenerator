@@ -188,6 +188,16 @@ class PathArchitect:
             main_nodes = [entry_world[-1], exit_world[0]]
 
         main_seg = obstacle.main_path_segment
+        main_seg.path = located_path
+        if located_path is not None:
+            main_seg.path = located_path
+            if (
+                hasattr(main_seg, "path_edge_only")
+                and main_seg.path_edge_only is not None
+            ):
+                # Guarded update: re-use original object when no world transform exists.
+                main_seg.path_edge_only = located_path
+
         main_seg.nodes = main_nodes
         main_seg.main_index = main_index
         main_seg.secondary_index = len(segments)
