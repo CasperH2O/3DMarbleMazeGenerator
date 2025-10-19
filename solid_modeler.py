@@ -414,16 +414,22 @@ def display_parts(
 
         _apply_generic_distinct_colors_per_part(parts_to_color)
 
-    for part in case_parts:
-        show_object(part)
+    if case_parts:
+        if len(case_parts) == 1:
+            show_object(case_parts[0])
+        else:
+            show_object(case_parts, name="Casing")
 
     # Display each part from the base
-    for part in base_parts:
-        show_object(part)
+    if base_parts:
+        show_object(base_parts, name="Base")
 
     # The paths, standard paths, support path and coloring path
-    for standard_path in standard_paths:
-        show_object(standard_path)
+    if standard_paths:
+        if len(standard_paths) == 1:
+            show_object(standard_paths[0])
+        else:
+            show_object(standard_paths, name="Standard Paths")
 
     if support_path:
         show_object(support_path)
@@ -431,9 +437,9 @@ def display_parts(
     if coloring_path:
         show_object(coloring_path)
 
-    for obstacle_extra in obstacle_extras:
-        # TODO improve if there is no extra "is not None" doesnt do the trick
-        show_object(obstacle_extra)
+    if obstacle_extras:
+        # TODO, prevent when empty
+        show_object(obstacle_extras, name="Obstacle Extra's")
 
     # Display the ball and its path
     show_object(ball)
@@ -446,6 +452,7 @@ def set_viewer():
     """
 
     # Do not draw lines on the following groups
+    # FIXME works inconsistently
     groups_to_reset = {
         f"/Group/{CasePart.CASING.value}",
         f"/Group/{CasePart.CASE_TOP.value}",
