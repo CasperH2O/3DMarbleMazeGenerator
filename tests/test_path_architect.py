@@ -1,21 +1,30 @@
 from cad.path_architect import PathArchitect
 from cad.path_segment import PathSegment
 from config import Config, PathCurveModel, PathCurveType
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 
 
 # Helper methods
-def make_node(x: float, grid_type: NodeGridType = None) -> Node:
+def make_node(
+    x: float,
+    *,
+    circular: bool = False,
+    rectangular: bool | None = None,
+) -> Node:
     """
     Build a Node with only the attributes that `PathArchitect.adjust_segments`
-    actually inspects (x, y, z, grid_type).  Everything else can keep the
+    actually inspects (x, y, z, circular flag). Everything else can keep the
     library defaults.
     """
-    node = Node(x, 0, 0)  # y = z = 0 keeps things simple
-    if grid_type == NodeGridType.CIRCULAR:
-        node.grid_type.append(NodeGridType.CIRCULAR.value)
-    elif grid_type == NodeGridType.RECTANGULAR:
-        node.grid_type.append(NodeGridType.RECTANGULAR.value)
+    if rectangular is None:
+        rectangular = not circular
+    node = Node(
+        x,
+        0,
+        0,
+        in_circular_grid=circular,
+        in_rectangular_grid=rectangular,
+    )  # y = z = 0 keeps things simple
     return node
 
 
@@ -96,8 +105,8 @@ def test_first_two_nodes_circular():
     1. STRAIGHT (node 1-2)    non-circular
     """
     nodes = [
-        make_node(0, NodeGridType.CIRCULAR),
-        make_node(1, NodeGridType.CIRCULAR),
+        make_node(0, circular=True),
+        make_node(1, circular=True),
         make_node(2),
     ]
     segments = run_adjust_segments(nodes)
@@ -123,8 +132,8 @@ def test_last_two_nodes_circular():
     """
     nodes = [
         make_node(0),
-        make_node(1, NodeGridType.CIRCULAR),
-        make_node(2, NodeGridType.CIRCULAR),
+        make_node(1, circular=True),
+        make_node(2, circular=True),
     ]
     segments = run_adjust_segments(nodes)
 
@@ -147,11 +156,11 @@ TOL = 1e-7
 def test_bridge_insert_pattern_a():
     segs = run_harmonise(
         # seg-A : non-circ(0)  →  circ(1)
-        [make_node(0), make_node(1, grid_type=NodeGridType.CIRCULAR)],
+        [make_node(0), make_node(1, circular=True)],
         # seg-B : circ(1)  →  circ(2)
         [
-            make_node(1, grid_type=NodeGridType.CIRCULAR),
-            make_node(2, grid_type=NodeGridType.CIRCULAR),
+            make_node(1, circular=True),
+            make_node(2, circular=True),
         ],
     )
 
@@ -163,7 +172,7 @@ def test_bridge_insert_pattern_a():
     assert seg_a.nodes[-1] is new_seg.nodes[0]
     assert new_seg.nodes[-1] is seg_b.nodes[0]
     assert abs(new_seg.nodes[0].x - 0.5) < TOL
-    assert NodeGridType.CIRCULAR.value not in seg_a.nodes[-1].grid_type
+    assert not seg_a.nodes[-1].in_circular_grid
 
     # seg-A shortened (last but one is original non-circ 0)
     assert abs(seg_a.nodes[-2].x - 0) < TOL
@@ -171,7 +180,7 @@ def test_bridge_insert_pattern_a():
     # new_seg holds [bridge , old start_B (circ x=1)]
     assert len(new_seg.nodes) == 2
     assert abs(new_seg.nodes[1].x - 1) < TOL
-    assert NodeGridType.CIRCULAR.value in new_seg.nodes[1].grid_type
+    assert new_seg.nodes[1].in_circular_grid
     assert new_seg.main_index == seg_b.main_index  # attaches to group B
     assert new_seg.secondary_index == seg_b.secondary_index - 1
     assert new_seg.curve_model == PathCurveModel.COMPOUND
@@ -186,11 +195,11 @@ def test_bridge_insert_pattern_b():
     segs = run_harmonise(
         # seg-A : circ(0) → circ(1)
         [
-            make_node(0, grid_type=NodeGridType.CIRCULAR),
-            make_node(1, grid_type=NodeGridType.CIRCULAR),
+            make_node(0, circular=True),
+            make_node(1, circular=True),
         ],
         # seg-B : circ(1) → non-circ(2)
-        [make_node(1, grid_type=NodeGridType.CIRCULAR), make_node(2)],
+        [make_node(1, circular=True), make_node(2)],
     )
 
     # three segments expected
@@ -201,12 +210,12 @@ def test_bridge_insert_pattern_b():
     assert seg_a.nodes[-1] is new_seg.nodes[0]
     assert new_seg.nodes[-1] is seg_b.nodes[0]
     assert abs(new_seg.nodes[-1].x - 1.5) < TOL
-    assert NodeGridType.CIRCULAR.value not in seg_b.nodes[0].grid_type
+    assert not seg_b.nodes[0].in_circular_grid
 
     # new_seg holds [old end_A (circ x=1) , bridge]
     assert len(new_seg.nodes) == 2
     assert abs(new_seg.nodes[0].x - 1) < TOL
-    assert NodeGridType.CIRCULAR.value in new_seg.nodes[0].grid_type
+    assert new_seg.nodes[0].in_circular_grid
     assert new_seg.main_index == seg_a.main_index  # attaches to group A
     assert new_seg.secondary_index == seg_a.secondary_index + 1
     assert new_seg.curve_model == PathCurveModel.COMPOUND
@@ -220,7 +229,7 @@ def test_single_before_non_circular_spline():
     node_size = Config.Puzzle.NODE_SIZE
 
     # SINGLE segment centred on a circular node, with a following spline run
-    core_node = make_node(0, NodeGridType.CIRCULAR)
+    core_node = make_node(0, circular=True)
     single_segment = PathSegment([core_node], main_index=1)
     single_segment.curve_model = PathCurveModel.SINGLE
 
@@ -247,8 +256,8 @@ def test_single_before_non_circular_spline():
     )
 
     # Guard should keep the shared boundary nodes linear
-    assert NodeGridType.CIRCULAR.value not in single_segment.nodes[-1].grid_type
-    assert NodeGridType.CIRCULAR.value not in spline_segment.nodes[0].grid_type
+    assert not single_segment.nodes[-1].in_circular_grid
+    assert not spline_segment.nodes[0].in_circular_grid
 
     arch = PathArchitect([])
     arch.segments = [single_segment, spline_segment]
@@ -256,8 +265,8 @@ def test_single_before_non_circular_spline():
 
     # No additional bridge should be created
     assert len(arch.segments) == 2
-    assert NodeGridType.CIRCULAR.value not in arch.segments[0].nodes[-1].grid_type
-    assert NodeGridType.CIRCULAR.value not in arch.segments[1].nodes[0].grid_type
+    assert not arch.segments[0].nodes[-1].in_circular_grid
+    assert not arch.segments[1].nodes[0].in_circular_grid
 
 
 def test_single_after_non_circular_spline():
@@ -270,13 +279,13 @@ def test_single_after_non_circular_spline():
     spline_segment.curve_type = None
 
     # SINGLE segment centred on a circular grid node
-    core_node = make_node(0, NodeGridType.CIRCULAR)
+    core_node = make_node(0, circular=True)
     single_segment = PathSegment([core_node], main_index=2)
     single_segment.curve_model = PathCurveModel.SINGLE
 
     # Following arc run should still pick up the circular context
-    arc_entry = make_node(1, NodeGridType.CIRCULAR)
-    arc_follow = make_node(2, NodeGridType.CIRCULAR)
+    arc_entry = make_node(1, circular=True)
+    arc_follow = make_node(2, circular=True)
     arc_segment = PathSegment([arc_entry, arc_follow], main_index=3)
     arc_segment.curve_model = PathCurveModel.COMPOUND
     arc_segment.curve_type = PathCurveType.ARC
@@ -306,12 +315,12 @@ def test_single_after_non_circular_spline():
     )
 
     # Junction back to the spline should stay linear
-    assert NodeGridType.CIRCULAR.value not in single_segment.nodes[0].grid_type
-    assert NodeGridType.CIRCULAR.value not in spline_segment.nodes[-1].grid_type
+    assert not single_segment.nodes[0].in_circular_grid
+    assert not spline_segment.nodes[-1].in_circular_grid
 
     # Junction into the arc should remain circular
-    assert NodeGridType.CIRCULAR.value in single_segment.nodes[-1].grid_type
-    assert NodeGridType.CIRCULAR.value in arc_segment.nodes[0].grid_type
+    assert single_segment.nodes[-1].in_circular_grid
+    assert arc_segment.nodes[0].in_circular_grid
 
     arch = PathArchitect([])
     arch.segments = [spline_segment, single_segment, arc_segment]
@@ -319,8 +328,8 @@ def test_single_after_non_circular_spline():
 
     # Harmonisation should not insert an extra arc at the spline / SINGLE boundary
     assert len(arch.segments) == 3
-    assert NodeGridType.CIRCULAR.value not in arch.segments[0].nodes[-1].grid_type
-    assert NodeGridType.CIRCULAR.value in arch.segments[1].nodes[-1].grid_type
+    assert not arch.segments[0].nodes[-1].in_circular_grid
+    assert arch.segments[1].nodes[-1].in_circular_grid
 
 
 def test_split_spline_handles_empty_node_list():

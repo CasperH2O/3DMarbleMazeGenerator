@@ -4,7 +4,7 @@ import math
 from abc import ABC, abstractmethod
 from typing import Dict, Iterable, Optional, Tuple
 
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 from puzzle.utils.geometry import key3, snap, squared_distance_xyz
 
 Coordinate = Tuple[float, float, float]
@@ -44,7 +44,7 @@ class Casing(ABC):
             for y in y_values:
                 for z in z_values:
                     if self.contains_point(x, y, z):
-                        node = Node(x, y, z)
+                        node = Node(x, y, z, in_rectangular_grid=True)
                         nodes.append(node)
                         node_dict[key3(x, y, z)] = node
 
@@ -89,8 +89,7 @@ class Casing(ABC):
             k = key3(xs, ys, zs)
 
             # Always create a new circular node
-            new_node = Node(xs, ys, zs)
-            new_node.grid_type.append(NodeGridType.CIRCULAR.value)
+            new_node = Node(xs, ys, zs, in_circular_grid=True)
             nodes.append(new_node)
 
             # Overwrite mapping
@@ -149,7 +148,7 @@ class Casing(ABC):
             plane_circular_now: list[Node] = [
                 n
                 for n in nodes
-                if (n.z == z_plane and NodeGridType.CIRCULAR.value in n.grid_type)
+                if (n.z == z_plane and n.in_circular_grid)
             ]
 
             # Withhold intersections that conflict with existing circulars on this plane
@@ -176,7 +175,7 @@ class Casing(ABC):
         cutoff_squared = cutoff_distance * cutoff_distance
 
         for node in nodes:
-            if NodeGridType.CIRCULAR.value in node.grid_type:
+            if node.in_circular_grid:
                 continue
             if z_planes is not None and node.z not in z_planes:
                 continue
@@ -232,8 +231,8 @@ class Casing(ABC):
 
         x1 = snap(min_x_value - node_size)
         x2 = snap(x1 - node_size)
-        node1 = Node(x1, use_y_value, use_z_value)
-        node2 = Node(x2, use_y_value, use_z_value)
+        node1 = Node(x1, use_y_value, use_z_value, in_rectangular_grid=True)
+        node2 = Node(x2, use_y_value, use_z_value, in_rectangular_grid=True)
 
         nodes.extend([node1, node2])
         node_dict[key3(node1.x, node1.y, node1.z)] = node1

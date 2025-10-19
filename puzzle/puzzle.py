@@ -12,7 +12,7 @@ from obstacles.obstacle_manager import ObstacleManager
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 from puzzle.path_finder import AStarPathFinder
 from puzzle.utils.geometry import key3
 
@@ -294,12 +294,8 @@ class Puzzle:
                 f"End Node   X: {end_node.x:.1f}, Y: {end_node.y:.1f}, Z: {end_node.z:.1f}"
             )
 
-        rect_count = sum(
-            1
-            for node in self.nodes
-            if NodeGridType.CIRCULAR.value not in node.grid_type
-        )
-        circ_count = len(self.nodes) - rect_count
+        rect_count = sum(1 for node in self.nodes if node.in_rectangular_grid)
+        circ_count = sum(1 for node in self.nodes if node.in_circular_grid)
         print(f"Node Grid Types: Rectangular={rect_count}, Circular={circ_count}")
 
         # Path Summary

@@ -1,7 +1,6 @@
 # cad/curve_detection.py
 
 import math
-from typing import List
 
 from config import Path, PathCurveType
 from puzzle.node import Node
@@ -81,7 +80,7 @@ def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
 
 def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
     """
-    Detects consecutive nodes with a circular grid type and marks them as ARC curves.
+    Detects consecutive nodes flagged as belonging to the circular grid and marks them as ARC curves.
 
     Args:
         nodes (list[Node]): The list of nodes to process.
@@ -93,10 +92,10 @@ def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
     i = 0
     while i < len(nodes):
         # Check if the node is circular; adjust this check if needed (e.g., using membership)
-        if "circular" in nodes[i].grid_type:
+        if nodes[i].in_circular_grid:
             start = i
             # Continue while subsequent nodes are circular.
-            while i < len(nodes) and "circular" in nodes[i].grid_type:
+            while i < len(nodes) and nodes[i].in_circular_grid:
                 i += 1
             # Mark the block of consecutive circular nodes.
             for j in range(start, i):

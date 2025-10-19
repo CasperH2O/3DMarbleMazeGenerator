@@ -14,7 +14,7 @@ from cad.path_profile_type_shapes import (
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
 from config import Config, PathCurveModel, PathCurveType
 from obstacles.obstacle import Obstacle
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 from puzzle.utils.geometry import snap
 
 from . import curve_detection
@@ -153,7 +153,16 @@ class PathArchitect:
         def world_nodes(local_nodes: list[Node]) -> list[Node]:
             if not local_nodes:
                 return []
-            copies = [Node(n.x, n.y, n.z) for n in local_nodes]
+            copies = [
+                Node(
+                    n.x,
+                    n.y,
+                    n.z,
+                    in_circular_grid=n.in_circular_grid,
+                    in_rectangular_grid=n.in_rectangular_grid,
+                )
+                for n in local_nodes
+            ]
             obstacle.get_placed_node_coordinates(copies)
             for node in copies:
                 node.x = snap(round(node.x / self.node_size) * self.node_size)
@@ -243,11 +252,10 @@ class PathArchitect:
 
             # pattern A (straight -> arc)
             if (
-                NodeGridType.CIRCULAR.value in end_a.grid_type
-                and NodeGridType.CIRCULAR.value in start_b.grid_type
+                end_a.in_circular_grid
+                and start_b.in_circular_grid
                 and len(seg_a.nodes) >= 2
-                and NodeGridType.CIRCULAR.value
-                not in second_last_a.grid_type  # seg-A’s 2nd-last is non-circ
+                and not second_last_a.in_circular_grid
             ):
                 print(
                     f"Harmonise circular transitions pattern A being done for segments: "
@@ -262,6 +270,7 @@ class PathArchitect:
                 mid = midpoint(P, Q, circular=False)
 
                 bridge = Node(mid.X, mid.Y, mid.Z)
+                bridge.in_rectangular_grid = second_last_a.in_rectangular_grid
 
                 # New connecting segment  (bridge -> first B)
                 new_seg = PathSegment(
@@ -283,11 +292,10 @@ class PathArchitect:
 
             # pattern B (arc -> straight)
             if (
-                NodeGridType.CIRCULAR.value in end_a.grid_type
-                and NodeGridType.CIRCULAR.value in start_b.grid_type
+                end_a.in_circular_grid
+                and start_b.in_circular_grid
                 and len(seg_b.nodes) >= 2
-                and NodeGridType.CIRCULAR.value
-                not in seg_b.nodes[1].grid_type  # 2nd-node non-circ
+                and not seg_b.nodes[1].in_circular_grid
             ):
                 print(
                     f"Harmonise circular transitions pattern B being done for segments: "
@@ -303,6 +311,7 @@ class PathArchitect:
                 mid = midpoint(P, Q, circular=False)
 
                 bridge = Node(mid.X, mid.Y, mid.Z)
+                bridge.in_rectangular_grid = seg_b.nodes[1].in_rectangular_grid
 
                 # New connecting segment (end-A → bridge)
                 new_seg = PathSegment(
@@ -646,8 +655,8 @@ class PathArchitect:
                     bridge.curve_model = PathCurveModel.COMPOUND
 
                     # Decide bridge curve type from the endpoints
-                    a_circ = NodeGridType.CIRCULAR.value in previous_end.grid_type
-                    b_circ = NodeGridType.CIRCULAR.value in segment.nodes[0].grid_type
+                    a_circ = previous_end.in_circular_grid
+                    b_circ = segment.nodes[0].in_circular_grid
                     bridge.curve_type = (
                         PathCurveType.ARC
                         if (a_circ and b_circ)
@@ -682,18 +691,13 @@ class PathArchitect:
             if segment.curve_model == PathCurveModel.SINGLE:
                 uniq_nodes = dedup(segment.nodes)
                 if len(uniq_nodes) > 2:
-                    circ_flags = [
-                        NodeGridType.CIRCULAR.value in getattr(n, "grid_type", [])
-                        for n in uniq_nodes
-                    ]
+                    circ_flags = [n.in_circular_grid for n in uniq_nodes]
                     if any(circ_flags) and not all(circ_flags):
                         new_segments = []
                         for k in range(len(uniq_nodes) - 1):
                             pair = [uniq_nodes[k], uniq_nodes[k + 1]]
                             is_circ = all(
-                                NodeGridType.CIRCULAR.value
-                                in getattr(n, "grid_type", [])
-                                for n in pair
+                                n.in_circular_grid for n in pair
                             )
                             new_segments.append(
                                 self.make_circular_run(segment, pair, is_circ)
@@ -763,10 +767,7 @@ class PathArchitect:
         P = Vector(prev_node.x, prev_node.y, prev_node.z)
         Q = Vector(last_node.x, last_node.y, last_node.z)
 
-        if (
-            NodeGridType.CIRCULAR.value in prev_node.grid_type
-            and NodeGridType.CIRCULAR.value in last_node.grid_type
-        ):
+        if prev_node.in_circular_grid and last_node.in_circular_grid:
             # on a circle → true tangent
             R = Vector(Q.X, Q.Y, 0)
             tangent = Vector(-R.Y, R.X, 0).normalized()
@@ -785,6 +786,8 @@ class PathArchitect:
         last_node.segment_end = False
 
         new_node = Node(Q_ext.X, Q_ext.Y, Q_ext.Z)
+        new_node.in_circular_grid = last_node.in_circular_grid
+        new_node.in_rectangular_grid = last_node.in_rectangular_grid
         new_node.puzzle_end = True
         new_node.segment_end = True
 

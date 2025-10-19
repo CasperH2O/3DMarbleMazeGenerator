@@ -1,19 +1,8 @@
 # puzzle/node.py
 
-from enum import Enum
 from typing import Optional
 
 from config import PathCurveType
-
-
-class NodeGridType(Enum):
-    """
-    Enumeration representing the different types of node grids.
-    """
-
-    RECTANGULAR = "rectangular"
-    CIRCULAR = "circular"
-
 
 class Node:
     """
@@ -27,6 +16,8 @@ class Node:
         z: float,
         occupied: bool = False,
         overlap_allowed: bool = False,
+        in_circular_grid: bool = False,
+        in_rectangular_grid: bool = False,
     ) -> None:
         """
         Initializes a Node instance.
@@ -38,6 +29,10 @@ class Node:
             occupied (bool): Indicates if the node is occupied or used in the puzzle. Defaults to False.
             overlap_allowed (bool): Determines whether obstacles may overlap at this node
             position, enabling intentional stacking of geometry when set to True. Defaults to False.
+            in_circular_grid (bool): Marks whether this node belongs to a circular helper grid.
+                Defaults to False.
+            in_rectangular_grid (bool): Marks whether this node belongs to a rectangular helper grid.
+                Defaults to False.
         """
         self.x: float = x
         self.y: float = y
@@ -61,7 +56,8 @@ class Node:
         self.h: float = 0.0  # Heuristic cost to goal
         self.f: float = float("inf")  # Total cost
 
-        self.grid_type = []  # List of grid types (e.g., "rectangular", "circular")
+        self.in_circular_grid: bool = in_circular_grid
+        self.in_rectangular_grid: bool = in_rectangular_grid
 
         # Obstacle markers
         self.is_obstacle_entry: bool = False

@@ -4,7 +4,7 @@ import heapq
 from typing import Any, Optional, Set, Tuple
 
 from cad.cases.case_model_base import CaseShape
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
 
 Coordinate = Tuple[float, float, float]
@@ -70,8 +70,8 @@ class AStarPathFinder:
 
             # Near-cardinal move: exactly one axis differs,
             # and allowed only if one node is circular and the other is not.
-            node_is_circular = NodeGridType.CIRCULAR.value in node.grid_type
-            candidate_is_circular = NodeGridType.CIRCULAR.value in candidate.grid_type
+            node_is_circular = node.in_circular_grid
+            candidate_is_circular = candidate.in_circular_grid
 
             if diff_count == 1 and (node_is_circular ^ candidate_is_circular):
                 if (
@@ -91,13 +91,13 @@ class AStarPathFinder:
                     # print(f"[DEBUG] Near-cardinal neighbor (mixed types) found at ({candidate.x}, {candidate.y}, {candidate.z})")
 
         # If we're on the circular ring, link to the two closest circular neighbors (same plane).
-        if NodeGridType.CIRCULAR.value in node.grid_type:
+        if node.in_circular_grid:
             same_plane_tol = tolerance  # stay on the ring plane
             circ_same_plane: list[tuple[Node, float]] = []
             for candidate_node in node_dict.values():
                 if candidate_node is node:
                     continue
-                if NodeGridType.CIRCULAR.value not in candidate_node.grid_type:
+                if not candidate_node.in_circular_grid:
                     continue
                 if abs(candidate_node.z - node.z) > same_plane_tol:
                     continue  # ensure same z-plane (e.g., z == node.z within tol)
@@ -124,7 +124,7 @@ class AStarPathFinder:
                     cn
                     for cn in node_dict.values()
                     if cn is not node
-                    and NodeGridType.CIRCULAR.value in cn.grid_type
+                    and cn.in_circular_grid
                     and abs(cn.z - target_z) <= plane_tol
                 ]
                 if not plane_nodes:

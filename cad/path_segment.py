@@ -6,7 +6,7 @@ from typing import Optional, Union
 from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 
 from config import PathCurveModel, PathCurveType, PathProfileType
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 
 
 def _node_to_vector(node: Node) -> Vector:
@@ -220,10 +220,7 @@ class PathSegment:
             # Get current puzzle-end node position.
             end_node_point = _node_to_vector(self.nodes[0])
             # If the current node is circular, compute the arc midpoint.
-            if (
-                hasattr(self.nodes[0], "grid_type")
-                and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
-            ):
+            if self.nodes[0].in_circular_grid:
                 adjusted_end = midpoint(
                     _node_to_vector(previous_end_node), end_node_point, circular=True
                 )
@@ -261,7 +258,7 @@ class PathSegment:
         Adjusts a segment with two or more nodes.
 
         For the start node, if a previous_end_node is provided, it snaps exactly to that node,
-        and its circular flag is derived from the previous node's grid_type.
+        and its circular flag is derived from the previous node's circular status.
         For the end node, a similar adjustment is performed based on next_start_node.
         """
         # Adjust start node.
@@ -269,23 +266,25 @@ class PathSegment:
             if previous_end_node is not None:
                 adjusted_start = _node_to_vector(previous_end_node)
                 previous_is_circular = (
-                    NodeGridType.CIRCULAR.value in previous_end_node.grid_type
+                    previous_end_node.in_circular_grid
                     or previous_curve_type == PathCurveType.ARC
                 )
                 # Propagate only if both sides of the junction are circular.
                 is_circular_start = (
                     previous_is_circular
-                    and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                    and self.nodes[0].in_circular_grid
                 )
             else:
                 adjusted_start = _node_to_vector(self.nodes[0])
-                is_circular_start = (
-                    NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
-                )
+                is_circular_start = self.nodes[0].in_circular_grid
 
             start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
-            if is_circular_start:
-                start_node.grid_type.append(NodeGridType.CIRCULAR.value)
+            start_node.in_circular_grid = is_circular_start
+            start_node.in_rectangular_grid = (
+                previous_end_node.in_rectangular_grid
+                if previous_end_node is not None
+                else self.nodes[0].in_rectangular_grid
+            )
             start_node.segment_start = True
             self.nodes.insert(0, start_node)
         else:
@@ -296,20 +295,20 @@ class PathSegment:
         is_circular_end = False
         if next_start_node is not None:
             next_is_circular = (
-                NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                next_start_node.in_circular_grid
                 or next_curve_type == PathCurveType.ARC
             )
             if next_curve_type is not None:
                 # Full adjustment: snap exactly to the next segment's start node.
                 adjusted_end = _node_to_vector(next_start_node)
                 is_circular_end = (
-                    NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                    self.nodes[-1].in_circular_grid
                     and next_is_circular
                 )
             else:
                 # For half adjustment: if current end node is circular, compute arc midpoint.
                 if (
-                    NodeGridType.CIRCULAR.value in self.nodes[-1].grid_type
+                    self.nodes[-1].in_circular_grid
                     and next_is_circular
                 ):
                     is_circular_end = True
@@ -330,11 +329,13 @@ class PathSegment:
             self.nodes[-1].y = adjusted_end.Y
             self.nodes[-1].z = adjusted_end.Z
             self.nodes[-1].segment_end = True
+            if is_circular_end:
+                self.nodes[-1].in_circular_grid = True
         else:
             # Otherwise, append a new node at the adjusted position
             end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
-            if is_circular_end:
-                end_node.grid_type.append(NodeGridType.CIRCULAR.value)
+            end_node.in_circular_grid = is_circular_end
+            end_node.in_rectangular_grid = self.nodes[-1].in_rectangular_grid
             end_node.segment_end = True
             self.nodes.append(end_node)
 
@@ -356,20 +357,24 @@ class PathSegment:
         if previous_end_node is not None:
             adjusted_start = _node_to_vector(previous_end_node)
             previous_is_circular = (
-                NodeGridType.CIRCULAR.value in previous_end_node.grid_type
+                previous_end_node.in_circular_grid
                 or previous_curve_type == PathCurveType.ARC
             )
             is_circular_start = (
                 previous_is_circular
-                and NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                and self.nodes[0].in_circular_grid
             )
         else:
             adjusted_start = node_point
-            is_circular_start = NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+            is_circular_start = self.nodes[0].in_circular_grid
 
         start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
-        if is_circular_start:
-            start_node.grid_type.append(NodeGridType.CIRCULAR.value)
+        start_node.in_circular_grid = is_circular_start
+        start_node.in_rectangular_grid = (
+            previous_end_node.in_rectangular_grid
+            if previous_end_node is not None
+            else self.nodes[0].in_rectangular_grid
+        )
         start_node.segment_start = True
 
         is_circular_end = False
@@ -385,11 +390,11 @@ class PathSegment:
         if self.nodes[0].puzzle_end:
             if next_start_node is not None:
                 next_is_circular = (
-                    NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                    next_start_node.in_circular_grid
                     or next_curve_type == PathCurveType.ARC
                 )
                 should_use_circular_midpoint = (
-                    NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                    self.nodes[0].in_circular_grid
                     and next_is_circular
                 )
                 if should_use_circular_midpoint:
@@ -412,19 +417,19 @@ class PathSegment:
             if not self.nodes[0].puzzle_start and not self.nodes[0].puzzle_end:
                 if next_start_node is not None:
                     next_is_circular = (
-                        NodeGridType.CIRCULAR.value in next_start_node.grid_type
+                        next_start_node.in_circular_grid
                         or next_curve_type == PathCurveType.ARC
                     )
                     if next_curve_type is not None:
                         adjusted_end = _node_to_vector(next_start_node)
                         is_circular_end = (
-                            NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                            self.nodes[0].in_circular_grid
                             and next_is_circular
                         )
                     else:
                         # For half adjustment, use arc midpoint if the node is circular.
                         if (
-                            NodeGridType.CIRCULAR.value in self.nodes[0].grid_type
+                            self.nodes[0].in_circular_grid
                             and next_is_circular
                         ):
                             is_circular_end = True
@@ -443,8 +448,8 @@ class PathSegment:
                     adjusted_end = node_point
 
                 end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
-                if is_circular_end:
-                    end_node.grid_type.append(NodeGridType.CIRCULAR.value)
+                end_node.in_circular_grid = is_circular_end
+                end_node.in_rectangular_grid = self.nodes[0].in_rectangular_grid
                 end_node.segment_end = True
 
                 self.nodes.insert(0, start_node)
@@ -453,6 +458,8 @@ class PathSegment:
                 # If already flagged as puzzle_start or puzzle_end, simply mark them.
                 self.nodes[0].segment_start = self.nodes[0].puzzle_start
                 self.nodes[0].segment_end = self.nodes[0].puzzle_end
+                if self.nodes[0].segment_end and is_circular_end:
+                    self.nodes[0].in_circular_grid = True
 
     def copy_attributes_from(self, other_segment: "PathSegment"):
         """
@@ -494,6 +501,8 @@ class PathSegment:
 
             # create & append the new mid-node
             end_node = Node(M.X, M.Y, M.Z)
+            end_node.in_circular_grid = self.nodes[-1].in_circular_grid
+            end_node.in_rectangular_grid = self.nodes[-1].in_rectangular_grid
             end_node.occupied = True
             end_node.segment_end = True
             self.nodes[-1].segment_end = False

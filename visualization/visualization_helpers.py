@@ -16,7 +16,7 @@ from config import Config, PathCurveModel, PathCurveType
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 
 
 def plot_nodes(
@@ -81,7 +81,7 @@ def plot_nodes(
             labels.append("Segment End")
         if node.occupied:
             labels.append("Occupied")
-        if NodeGridType.CIRCULAR.value in node.grid_type:
+        if node.in_circular_grid:
             labels.append("Circular")
         if node.overlap_allowed:
             labels.append("Overlap")
@@ -92,7 +92,7 @@ def plot_nodes(
         primary = None
         for flag, label in priority_flags:
             if flag == "circular":
-                if "circular" in node.grid_type:
+                if node.in_circular_grid:
                     primary = label
                     break
             else:
@@ -477,9 +477,7 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                     a = segment.nodes[i]
                     b = segment.nodes[i + 1]
                     # Both circular, generate arc
-                    if (NodeGridType.CIRCULAR.value in a.grid_type) and (
-                        NodeGridType.CIRCULAR.value in b.grid_type
-                    ):
+                    if a.in_circular_grid and b.in_circular_grid:
                         theta1 = math.atan2(a.y, a.x)
                         theta2 = math.atan2(b.y, b.x)
                         dtheta = theta2 - theta1

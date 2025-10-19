@@ -40,7 +40,6 @@ from cad.path_profile_type_shapes import (
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from cad.solid_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
-from puzzle.node import NodeGridType
 from puzzle.puzzle import Node, Puzzle
 
 from .path_architect import PathArchitect
@@ -744,10 +743,7 @@ class PathBuilder:
         # Handle different node grid types, create sub segments
         sub_segments = []
         for n1, n2 in zip(segment.nodes[:-1], segment.nodes[1:]):
-            is_circ = (
-                NodeGridType.CIRCULAR.value in n1.grid_type
-                and NodeGridType.CIRCULAR.value in n2.grid_type
-            )
+            is_circ = n1.in_circular_grid and n2.in_circular_grid
             sub_segment = self.path_architect.make_circular_run(
                 segment, [n1, n2], is_circ
             )

@@ -4,7 +4,7 @@ import math
 from typing import Dict, Tuple
 
 from config import Config
-from puzzle.node import Node, NodeGridType
+from puzzle.node import Node
 from puzzle.utils.geometry import frange
 
 from .grid_layout_base import Casing
@@ -130,8 +130,7 @@ class CylinderCasing(Casing):
         reference_plane_nodes = [
             candidate
             for candidate in nodes
-            if (NodeGridType.CIRCULAR.value not in candidate.grid_type)
-            and (candidate.z == ref_z)
+            if (not candidate.in_circular_grid) and (candidate.z == ref_z)
         ]
         if not reference_plane_nodes:
             return []
@@ -170,7 +169,7 @@ class CylinderCasing(Casing):
         # Propagate the same (x, y) to all Z planes and mark nodes as occupied
         marked: list[Node] = []
         for node in nodes:
-            if NodeGridType.CIRCULAR.value in node.grid_type:
+            if node.in_circular_grid:
                 continue
             if node.z in z_set and (node.x, node.y) in chosen_xy_set:
                 node.occupied = True
