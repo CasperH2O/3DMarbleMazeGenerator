@@ -1,7 +1,7 @@
 # puzzle/puzzle.py
 
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Optional
 
 import numpy as np
@@ -62,6 +62,10 @@ class Puzzle:
 
         # nodes, dict, start from casing
         self.nodes, self.node_dict, self.start_node = self.casing.create_nodes()
+        # Lazily-populated cache keyed by the discretized z-plane so neighbor
+        # lookups can jump straight to relevant circular nodes without scanning
+        # the full node list.
+        self._circular_nodes_by_plane: Optional[dict[int, list[Node]]] = None
 
         # Define mounting waypoints
         self.define_mounting_waypoints()
@@ -85,6 +89,33 @@ class Puzzle:
         self.path_architect: PathArchitect = PathArchitect(
             self.total_path, self.obstacle_manager.placed_obstacles
         )
+
+    def get_circular_plane_level(self, z_value: float) -> int:
+        """Return the rounded plane index for a given z coordinate."""
+
+        if self.node_size == 0:
+            return 0
+        return int(round(z_value / self.node_size))
+
+    def get_circular_nodes_by_plane(self) -> dict[int, list[Node]]:
+        """Group circular nodes by their rounded z plane and cache the result."""
+
+        if self._circular_nodes_by_plane is None:
+            # Build circular nodes cache by grouping to snapped z-level
+            plane_map: dict[int, list[Node]] = defaultdict(list)
+            for node in self.nodes:
+                if node.in_circular_grid:
+                    plane_index = self.get_circular_plane_level(node.z)
+                    plane_map[plane_index].append(node)
+            self._circular_nodes_by_plane = plane_map
+
+        return self._circular_nodes_by_plane
+
+    def get_circular_nodes_for_level(self, z_value: float) -> list[Node]:
+        """Return circular nodes on the plane that matches the provided z value."""
+
+        plane_index = self.get_circular_plane_level(z_value)
+        return self.get_circular_nodes_by_plane().get(plane_index, [])
 
     def define_mounting_waypoints(self) -> None:
         """

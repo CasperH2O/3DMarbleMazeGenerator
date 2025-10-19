@@ -59,8 +59,8 @@ def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
 
                     # Compute dot product
                     dot_product = sum(
-                        f * l
-                        for f, l in zip(first_vector_normalized, last_vector_normalized)
+                        first * last
+                        for first, last in zip(first_vector_normalized, last_vector_normalized)
                     )
 
                     # Threshold for same direction

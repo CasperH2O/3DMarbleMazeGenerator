@@ -97,6 +97,7 @@ class CaseCylinder(Case):
         ) / 2 - 2 * self.node_size  # 28.0  # TODO: tie to actual node pattern
 
         # Short, thicker rods (at multiple Z levels)
+        # TODO Add chamfer to smaller vertical rods for 3D printing
         diameter_short = 0.8 * self.node_size
         r_short = diameter_short / 2
         h_short = 1.5 * self.node_size
