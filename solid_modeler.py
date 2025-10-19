@@ -21,6 +21,7 @@ from build123d import (
     Sphere,
     Transition,
     Vector,
+    add,
     export_stl,
     sweep,
 )
@@ -287,6 +288,19 @@ def ball_and_path_indicators(puzzle):
     ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
 
+    # Prepare a reusable direction indicator cone that can be instanced along the path
+    cone_bottom_radius = Config.Puzzle.BALL_DIAMETER / 3
+    cone_height = Config.Puzzle.BALL_DIAMETER
+
+    with BuildPart() as direction_indicator:
+        Cone(
+            bottom_radius=cone_bottom_radius,
+            top_radius=0,
+            height=cone_height,
+            align=(Align.CENTER, Align.CENTER, Align.MIN),
+        )
+    indicator_solid = direction_indicator.part
+
     # Puzzle path with direction indication
     with BuildPart() as ball_path:
         # Path
@@ -299,20 +313,18 @@ def ball_and_path_indicators(puzzle):
 
         # Insert cones every n nodes for direction indication
         total_pts = len(node_positions)
-        step = 3
-        for idx in range(1, total_pts, step):
-            # parameterize position along polyline: 0 at first, 1 at last
-            t = (idx - 1) / (total_pts - 2)
-            loc = ball_path_line.line ^ t
-            # place a cone whose base sits at the node and
-            # whose tip points forward along the path tangent
-            with Locations(loc):
-                Cone(
-                    bottom_radius=Config.Puzzle.BALL_DIAMETER / 3,
-                    top_radius=0,
-                    height=Config.Puzzle.BALL_DIAMETER,
-                    align=(Align.CENTER, Align.CENTER, Align.MIN),
-                )
+        indicator_step = 3
+        indicator_locations: list = []
+        if total_pts > 2:
+            for idx in range(1, total_pts, indicator_step):
+                # parameterize position along polyline: 0 at first, 1 at last
+                t = (idx - 1) / (total_pts - 2)
+                loc = ball_path_line.line ^ t
+                indicator_locations.append(loc)
+
+        if indicator_locations:
+            with Locations(*indicator_locations):
+                add(indicator_solid)
 
     ball_path.part.label = "Ball Path"
     ball_path.part.color = Config.Puzzle.BALL_COLOR
