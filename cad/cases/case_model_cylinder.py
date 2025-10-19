@@ -1,5 +1,7 @@
 # cad/cases/case_model_cylinder.py
 
+from math import isclose
+
 from build123d import (
     Axis,
     BuildPart,
@@ -14,6 +16,7 @@ from build123d import (
     PolarLocations,
     Select,
     add,
+    chamfer,
     extrude,
 )
 from ocp_vscode import show_object
@@ -102,6 +105,8 @@ class CaseCylinder(Case):
         r_short = diameter_short / 2
         h_short = 1.5 * self.node_size
         z_planes = [0.0, h_long / 2 - h_short / 2, -h_long / 2 + h_short / 2]
+        z_min = min(z_planes)
+        z_max = max(z_planes)
 
         # Discs
         base_r = (self.diameter + self.node_size) / 2
@@ -115,6 +120,35 @@ class CaseCylinder(Case):
 
         # bottom case: long rods + short rods + bottom disc
         with BuildPart() as bottom_case:
+            # short thicker rods across z-planes
+            for z in z_planes:
+                with Locations((0, 0, z)):
+                    with PolarLocations(
+                        radius=pattern_r, count=self.number_of_mounting_points
+                    ):
+                        Cylinder(radius=r_short, height=h_short)
+
+                    # Chamfer the short vertical rods (top & bottom)
+                    circ_edges = (
+                        bottom_case.edges(Select.LAST)
+                        .filter_by(GeomType.CIRCLE)
+                        .sort_by(Axis.Z)
+                    )
+
+                    # There are 2 circular edges per rod (bottom first, then top after sort)
+                    n = self.number_of_mounting_points
+                    bottom_edges = circ_edges[:n]
+                    top_edges = circ_edges[-n:]
+
+                    # 45 degree chamfer, derived from rod diameters
+                    chamfer_len = (diameter_short - diameter_long) / 2
+
+                    # highest plane: no top chamfer; lowest plane: no bottom chamfer
+                    if not isclose(z, z_min, abs_tol=1e-7):
+                        chamfer(bottom_edges, length=chamfer_len)
+                    if not isclose(z, z_max, abs_tol=1e-7):
+                        chamfer(top_edges, length=chamfer_len)
+
             # long rods
             with PolarLocations(radius=pattern_r, count=self.number_of_mounting_points):
                 Cylinder(radius=r_long, height=h_long)
@@ -127,14 +161,6 @@ class CaseCylinder(Case):
             )
             for f in long_top_faces:
                 extrude(to_extrude=f, amount=5, mode=Mode.ADD)
-
-            # short thicker rods across z-planes
-            for z in z_planes:
-                with Locations((0, 0, z)):
-                    with PolarLocations(
-                        radius=pattern_r, count=self.number_of_mounting_points
-                    ):
-                        Cylinder(radius=r_short, height=h_short)
 
             # bottom disc
             with Locations((0, 0, bottom_z)):
@@ -190,10 +216,10 @@ class CaseCylinder(Case):
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
         bottom_case.part.label = CasePart.CASE_BOTTOM.value
-        bottom_case.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        bottom_case.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         top_disc.part.label = CasePart.CASE_TOP.value
-        top_disc.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        top_disc.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
         internal_path_bridges.part.color = Config.Puzzle.PATH_COLORS[0]
