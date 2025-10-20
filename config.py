@@ -10,7 +10,7 @@ from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Them
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.GENERIC
+    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
     THEME = Theme.ULTRA_MARINE
     CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
 
@@ -30,7 +30,7 @@ class Puzzle:
 
 
 class Obstacles:
-    RANDOM_PLACEMENT_ENABLED = True  # random obstacle on/off switch.
+    RANDOM_PLACEMENT_ENABLED = False  # random obstacle on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
         ObstacleType.ALPHA,
         ObstacleType.OVERHAND_KNOT,
@@ -111,7 +111,7 @@ class Cylinder:
 class Path:
     PATH_CURVE_MODEL = [
         PathCurveModel.COMPOUND,
-        # PathCurveModel.SPLINE,
+        PathCurveModel.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [
