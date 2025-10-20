@@ -28,7 +28,7 @@ def _is_transparent(color: str) -> bool:
     return False  # '#RRGGBB' (no alpha) -> opaque
 
 
-def _apply_generic_distinct_colors_per_part(parts: list, seed: int | None = None) -> None:
+def _apply_generic_distinct_colors_per_part(parts: list, seed: int) -> None:
     """
     Update part colors for maximum contrast with evenly spaced HSV space, skip transparent, shuffle colors
     """
@@ -97,7 +97,7 @@ def display_parts(
         if obstacle_extras:
             parts_to_color.append(obstacle_extras)
 
-        _apply_generic_distinct_colors_per_part(parts_to_color)
+        _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
     if case_parts:
         if len(case_parts) == 1:
@@ -127,45 +127,43 @@ def display_parts(
         show_object(obstacle_extras, name="Obstacle Extra's")
 
     # Display the ball and its path
-    show_object(ball)
-    show_object(ball_path)
+    show_object([ball, ball_path], name="Path Indcator")
 
 
 def set_viewer():
     """
-    Set the viewer configuration.
+    Set the viewer configuration. Hide edges for certain parts, create animation.
     """
+    st = status()["states"].copy()
 
-    # Do not draw lines on the following groups
-    # FIXME works inconsistently
-    groups_to_reset = {
-        f"/Group/{CasePart.CASING.value}",
-        f"/Group/{CasePart.CASE_TOP.value}",
-        f"/Group/{CasePart.CASE_BOTTOM.value}",
-        "/Group/Ball Path",
-        "/Group/Ball",
-    }
-    current_states = status()["states"]
-
-    # Update the viewer configuration so that the specified groups do not draw lines
-    new_config = {
-        group: ([1, 0] if group in groups_to_reset else viewer_config)
-        for group, viewer_config in current_states.items()
+    target_leaf_names = {
+        CasePart.CASING.value,  # "Casing" (only if it's a leaf/singleton)
+        CasePart.CASE_TOP.value,  # "Case Top"
+        CasePart.CASE_BOTTOM.value,  # "Case Bottom"
+        "Ball",
+        "Ball Path",
     }
 
-    set_viewer_config(states=new_config)
+    # Only touch leaves whose basename matches one of the targets
+    for path, val in list(st.items()):
+        if not (isinstance(val, list) and len(val) == 2):
+            continue
+        basename = path.rsplit("/", 1)[-1]
+        if basename in target_leaf_names:
+            shape_on, _edges_on = val
+            st[path] = [shape_on, 0]  # keep current shape visibility, hide edges
+
+    set_viewer_config(states=st)
 
     # Rotating animation
     animation = Animation(Part())
     times = np.linspace(0, 6, 33)  # 4 seconds split in 0.2 intervals
     values = np.linspace(0, -360, 33)  # as many positions as times
 
-    # Get all the groups for animation
-    all_groups = current_states.keys()
     # add all groups to animation tracks except for the base
-    for grp in all_groups:
-        if grp == "/Group/Base":
-            continue  # skip the Base group
+    for grp in list(status()["states"].keys()):
+        if "/Group/Base" in grp:
+            continue
         animation.add_track(grp, "rz", times, values)
 
     animation.animate(1)
