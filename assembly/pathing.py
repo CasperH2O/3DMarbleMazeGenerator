@@ -15,6 +15,7 @@ from build123d import (
     Pos,
     Sphere,
     Transition,
+    Vector,
     add,
     sweep,
 )
@@ -110,8 +111,9 @@ def ball_and_path_indicators(puzzle: Puzzle):
     node_positions = [(node.x, node.y, node.z) for node in cad_nodes]
 
     # Ball at the start
-    with BuildPart(Pos(node_positions[2])) as ball:
+    with BuildPart() as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
+    ball.part = ball.part.translate(Vector(*node_positions[2]))
     ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
 
