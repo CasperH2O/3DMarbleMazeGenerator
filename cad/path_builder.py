@@ -41,12 +41,10 @@ from cad.path_profile_type_shapes import (
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from cad.solid_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
+from logging_config import configure_logging
 from puzzle.puzzle import Node, Puzzle
 
 from .path_architect import PathArchitect
-
-from logging_config import configure_logging
-
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -1343,9 +1341,7 @@ def sweep_single_profile(
 def round_to_nearest_90(value: float) -> float:
     if value not in [-180, -90, 0, 90, 180]:
         rounded_value = round(value / 90) * 90
-        logger.warning(
-            "Angle %s was rounded to %s", value, rounded_value
-        )
+        logger.warning("Angle %s was rounded to %s", value, rounded_value)
     else:
         rounded_value = value
 

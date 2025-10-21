@@ -24,12 +24,12 @@ from numpy import linspace
 from ocp_vscode import Camera, set_defaults, show
 
 import config
-from logging_config import configure_logging
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
     PathProfileType,
 )
 from cad.path_segment import PathSegment
+from logging_config import configure_logging
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from visualization.visualization_helpers import (

@@ -7,7 +7,6 @@ import config
 from logging_config import configure_logging
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 
-
 configure_logging()
 logger = logging.getLogger(__name__)
 

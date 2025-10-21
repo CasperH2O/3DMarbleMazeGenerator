@@ -11,11 +11,10 @@ import numpy as np
 from build123d import Extrinsic, Pos, Rotation
 
 from config import Config
+from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
-
-from logging_config import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -172,7 +171,9 @@ class ObstacleManager:
                     )
 
             if not cycle_progress:
-                logger.warning("No further placements possible with current constraints.")
+                logger.warning(
+                    "No further placements possible with current constraints."
+                )
                 break
 
     def _apply_automatic_placements(self, manual_counts: Counter):
@@ -276,9 +277,7 @@ class ObstacleManager:
             is_valid = self._is_placement_valid(obstacle, debug=True)
             logger.info("  -> Manual placement valid? %s", is_valid)
             if not is_valid:
-                logger.warning(
-                    "  -> Manual #%s FAILED validation -> not placed", index
-                )
+                logger.warning("  -> Manual #%s FAILED validation -> not placed", index)
                 continue
 
             # Succesful place, include obstacle
@@ -450,26 +449,28 @@ class ObstacleManager:
             exit_node.occupied = True
             exit_node.is_obstacle_exit = True
         elif exit_node == entry_node:
-            logger.warning(
-                "Entry and exit nodes are the same for %s", obstacle.name
-            )
+            logger.warning("Entry and exit nodes are the same for %s", obstacle.name)
 
     def _print_placement_summary(self):
         """Log a summary of all placed obstacles including count, names, origins, rotations, and timing."""
+
         total = len(self.placed_obstacles)
+
+        if total == 0:
+            return
+
         by_type = Counter([o.name for o in self.placed_obstacles])
-        logger.info("")
+
         logger.info("Obstacle Placement Summary:")
-        logger.info(
-            "Total obstacles placed: %s  |  By type: %s", total, dict(by_type)
-        )
+        logger.info("Total obstacles placed: %s  |  By type: %s", total, dict(by_type))
         logger.info("Placement time: %.3f seconds", self.placement_time)
-        for obs in self.placed_obstacles:
-            ox, oy, oz = obs.grid_origin
-            ax, ay, az = obs.rotation_angles_deg
+
+        for obstacle in self.placed_obstacles:
+            ox, oy, oz = obstacle.grid_origin
+            ax, ay, az = obstacle.rotation_angles_deg
             logger.info(
                 "- %s: Origin=(%s,%s,%s), Rotation=(X:%s°,Y:%s°,Z:%s°)",
-                obs.name,
+                obstacle.name,
                 ox,
                 oy,
                 oz,

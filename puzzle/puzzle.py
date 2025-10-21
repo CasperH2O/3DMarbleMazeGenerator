@@ -9,6 +9,7 @@ import numpy as np
 
 from cad.path_architect import PathArchitect
 from config import CaseShape, Config
+from logging_config import configure_logging
 from obstacles.obstacle_manager import ObstacleManager
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
@@ -16,8 +17,6 @@ from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from puzzle.path_finder import AStarPathFinder
 from puzzle.utils.geometry import key3
-
-from logging_config import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -204,13 +203,11 @@ class Puzzle:
     def print_puzzle_info(self) -> None:
         """Log detailed information about the generated puzzle configuration and results."""
 
-        logger.info("")
         logger.info("%s", "=" * 30)
         logger.info("      PUZZLE INFORMATION")
         logger.info("%s", "=" * 30)
 
         # Configuration Summary
-        logger.info("")
         logger.info("--- Configuration Summary ---")
         logger.info("Seed: %s", self.seed)
         logger.info("Case Shape: %s", self.case_shape.value)
@@ -370,9 +367,7 @@ class Puzzle:
         logger.info("Number of Segments: %s", num_segments)
         if num_segments > 0 and total_path_nodes > 0:
             avg_nodes_per_segment = total_path_nodes / num_segments
-            logger.info(
-                "Average Nodes per Segment: %.1f", avg_nodes_per_segment
-            )
+            logger.info("Average Nodes per Segment: %.1f", avg_nodes_per_segment)
 
         # Segment Details
         if num_segments > 0:
@@ -448,7 +443,6 @@ class Puzzle:
 
         logger.info("")
         logger.info("%s", "=" * 30)
-        logger.info("")
 
     def _check_node_connectivity(self) -> None:
         """

@@ -10,8 +10,8 @@ import logging
 import pkgutil
 from typing import Dict, Type
 
-from obstacles.obstacle import Obstacle
 from logging_config import configure_logging
+from obstacles.obstacle import Obstacle
 
 # Lazy-load guard
 _CATALOGUE_LOADED = False

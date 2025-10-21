@@ -7,7 +7,6 @@ from typing import Dict, Optional
 from build123d import Transition, Vector
 
 import config
-from logging_config import configure_logging
 from cad.path_profile_type_shapes import (
     ACCENT_REGISTRY,
     SUPPORT_REGISTRY,
@@ -15,12 +14,12 @@ from cad.path_profile_type_shapes import (
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
 from config import Config, PathCurveModel, PathCurveType
+from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node
 from puzzle.utils.geometry import snap
 
 from . import curve_detection
-
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -707,9 +706,7 @@ class PathArchitect:
                         new_segments = []
                         for k in range(len(uniq_nodes) - 1):
                             pair = [uniq_nodes[k], uniq_nodes[k + 1]]
-                            is_circ = all(
-                                n.in_circular_grid for n in pair
-                            )
+                            is_circ = all(n.in_circular_grid for n in pair)
                             new_segments.append(
                                 self.make_circular_run(segment, pair, is_circ)
                             )
