@@ -1,8 +1,15 @@
+import logging
+
 from build123d import Location, Pos, Vector
 from ocp_vscode import Camera, set_defaults, show
 
 import config
+from logging_config import configure_logging
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
+
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 def show_obstacles_overview() -> None:
@@ -13,7 +20,7 @@ def show_obstacles_overview() -> None:
     # Retrieve all registered obstacle names
     names = get_available_obstacles()
     if not names:
-        print("No obstacles registered. Did you import the catalogue modules?")
+        logger.warning("No obstacles registered. Did you import the catalogue modules?")
         return
 
     # Instantiate all obstacles

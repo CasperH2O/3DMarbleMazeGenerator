@@ -1,11 +1,13 @@
 # cad/path_architect.py
 
+import logging
 import random
 from typing import Dict, Optional
 
 from build123d import Transition, Vector
 
 import config
+from logging_config import configure_logging
 from cad.path_profile_type_shapes import (
     ACCENT_REGISTRY,
     SUPPORT_REGISTRY,
@@ -18,6 +20,10 @@ from puzzle.node import Node
 from puzzle.utils.geometry import snap
 
 from . import curve_detection
+
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 class PathArchitect:
@@ -257,10 +263,12 @@ class PathArchitect:
                 and len(seg_a.nodes) >= 2
                 and not second_last_a.in_circular_grid
             ):
-                print(
-                    f"Harmonise circular transitions pattern A being done for segments: "
-                    f"A: {seg_a.main_index}.{seg_a.secondary_index} "
-                    f"B: {seg_b.main_index}.{seg_b.secondary_index}"
+                logger.debug(
+                    "Harmonising circular transition pattern A for segments %s.%s and %s.%s",
+                    seg_a.main_index,
+                    seg_a.secondary_index,
+                    seg_b.main_index,
+                    seg_b.secondary_index,
                 )
 
                 # straight midpoint between the non-circular neighbour and the
@@ -297,10 +305,12 @@ class PathArchitect:
                 and len(seg_b.nodes) >= 2
                 and not seg_b.nodes[1].in_circular_grid
             ):
-                print(
-                    f"Harmonise circular transitions pattern B being done for segments: "
-                    f"A: {seg_a.main_index}.{seg_a.secondary_index} "
-                    f"B: {seg_b.main_index}.{seg_b.secondary_index}"
+                logger.debug(
+                    "Harmonising circular transition pattern B for segments %s.%s and %s.%s",
+                    seg_a.main_index,
+                    seg_a.secondary_index,
+                    seg_b.main_index,
+                    seg_b.secondary_index,
                 )
 
                 second_b = seg_b.nodes[1]
@@ -416,9 +426,10 @@ class PathArchitect:
             # Intentionally placed last as override so it does not interfer
             forced = Config.Path.PATH_PROFILE_TYPE_OVERRIDES.get(segment.main_index)
             if forced:
-                print(
-                    f"[Config Override] Segment {segment.main_index} "
-                    f"→ forcing profile {forced.value}"
+                logger.info(
+                    "[Config Override] Segment %s → forcing profile %s",
+                    segment.main_index,
+                    forced.value,
                 )
                 segment.path_profile_type = forced
 

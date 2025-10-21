@@ -20,6 +20,7 @@ MODULE_LOG_LEVELS: MutableMapping[str, Union[int, str]] = {
     "puzzle.puzzle": "INFO",
     "assembly.casing": "INFO",
     "obstacles.obstacle_manager": "DEBUG",
+    "build123d": "WARNING",
 }
 
 # Default color mapping used by ``colorlog`` for level names

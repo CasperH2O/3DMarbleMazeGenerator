@@ -1,6 +1,7 @@
 # obstacles/obstacle.py
 
 import json
+import logging
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -23,6 +24,7 @@ from numpy import linspace
 from ocp_vscode import Camera, set_defaults, show
 
 import config
+from logging_config import configure_logging
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
     PathProfileType,
@@ -37,6 +39,9 @@ from visualization.visualization_helpers import (
     plot_raw_obstacle_path,
     plot_segments,
 )
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 class Obstacle(ABC):
@@ -484,7 +489,12 @@ class Obstacle(ABC):
                     solids = inter.solids()
                     if not solids:
                         if x == 0.0 and y == 0.0 and z == 0.0:
-                            print("xyz 0.0")
+                            logger.debug(
+                                "No intersection solids at cube center (%.3f, %.3f, %.3f)",
+                                x,
+                                y,
+                                z,
+                            )
                         continue
 
                     # Sum volumes in case the intersection yields multiple solids
@@ -497,11 +507,12 @@ class Obstacle(ABC):
                         occupied.append(Node(x, y, z, occupied=True))
 
         elapsed = time.perf_counter() - start_time
-        print(
-            f"determine_occupied_nodes took {elapsed:.3f} s – "
-            f"tested {len(tested_centers)} cubes, "
-            f"occupied nodes: {len(occupied)}, "
-            f"threshold: {min_overlap_pct:.2f}%"
+        logger.info(
+            "determine_occupied_nodes took %.3f s – tested %d cubes, occupied nodes: %d, threshold: %.2f%%",
+            elapsed,
+            len(tested_centers),
+            len(occupied),
+            min_overlap_pct,
         )
 
         return occupied

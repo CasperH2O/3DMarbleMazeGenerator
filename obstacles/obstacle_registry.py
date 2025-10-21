@@ -6,10 +6,12 @@ Registry for all obstacle types.
 
 # obstacles/obstacle_registry.py
 import importlib
+import logging
 import pkgutil
 from typing import Dict, Type
 
 from obstacles.obstacle import Obstacle
+from logging_config import configure_logging
 
 # Lazy-load guard
 _CATALOGUE_LOADED = False
@@ -17,13 +19,16 @@ _CATALOGUE_LOADED = False
 # Registry to hold the mapping from obstacle name (string) to the Obstacle class
 OBSTACLE_REGISTRY: Dict[str, Type[Obstacle]] = {}
 
+configure_logging()
+logger = logging.getLogger(__name__)
+
 
 def register_obstacle(name: str, cls: Type[Obstacle]):
     """Registers an Obstacle subclass in the registry."""
     if not name:
         raise ValueError("Obstacle name cannot be empty.")
     if name in OBSTACLE_REGISTRY:
-        print(f"Warning: Overwriting obstacle registration for '{name}'")
+        logger.warning("Overwriting obstacle registration for '%s'", name)
     if not issubclass(cls, Obstacle):
         raise TypeError(f"Class {cls.__name__} is not a subclass of Obstacle.")
 

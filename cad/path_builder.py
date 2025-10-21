@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 from enum import Enum
@@ -43,6 +44,12 @@ from config import Config, PathCurveModel, PathCurveType
 from puzzle.puzzle import Node, Puzzle
 
 from .path_architect import PathArchitect
+
+from logging_config import configure_logging
+
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 class PathTypes(Enum):
@@ -119,11 +126,12 @@ class PathBuilder:
                 segments[idx + 1] if idx + 1 < len(segments) else None
             )
 
-            """
-            print(
-                f"Segment {segment.main_index}.{segment.secondary_index} of curve mode {segment.curve_model}"
+            logger.debug(
+                "Processing segment %s.%s with curve model %s",
+                segment.main_index,
+                segment.secondary_index,
+                segment.curve_model,
             )
-            """
 
             if segment.curve_model in (
                 PathCurveModel.COMPOUND,
@@ -147,7 +155,12 @@ class PathBuilder:
                     previous_swept_segment=previous_swept_segment,
                 )
             else:
-                print(f"Unsupported curve model: {segment.curve_model}")
+                logger.warning(
+                    "Unsupported curve model for segment %s.%s: %s",
+                    segment.main_index,
+                    segment.secondary_index,
+                    segment.curve_model,
+                )
 
             # Store the processed segment back (in case it was modified)
             segments[idx] = segment
@@ -328,8 +341,9 @@ class PathBuilder:
             if len(cleaned_points) >= 2:
                 segment.path = Polyline([(p.X, p.Y, p.Z) for p in cleaned_points])
         else:
-            print(
-                f"Define standard segment received a segment with a single point: {sub_path_points[0]}"
+            logger.warning(
+                "Define standard segment received a segment with a single point: %s",
+                sub_path_points[0],
             )
 
         return segment
@@ -350,12 +364,12 @@ class PathBuilder:
         path_line_angle = 0
         profile_angle = -90
 
-        """
-        print(
-            f"Sweep Segment {segment.main_index}.{segment.secondary_index} "
-            f"of curve mode {segment.curve_model}"
+        logger.debug(
+            "Sweeping segment %s.%s with curve model %s",
+            segment.main_index,
+            segment.secondary_index,
+            segment.curve_model,
         )
-        """
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
         if previous_segment is not None:
@@ -629,7 +643,12 @@ class PathBuilder:
             # print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
 
             if spline_points is None or len(spline_points) < 2:
-                print(f"Option {opt_idx}: Not enough points to create a spline.")
+                logger.debug(
+                    "Option %d: Not enough points to create a spline for segment %s.%s.",
+                    opt_idx,
+                    segment.main_index,
+                    segment.secondary_index,
+                )
                 continue
 
             # Create the spline with tangents
@@ -662,15 +681,20 @@ class PathBuilder:
 
                 # Check if bodies are valid
                 if path_body is None or not path_body.part.is_valid():
-                    print(
-                        f"Check segment {segment.main_index}.{segment.secondary_index} has an invalid path body?"
+                    logger.warning(
+                        "Segment %s.%s spline option %d produced an invalid path body.",
+                        segment.main_index,
+                        segment.secondary_index,
+                        opt_idx,
                     )
 
                 # Check if body is valid, try other approach if faces intersect
                 if path_body and do_faces_intersect(path_body.part):
-                    print(
-                        f"Segment {segment.main_index}.{segment.secondary_index}, "
-                        f"spline option {opt_idx}, main body self-intersection"
+                    logger.warning(
+                        "Segment %s.%s spline option %d encountered a main body self-intersection.",
+                        segment.main_index,
+                        segment.secondary_index,
+                        opt_idx,
                     )
                     continue
 
@@ -688,9 +712,11 @@ class PathBuilder:
 
                     # Check if body is valid, try other approach if faces intersect
                     if accent_body and do_faces_intersect(accent_body.part):
-                        print(
-                            f"Segment {segment.main_index}.{segment.secondary_index}, "
-                            f"spline option {opt_idx}, accent body self-intersection"
+                        logger.warning(
+                            "Segment %s.%s spline option %d encountered an accent body self-intersection.",
+                            segment.main_index,
+                            segment.secondary_index,
+                            opt_idx,
                         )
                         continue
 
@@ -708,9 +734,11 @@ class PathBuilder:
 
                     # Check if body is valid, try other approach if faces intersect
                     if support_body and do_faces_intersect(support_body.part):
-                        print(
-                            f"Segment {segment.main_index}.{segment.secondary_index}, "
-                            f"spline option {opt_idx}, support body self-intersection"
+                        logger.warning(
+                            "Segment %s.%s spline option %d encountered a support body self-intersection.",
+                            segment.main_index,
+                            segment.secondary_index,
+                            opt_idx,
                         )
                         continue
 
@@ -729,15 +757,21 @@ class PathBuilder:
 
             except Exception as e:
                 # The spline creation failed, try the next option
-                print(
-                    f"Option {opt_idx}: Spline creation failed for segment {segment.main_index}.{segment.secondary_index} with error: {e}"
+                logger.warning(
+                    "Option %d: Spline creation failed for segment %s.%s with error: %s",
+                    opt_idx,
+                    segment.main_index,
+                    segment.secondary_index,
+                    e,
                 )
                 continue
 
         # Fallback, build as a COMPOUND of standard sub‐segments
-        print(
-            f"Segment {segment.main_index}.{segment.secondary_index}, spline not possible. "
-            f"Falling back to {PathCurveModel.COMPOUND.name} for segment "
+        logger.info(
+            "Segment %s.%s spline not possible. Falling back to %s.",
+            segment.main_index,
+            segment.secondary_index,
+            PathCurveModel.COMPOUND.name,
         )
 
         # Handle different node grid types, create sub segments
@@ -956,7 +990,7 @@ class PathBuilder:
                     # Skip puzzle end, finish box cut's it's own hole
                     # FIXME puzzle end is apparently not found here
                     if node.puzzle_end:
-                        print("Node puzzle end found!")
+                        logger.debug("Skipping puzzle end node at index %d", idx)
                         continue
 
                     # Skip nodes that do not lie on the path, ie on curves
@@ -1052,8 +1086,10 @@ class PathBuilder:
 
         # If none type, print warning and return 0 degrees
         if previous_segment.path_body is None:
-            print(
-                f"Segment {previous_segment.main_index}.{previous_segment.secondary_index} has no path body"
+            logger.warning(
+                "Segment %s.%s has no path body when determining profile angle.",
+                previous_segment.main_index,
+                previous_segment.secondary_index,
             )
             return 0
 
@@ -1093,8 +1129,12 @@ class PathBuilder:
                         return angle
 
         # If no matching angle found, notify and return 0 degrees
-        print(
-            f"No matching profile type angle found for segment {previous_segment.main_index}.{previous_segment.secondary_index} to segment {current_segment.main_index}.{current_segment.secondary_index}"
+        logger.info(
+            "No matching profile type angle found for segment %s.%s to segment %s.%s.",
+            previous_segment.main_index,
+            previous_segment.secondary_index,
+            current_segment.main_index,
+            current_segment.secondary_index,
         )
 
         return 0
@@ -1291,9 +1331,11 @@ def sweep_single_profile(
         return sweep_result
 
     except Exception as e:
-        print(
-            f"Error sweeping {sweep_label.lower()} for segment "
-            f"{segment.main_index}.{segment.secondary_index}: {e}"
+        logger.exception(
+            "Error sweeping %s for segment %s.%s",
+            sweep_label.lower(),
+            segment.main_index,
+            segment.secondary_index,
         )
         return None
 
@@ -1301,7 +1343,9 @@ def sweep_single_profile(
 def round_to_nearest_90(value: float) -> float:
     if value not in [-180, -90, 0, 90, 180]:
         rounded_value = round(value / 90) * 90
-        print(f"Warning: {value} was rounded to {rounded_value}")
+        logger.warning(
+            "Angle %s was rounded to %s", value, rounded_value
+        )
     else:
         rounded_value = value
 
