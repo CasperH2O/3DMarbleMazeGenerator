@@ -99,15 +99,14 @@ def display_parts(
 
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
+    # Display the ball and its path
+    show_object([ball, ball_path], name="Path Indcator")
+
     if case_parts:
         if len(case_parts) == 1:
             show_object(case_parts[0])
         else:
             show_object(case_parts, name="Casing")
-
-    # Display each part from the base
-    if base_parts:
-        show_object(base_parts, name="Base")
 
     # The paths, standard paths, support path and coloring path
     if standard_paths:
@@ -126,8 +125,9 @@ def display_parts(
         # TODO, prevent when empty
         show_object(obstacle_extras, name="Obstacle Extra's")
 
-    # Display the ball and its path
-    show_object([ball, ball_path], name="Path Indcator")
+    # Display each part from the base
+    if base_parts:
+        show_object(base_parts, name="Base")
 
 
 def set_viewer():
