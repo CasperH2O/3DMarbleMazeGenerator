@@ -6,6 +6,8 @@ import logging
 from logging.config import dictConfig
 from typing import Dict, Mapping, MutableMapping, Optional, Union
 
+from colorlog import ColoredFormatter
+
 # Default format applied to all log records
 DEFAULT_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
@@ -19,6 +21,20 @@ MODULE_LOG_LEVELS: MutableMapping[str, Union[int, str]] = {
     "assembly.casing": "INFO",
     "obstacles.obstacle_manager": "DEBUG",
 }
+
+# Default color mapping used by ``colorlog`` for level names
+DEFAULT_LOG_COLORS: Dict[str, str] = {
+    "DEBUG": "cyan",
+    "INFO": "green",
+    "WARNING": "yellow",
+    "ERROR": "red",
+    "CRITICAL": "bold_red",
+}
+
+# Default format applied when color support is available via ``colorlog``
+DEFAULT_COLOR_LOG_FORMAT = (
+    "%(asctime)s [%(log_color)s%(levelname)s%(reset)s] %(name)s: %(message)s"
+)
 
 
 def _normalize_level(level: Union[int, str]) -> Union[int, str]:
@@ -39,14 +55,19 @@ def build_logging_config(
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "standard": {
+            "color": {
+                "()": ColoredFormatter,
+                "format": DEFAULT_COLOR_LOG_FORMAT,
+                "log_colors": DEFAULT_LOG_COLORS,
+            },
+            "plain": {
                 "format": DEFAULT_LOG_FORMAT,
-            }
+            },
         },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "formatter": "standard",
+                "formatter": "color",
             }
         },
         "root": {
