@@ -1,5 +1,6 @@
 # obstacles/obstacle_manager.py
 
+import logging
 import math
 import random
 import time
@@ -13,6 +14,11 @@ from config import Config
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
+
+from logging_config import configure_logging
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 def _quantize_coord(val: float, node_size: float) -> float:
@@ -79,13 +85,13 @@ class ObstacleManager:
         if Config.Obstacles.MANUAL_PLACEMENT_ENABLED:
             manual_counts = self._apply_manual_placements()
         else:
-            print("Manual obstacle placement disabled via config.")
+            logger.info("Manual obstacle placement disabled via config.")
 
         # Automatic (random) placement
         if Config.Obstacles.RANDOM_PLACEMENT_ENABLED:
             self._apply_automatic_placements(manual_counts)
         else:
-            print("Automatic obstacle placement disabled via config.")
+            logger.info("Automatic obstacle placement disabled via config.")
 
         # Summary of obstacle placement
         self._print_placement_summary()
@@ -108,7 +114,7 @@ class ObstacleManager:
         """
         types = allowed_types[:] if allowed_types else get_available_obstacles()
         if not types:
-            print("No obstacle types available.")
+            logger.warning("No obstacle types available.")
             return
 
         total_target = max(0, int(num_to_place))
@@ -116,17 +122,19 @@ class ObstacleManager:
         placed_total = 0
         cycle_idx = 0
 
-        print(
-            f"Starting placement: Target={total_target}, "
-            f"AttemptsPerPlacement={attempts_per_placement}, "
-            f"PerTypeLimit={per_type_limit}, "
-            f"SeedCounts={dict(counts)}"  # <— NEW (debug)
+        logger.info(
+            "Starting placement: Target=%s, AttemptsPerPlacement=%s, PerTypeLimit=%s, SeedCounts=%s",
+            total_target,
+            attempts_per_placement,
+            per_type_limit,
+            dict(counts),
         )
 
         while placed_total < total_target:
             cycle_progress = False
             cycle_idx += 1
-            print(f"\n=== Cycle {cycle_idx} ===")
+            logger.info("")
+            logger.info("=== Cycle %s ===", cycle_idx)
 
             for obstacle_name in types:
                 if placed_total >= total_target:
@@ -136,8 +144,10 @@ class ObstacleManager:
                     per_type_limit is not None
                     and counts[obstacle_name] >= per_type_limit
                 ):
-                    print(
-                        f" Skipping '{obstacle_name}' (reached per-type limit {per_type_limit})."
+                    logger.info(
+                        "Skipping '%s' (reached per-type limit %s).",
+                        obstacle_name,
+                        per_type_limit,
                     )
                     continue
 
@@ -149,15 +159,20 @@ class ObstacleManager:
                     counts[obstacle_name] += 1
                     placed_total += 1
                     cycle_progress = True
-                    print(
-                        f" -> Placed '{obstacle_name}'. Totals: placed={placed_total}/{total_target} "
-                        f"(this type={counts[obstacle_name]})"
+                    logger.info(
+                        " -> Placed '%s'. Totals: placed=%s/%s (this type=%s)",
+                        obstacle_name,
+                        placed_total,
+                        total_target,
+                        counts[obstacle_name],
                     )
                 else:
-                    print(f" -> Could not place '{obstacle_name}' in this cycle.")
+                    logger.info(
+                        " -> Could not place '%s' in this cycle.", obstacle_name
+                    )
 
             if not cycle_progress:
-                print("No further placements possible with current constraints.")
+                logger.warning("No further placements possible with current constraints.")
                 break
 
     def _apply_automatic_placements(self, manual_counts: Counter):
@@ -173,12 +188,13 @@ class ObstacleManager:
         # Keep order from config; filter out unknowns gracefully.
         allowed = [t for t in obstacle_types if t in available]
         if not allowed:
-            print(
-                f"No allowed obstacle types found from config list "
-                f"{obstacle_types}. Available: {available}"
+            logger.warning(
+                "No allowed obstacle types found from config list %s. Available: %s",
+                obstacle_types,
+                available,
             )
         else:
-            print(f"Allowed obstacle types (ordered): {allowed}")
+            logger.info("Allowed obstacle types (ordered): %s", allowed)
 
         start_time = time.perf_counter()
 
@@ -210,12 +226,15 @@ class ObstacleManager:
         if not manual_specs:
             return manual_counts
 
-        print("\n=== Manual placements ===")
+        logger.info("")
+        logger.info("=== Manual placements ===")
         for index, spec in enumerate(manual_specs, start=1):
             enabled = bool(spec.get("enabled", False))
             obstacle_name = spec.get("name")
             if not enabled:
-                print(f" Manual #{index}, {obstacle_name}: disabled -> skipping")
+                logger.info(
+                    "Manual #%s, %s: disabled -> skipping", index, obstacle_name
+                )
                 continue
 
             origin_tuple = tuple(spec.get("origin", (0.0, 0.0, 0.0)))
@@ -245,15 +264,21 @@ class ObstacleManager:
             obstacle.set_placement(world_T * world_R)
             obstacle.rotation_angles_deg = (angle_x, angle_y, angle_z)
             obstacle.grid_origin = (qx, qy, qz)
-            print(
-                f" Manual #{index}: '{obstacle_name}' origin={obstacle.grid_origin}, rot={(angle_x, angle_y, angle_z)}"
+            logger.info(
+                "Manual #%s: '%s' origin=%s, rot=%s",
+                index,
+                obstacle_name,
+                obstacle.grid_origin,
+                (angle_x, angle_y, angle_z),
             )
 
             # Validate space on the node grid
             is_valid = self._is_placement_valid(obstacle, debug=True)
-            print(f"  -> Manual placement valid? {is_valid}")
+            logger.info("  -> Manual placement valid? %s", is_valid)
             if not is_valid:
-                print(f"  -> Manual #{index} FAILED validation -> not placed")
+                logger.warning(
+                    "  -> Manual #%s FAILED validation -> not placed", index
+                )
                 continue
 
             # Succesful place, include obstacle
@@ -264,9 +289,9 @@ class ObstacleManager:
             manual_counts[obstacle_name] += 1
 
         if manual_counts:
-            print(f"Manual placements done. Counts: {dict(manual_counts)}")
+            logger.info("Manual placements done. Counts: %s", dict(manual_counts))
         else:
-            print("No manual placements were made.")
+            logger.info("No manual placements were made.")
         return manual_counts
 
     def _try_place_one(self, obstacle_name: str, max_attempts: int) -> bool:
@@ -311,15 +336,25 @@ class ObstacleManager:
 
             # Debug prints
             xmin, xmax, ymin, ymax, zmin, zmax = region
-            print(
-                f" Attempt {attempts + 1}: '{obstacle_name}' origin={obstacle.grid_origin}, "
-                f"rot={obstacle.rotation_angles_deg} | interior candidates={len(interior_nodes)} | placement pool={len(pool)} "
-                f"within x[{xmin},{xmax}] y[{ymin},{ymax}] z[{zmin},{zmax}]"
+            logger.debug(
+                "Attempt %s: '%s' origin=%s, rot=%s | interior candidates=%s | placement pool=%s within x[%s,%s] y[%s,%s] z[%s,%s]",
+                attempts + 1,
+                obstacle_name,
+                obstacle.grid_origin,
+                obstacle.rotation_angles_deg,
+                len(interior_nodes),
+                len(pool),
+                xmin,
+                xmax,
+                ymin,
+                ymax,
+                zmin,
+                zmax,
             )
 
             # Validate
             valid = self._is_placement_valid(obstacle, debug=True)
-            print(f"  -> Placement valid? {valid}")
+            logger.debug("  -> Placement valid? %s", valid)
             if valid:
                 self.placed_obstacles.append(obstacle)
                 self._occupy_nodes_for_obstacle(obstacle)
@@ -354,14 +389,14 @@ class ObstacleManager:
         for n in occupied_nodes + overlap_nodes:
             if (n.x, n.y, n.z) not in self.node_dict:
                 if debug:
-                    print(f"    Node {(n.x, n.y, n.z)} is outside grid.")
+                    logger.debug("    Node %s is outside grid.", (n.x, n.y, n.z))
                 return False
 
         # Collision check
         for n in occupied_nodes:
             if (n.x, n.y, n.z) in self.occupied_positions:
                 if debug:
-                    print(f"    Node {(n.x, n.y, n.z)} collides.")
+                    logger.debug("    Node %s collides.", (n.x, n.y, n.z))
                 return False
 
         return True
@@ -388,18 +423,23 @@ class ObstacleManager:
         # TODO some consolidation of marking these nodes and aligning them with the grid, happens both here and in obstacle class
         coords = obstacle.get_placed_entry_exit_coords()
         if not coords:
-            print(" No entry/exit coords.")
+            logger.info("No entry/exit coords.")
             return
         entry, exit = coords
         ex = tuple(_quantize_coord(c, self.node_size) for c in entry)
         et = tuple(_quantize_coord(c, self.node_size) for c in exit)
-        print(f" Entry quantized: {ex}, Exit quantized: {et}")
+        logger.info("Entry quantized: %s, Exit quantized: %s", ex, et)
         entry_node = self._find_closest_node(ex)
         exit_node = self._find_closest_node(et)
         if entry_node:
-            print(f"  Found entry node at {(entry_node.x, entry_node.y, entry_node.z)}")
+            logger.info(
+                "  Found entry node at %s",
+                (entry_node.x, entry_node.y, entry_node.z),
+            )
         if exit_node:
-            print(f"  Found exit node at {(exit_node.x, exit_node.y, exit_node.z)}")
+            logger.info(
+                "  Found exit node at %s", (exit_node.x, exit_node.y, exit_node.z)
+            )
         if entry_node:
             obstacle.entry_node = entry_node
             entry_node.waypoint = True
@@ -410,20 +450,32 @@ class ObstacleManager:
             exit_node.occupied = True
             exit_node.is_obstacle_exit = True
         elif exit_node == entry_node:
-            print(f"Warning: Entry and Exit nodes are the same for {obstacle.name}")
+            logger.warning(
+                "Entry and exit nodes are the same for %s", obstacle.name
+            )
 
     def _print_placement_summary(self):
-        """Print a summary of all placed obstacles including count, names, origins, rotations, and timing."""
+        """Log a summary of all placed obstacles including count, names, origins, rotations, and timing."""
         total = len(self.placed_obstacles)
         by_type = Counter([o.name for o in self.placed_obstacles])
-        print("\nObstacle Placement Summary:")
-        print(f"Total obstacles placed: {total}  |  By type: {dict(by_type)}")
-        print(f"Placement time: {self.placement_time:.3f} seconds")
+        logger.info("")
+        logger.info("Obstacle Placement Summary:")
+        logger.info(
+            "Total obstacles placed: %s  |  By type: %s", total, dict(by_type)
+        )
+        logger.info("Placement time: %.3f seconds", self.placement_time)
         for obs in self.placed_obstacles:
             ox, oy, oz = obs.grid_origin
             ax, ay, az = obs.rotation_angles_deg
-            print(
-                f"- {obs.name}: Origin=({ox},{oy},{oz}), Rotation=(X:{ax}°,Y:{ay}°,Z:{az}°)"
+            logger.info(
+                "- %s: Origin=(%s,%s,%s), Rotation=(X:%s°,Y:%s°,Z:%s°)",
+                obs.name,
+                ox,
+                oy,
+                oz,
+                ax,
+                ay,
+                az,
             )
 
     def _find_closest_node(self, target_coord: tuple) -> Optional[Node]:

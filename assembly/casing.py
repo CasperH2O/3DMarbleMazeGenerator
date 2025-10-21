@@ -1,5 +1,7 @@
 # assembly/casing.py
 
+import logging
+
 from build123d import Part, SortBy
 
 from cad.cases.case_model_base import CasePart
@@ -11,6 +13,10 @@ from cad.cases.case_model_sphere_with_flange_enclosed_two_sides import (
     CaseSphereWithFlangeEnclosedTwoSides,
 )
 from config import CaseShape, Config
+from logging_config import configure_logging
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 def puzzle_casing():
@@ -99,7 +105,7 @@ def merge_standard_paths_with_case(
                 # and bridge does not connect to path.
                 # Probably a path profile at a wrong orientation
                 if matched_sp_idx is None:
-                    print("Unable to match bridge with standard path segment.")
+                    logger.warning("Unable to match bridge with standard path segment.")
                     continue
 
                 # Subtract the standard path from the bridge, to make it flush

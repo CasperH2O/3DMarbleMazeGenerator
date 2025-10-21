@@ -1,5 +1,6 @@
 # puzzle/puzzle.py
 
+import logging
 import random
 from collections import Counter, defaultdict
 from typing import Optional
@@ -15,6 +16,11 @@ from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from puzzle.path_finder import AStarPathFinder
 from puzzle.utils.geometry import key3
+
+from logging_config import configure_logging
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 class Puzzle:
@@ -150,8 +156,9 @@ class Puzzle:
         ]
         if len(unoccupied_nodes) < num_waypoints:
             num_waypoints = len(unoccupied_nodes)
-            print(
-                f"Reduced number of waypoints to {num_waypoints} due to limited unoccupied nodes."
+            logger.warning(
+                "Reduced number of waypoints to %s due to limited unoccupied nodes.",
+                num_waypoints,
             )
 
         random.seed(self.seed)
@@ -192,50 +199,61 @@ class Puzzle:
                 waypoints.append(best_candidate)
                 unoccupied_nodes.remove(best_candidate)
             else:
-                print("No suitable candidate found for waypoint selection.")
+                logger.warning("No suitable candidate found for waypoint selection.")
 
     def print_puzzle_info(self) -> None:
-        """
-        Prints detailed information about the generated puzzle configuration and results.
-        """
-        print("\n" + "=" * 30)
-        print("      PUZZLE INFORMATION")
-        print("=" * 30)
+        """Log detailed information about the generated puzzle configuration and results."""
+
+        logger.info("")
+        logger.info("%s", "=" * 30)
+        logger.info("      PUZZLE INFORMATION")
+        logger.info("%s", "=" * 30)
 
         # Configuration Summary
-        print("\n--- Configuration Summary ---")
-        print(f"Seed: {self.seed}")
-        print(f"Case Shape: {self.case_shape.value}")
+        logger.info("")
+        logger.info("--- Configuration Summary ---")
+        logger.info("Seed: %s", self.seed)
+        logger.info("Case Shape: %s", self.case_shape.value)
         if hasattr(Config.Puzzle, "CASE_MANUFACTURER"):
-            print(f"Manufacturer Profile: {Config.Puzzle.CASE_MANUFACTURER.value}")
-        if hasattr(Config.Puzzle, "THEME"):
-            print(f"Theme: {Config.Puzzle.THEME.value}")
-        print(f"Node Size (mm): {self.node_size}")
-        print(f"Ball Diameter (mm): {Config.Puzzle.BALL_DIAMETER}")
-        if isinstance(self.casing, SphereCasing):
-            print(f"Sphere Diameter (mm): {Config.Sphere.SPHERE_DIAMETER}")
-        elif isinstance(self.casing, BoxCasing):
-            print(
-                f"Box Dimensions (LxWxH mm): {Config.Box.LENGTH} x {Config.Box.WIDTH} x {Config.Box.HEIGHT}"
+            logger.info(
+                "Manufacturer Profile: %s", Config.Puzzle.CASE_MANUFACTURER.value
             )
-        print(f"Requested Waypoints: {Config.Puzzle.NUMBER_OF_WAYPOINTS}")
+        if hasattr(Config.Puzzle, "THEME"):
+            logger.info("Theme: %s", Config.Puzzle.THEME.value)
+        logger.info("Node Size (mm): %s", self.node_size)
+        logger.info("Ball Diameter (mm): %s", Config.Puzzle.BALL_DIAMETER)
+        if isinstance(self.casing, SphereCasing):
+            logger.info("Sphere Diameter (mm): %s", Config.Sphere.SPHERE_DIAMETER)
+        elif isinstance(self.casing, BoxCasing):
+            logger.info(
+                "Box Dimensions (LxWxH mm): %s x %s x %s",
+                Config.Box.LENGTH,
+                Config.Box.WIDTH,
+                Config.Box.HEIGHT,
+            )
+        logger.info("Requested Waypoints: %s", Config.Puzzle.NUMBER_OF_WAYPOINTS)
 
         # Allowed Settings
-        print("\n--- Allowed Path Settings (from Config) ---")
-        print(
-            f"Allowed Curve Models: {', '.join(m.value for m in Config.Path.PATH_CURVE_MODEL)}"
+        logger.info("")
+        logger.info("--- Allowed Path Settings (from Config) ---")
+        logger.info(
+            "Allowed Curve Models: %s",
+            ", ".join(m.value for m in Config.Path.PATH_CURVE_MODEL),
         )
-        print(
-            f"Allowed Profile Types: {', '.join(p.value for p in Config.Path.PATH_PROFILE_TYPES)}"
+        logger.info(
+            "Allowed Profile Types: %s",
+            ", ".join(p.value for p in Config.Path.PATH_PROFILE_TYPES),
         )
-        print(
-            f"Allowed Curve Types for Detection: {', '.join(c.value for c in Config.Path.PATH_CURVE_TYPE)}"
+        logger.info(
+            "Allowed Curve Types for Detection: %s",
+            ", ".join(c.value for c in Config.Path.PATH_CURVE_TYPE),
         )
 
         # Node Grid Summary
-        print("\n--- Node Grid Summary ---")
+        logger.info("")
+        logger.info("--- Node Grid Summary ---")
         total_nodes_generated = len(self.nodes)
-        print(f"Total Nodes Generated: {total_nodes_generated}")
+        logger.info("Total Nodes Generated: %s", total_nodes_generated)
 
         start_node = next((node for node in self.nodes if node.puzzle_start), None)
         end_node = next((node for node in self.nodes if node.puzzle_end), None)
@@ -245,12 +263,14 @@ class Puzzle:
 
         all_waypoints_in_grid = [node for node in self.nodes if node.waypoint]
 
-        print(
-            f"Occupied Nodes (Path): {occupied_count} ({occupied_count / total_nodes_generated:.1%})"
-            if total_nodes_generated
-            else "Occupied Nodes (Path): 0"
-        )
-        print(f"Total Waypoints in Grid: {len(all_waypoints_in_grid)}")
+        if total_nodes_generated:
+            occupied_pct = occupied_count / total_nodes_generated * 100
+            logger.info(
+                "Occupied Nodes (Path): %s (%.1f%%)", occupied_count, occupied_pct
+            )
+        else:
+            logger.info("Occupied Nodes (Path): 0")
+        logger.info("Total Waypoints in Grid: %s", len(all_waypoints_in_grid))
 
         # Start Waypoint Pattern/Stats Logic
         waypoint_labels = []
@@ -269,33 +289,31 @@ class Puzzle:
                 elif is_end:
                     current_label = "End"
                     last_wp_node = node
-                elif is_waypoint:
-                    if node != last_wp_node:
-                        current_label = "M" if node.mounting else "N"
-                        last_wp_node = node
+                elif is_waypoint and node != last_wp_node:
+                    current_label = "M" if node.mounting else "N"
+                    last_wp_node = node
 
                 if current_label:
                     waypoint_labels.append(current_label)
 
             # Generate Symbolic Pattern
-            symbolic_pattern_parts = []
             symbol_map = {
                 "Start": "Start",
                 "End": "End",
                 "M": "|",
                 "N": ".",
             }
-            for label in waypoint_labels:
-                symbolic_pattern_parts.append(symbol_map.get(label, "?"))
-            symbolic_pattern = " ".join(symbolic_pattern_parts)
-            print(f"Waypoint Pattern: {symbolic_pattern}")
+            symbolic_pattern = " ".join(
+                symbol_map.get(label, "?") for label in waypoint_labels
+            )
+            logger.info("Waypoint Pattern: %s", symbolic_pattern)
 
             # Generate Gap Statistics
             gap_sizes = []
             current_n_count = 0
             found_first_mount = False
 
-            for i, label in enumerate(waypoint_labels):
+            for label in waypoint_labels:
                 if label == "N":
                     current_n_count += 1
                 elif label == "M":
@@ -308,93 +326,129 @@ class Puzzle:
             actual_mount_count = waypoint_labels.count("M")
             actual_random_count = waypoint_labels.count("N")
 
-            print(
-                f"Waypoint Stats: {actual_mount_count} mounting points, {actual_random_count} non-mounting points"
+            logger.info(
+                "Waypoint Stats: %s mounting points, %s non-mounting points",
+                actual_mount_count,
+                actual_random_count,
             )
 
         else:  # If no self.total_path
-            print("Waypoint Stats: No path generated.")
+            logger.info("Waypoint Stats: No path generated.")
         # End Waypoint Pattern/Stats Logic
 
         if start_node:
-            print(
-                f"Start Node X: {start_node.x:.1f}, Y: {start_node.y:.1f}, Z: {start_node.z:.1f}"
+            logger.info(
+                "Start Node X: %.1f, Y: %.1f, Z: %.1f",
+                start_node.x,
+                start_node.y,
+                start_node.z,
             )
         if end_node:
-            print(
-                f"End Node   X: {end_node.x:.1f}, Y: {end_node.y:.1f}, Z: {end_node.z:.1f}"
+            logger.info(
+                "End Node   X: %.1f, Y: %.1f, Z: %.1f",
+                end_node.x,
+                end_node.y,
+                end_node.z,
             )
 
         rect_count = sum(1 for node in self.nodes if node.in_rectangular_grid)
         circ_count = sum(1 for node in self.nodes if node.in_circular_grid)
-        print(f"Node Grid Types: Rectangular={rect_count}, Circular={circ_count}")
+        logger.info(
+            "Node Grid Types: Rectangular=%s, Circular=%s", rect_count, circ_count
+        )
 
         # Path Summary
-        print("\n--- Path Summary ---")
+        logger.info("")
+        logger.info("--- Path Summary ---")
         total_path_nodes = len(self.total_path) if self.total_path else 0
         num_segments = (
             len(self.path_architect.segments)
             if self.path_architect and self.path_architect.segments
             else 0
         )
-        print(f"Total Path Length (nodes): {total_path_nodes}")
-        print(f"Number of Segments: {num_segments}")
+        logger.info("Total Path Length (nodes): %s", total_path_nodes)
+        logger.info("Number of Segments: %s", num_segments)
         if num_segments > 0 and total_path_nodes > 0:
             avg_nodes_per_segment = total_path_nodes / num_segments
-            print(f"Average Nodes per Segment: {avg_nodes_per_segment:.1f}")
+            logger.info(
+                "Average Nodes per Segment: %.1f", avg_nodes_per_segment
+            )
 
         # Segment Details
         if num_segments > 0:
-            print("\n--- Segment Details ---")
+            logger.info("")
+            logger.info("--- Segment Details ---")
             segments = self.path_architect.segments
 
             # Profile Type Distribution
             profile_counter = Counter(
                 s.path_profile_type for s in segments if s.path_profile_type
             )
-            print("Profile Type Distribution:")
+            logger.info("Profile Type Distribution:")
             for profile_type, count in profile_counter.most_common():
-                print(f"  - {profile_type.value}: {count} ({count / num_segments:.1%})")
+                logger.info(
+                    "  - %s: %s (%.1f%%)",
+                    profile_type.value,
+                    count,
+                    (count / num_segments) * 100,
+                )
 
             # Curve Model Distribution
             model_counter = Counter(s.curve_model for s in segments if s.curve_model)
-            print("Curve Model Distribution:")
+            logger.info("Curve Model Distribution:")
             for model, count in model_counter.most_common():
-                print(f"  - {model.value}: {count} ({count / num_segments:.1%})")
+                logger.info(
+                    "  - %s: %s (%.1f%%)",
+                    model.value,
+                    count,
+                    (count / num_segments) * 100,
+                )
 
             # Curve Type Distribution (Specific Curves)
             curve_type_counter = Counter(s.curve_type for s in segments if s.curve_type)
-            print("Detected Curve Type Distribution:")
+            logger.info("Detected Curve Type Distribution:")
             if curve_type_counter:
                 num_curved_segments = sum(curve_type_counter.values())
-                num_straight_segments = num_segments - num_curved_segments
+                num_straight_segments = max(0, num_segments - num_curved_segments)
                 for curve_type, count in curve_type_counter.most_common():
-                    print(
-                        f"  - {curve_type.value}: {count} ({count / num_segments:.1%})"
+                    logger.info(
+                        "  - %s: %s (%.1f%%)",
+                        curve_type.value,
+                        count,
+                        (count / num_segments) * 100,
                     )
-                num_straight_segments = max(0, num_straight_segments)
-                print(
-                    f"  - Straight (Implicit): {num_straight_segments} ({num_straight_segments / num_segments:.1%})"
+                logger.info(
+                    "  - Straight (Implicit): %s (%.1f%%)",
+                    num_straight_segments,
+                    (num_straight_segments / num_segments) * 100,
                 )
             else:
-                print("  - All segments appear straight or undefined.")
+                logger.info("  - All segments appear straight or undefined.")
 
             # Transition Type Distribution
             transition_counter = Counter(
                 s.transition_type for s in segments if s.transition_type
             )
-            print("Transition Type Distribution:")
+            logger.info("Transition Type Distribution:")
             for transition, count in transition_counter.most_common():
                 transition_name = (
                     transition.name if hasattr(transition, "name") else str(transition)
                 )
-                print(f"  - {transition_name}: {count} ({count / num_segments:.1%})")
+                logger.info(
+                    "  - %s: %s (%.1f%%)",
+                    transition_name,
+                    count,
+                    (count / num_segments) * 100,
+                )
 
         else:
-            print("\n--- Path Segments ---")
-            print("No path segments generated.")
+            logger.info("")
+            logger.info("--- Path Segments ---")
+            logger.info("No path segments generated.")
 
-        print("\n" + "=" * 30 + "\n")
+        logger.info("")
+        logger.info("%s", "=" * 30)
+        logger.info("")
 
     def _check_node_connectivity(self) -> None:
         """
@@ -427,9 +481,10 @@ class Puzzle:
             if not to_prune:
                 break
 
-            print(
-                f"[Warning] Pruning {len(to_prune)} node(s) with ≤1 neighbour "
-                f"[iteration {iteration}]"
+            logger.warning(
+                "Pruning %s node(s) with ≤1 neighbour [iteration %s]",
+                len(to_prune),
+                iteration,
             )
             for n in to_prune[:max_report]:
                 tags = []
@@ -438,9 +493,15 @@ class Puzzle:
                 if getattr(n, "waypoint", False):
                     tags.append("waypoint")
                 tag_str = f" [{', '.join(tags)}]" if tags else ""
-                print(f"    - ({n.x:.1f}, {n.y:.1f}, {n.z:.1f}){tag_str}")
+                logger.warning(
+                    "    - (%.1f, %.1f, %.1f)%s",
+                    n.x,
+                    n.y,
+                    n.z,
+                    tag_str,
+                )
             if len(to_prune) > max_report:
-                print(f"    … and {len(to_prune) - max_report} more")
+                logger.warning("    … and %s more", len(to_prune) - max_report)
 
             # Remove from nodes and node_dict
             for n in to_prune:
@@ -456,11 +517,11 @@ class Puzzle:
             self.start_node
             and len(self.path_finder.get_neighbors(self, self.start_node)) < 1
         ):
-            print(
-                "[Warning] Start node has no neighbour after pruning; pathfinding may fail."
+            logger.warning(
+                "Start node has no neighbour after pruning; pathfinding may fail."
             )
 
         if total_pruned > 0:
-            print(
-                f"[Info] Connectivity pruning complete. Removed {total_pruned} node(s)."
+            logger.info(
+                "Connectivity pruning complete. Removed %s node(s).", total_pruned
             )

@@ -1,11 +1,16 @@
 # puzzle/path_finder.py
 
 import heapq
+import logging
 from typing import Any, Optional, Set, Tuple
 
 from cad.cases.case_model_base import CaseShape
+from logging_config import configure_logging
 from puzzle.node import Node
 from puzzle.utils.geometry import euclidean_distance, key3, manhattan_distance
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 Coordinate = Tuple[float, float, float]
 
@@ -54,7 +59,9 @@ class AStarPathFinder:
             candidate = node_dict.get(coord)
             if candidate:
                 neighbors.append((candidate, node_size))
-                # print(f"[DEBUG] Cardinal neighbor found at {coord} with cost {node_size}")
+                logger.debug(
+                    "Cardinal neighbor found at %s with cost %s", coord, node_size
+                )
 
         # Cache a copy of the circular nodes that share the current z-plane so we can
         # reuse the list when evaluating near-cardinal and ring-only links. This
@@ -212,7 +219,7 @@ class AStarPathFinder:
                 puzzle.get_circular_plane_level(target_z_below), target_z_below
             )
 
-        # print(f"[DEBUG] Total neighbors found: {len(neighbors)}")
+        logger.debug("Total neighbors found: %d", len(neighbors))
         return neighbors
 
     def find_path(
@@ -335,7 +342,7 @@ class AStarPathFinder:
     ) -> None:
         """
         Checks if all required mounting waypoints were included in the path.
-        Prints an error message for any missing waypoints.
+        Logs an error message for any missing waypoints.
         """
         # Identify mounting waypoints that should have been visited but weren't
         missed_mounting = [
@@ -345,12 +352,16 @@ class AStarPathFinder:
             if wp not in visited_waypoints and wp != start_node
         ]
         if missed_mounting:
-            print(
-                f"\nError: Failed to include {len(missed_mounting)} required mounting waypoints in the final path:"
+            logger.error(
+                "Failed to include %d required mounting waypoints in the final path:",
+                len(missed_mounting),
             )
             for node in missed_mounting:
-                print(
-                    f"  - Missing Mounting Node at: ({node.x:.1f}, {node.y:.1f}, {node.z:.1f})"
+                logger.error(
+                    "  - Missing Mounting Node at: (%.1f, %.1f, %.1f)",
+                    node.x,
+                    node.y,
+                    node.z,
                 )
             # Consider raising an exception or returning a failure status if this is critical
 
@@ -376,7 +387,9 @@ class AStarPathFinder:
 
         # If no mounting waypoints were found in the path, no trimming based on this rule is needed
         if last_mounting_idx == -1:
-            # print("Path contains no mounting waypoints. End condition check skipped.")
+            logger.debug(
+                "Path contains no mounting waypoints. End condition check skipped."
+            )
             return total_path
 
         # Count how many non-mounting waypoints appear *after* the last mounting one
@@ -385,7 +398,10 @@ class AStarPathFinder:
             if not waypoints_in_order[i].mounting:
                 non_mounting_after_last += 1
 
-        # print(f"Non-mounting waypoints after last mounting waypoint in path: {non_mounting_after_last}")
+        logger.debug(
+            "Non-mounting waypoints after last mounting waypoint in path: %d",
+            non_mounting_after_last,
+        )
 
         # If more than one non-mounting waypoint exists after the last mounting one, trim the path
         if non_mounting_after_last > 1:
@@ -400,15 +416,19 @@ class AStarPathFinder:
                     break  # Found the first occurrence
 
             if end_path_idx != -1:
-                print(
-                    f"Path End Rule: Trimming path to end after waypoint ({target_end_waypoint.x:.1f},{target_end_waypoint.y:.1f},{target_end_waypoint.z:.1f}) at path index {end_path_idx}"
+                logger.info(
+                    "Path End Rule: Trimming path to end after waypoint (%.1f,%.1f,%.1f) at path index %d",
+                    target_end_waypoint.x,
+                    target_end_waypoint.y,
+                    target_end_waypoint.z,
+                    end_path_idx,
                 )
                 # Return the sliced path, including the target end waypoint
                 return total_path[: end_path_idx + 1]
             else:
                 # This case should be unlikely if the waypoint exists in waypoints_in_order
-                print(
-                    "Error: Could not find the target end waypoint in the total path during trimming."
+                logger.error(
+                    "Could not find the target end waypoint in the total path during trimming."
                 )
                 return total_path  # Return original path on error
         else:
@@ -438,7 +458,7 @@ class AStarPathFinder:
         start_node = puzzle.start_node
         if not start_node:
             # This should never happen, indicates failure in node creator
-            print("Error: Puzzle start node not found.")
+            logger.error("Puzzle start node not found.")
             return []
 
         # Prepare lists of waypoints yet to be visited, excluding the start node
@@ -591,11 +611,17 @@ class AStarPathFinder:
                     current_node = mapped_exit
 
             else:
-                print(
-                    f"\nError: Could not find a path to any remaining {candidate_type_str} waypoint from ({current_node.x:.1f}, {current_node.y:.1f}, {current_node.z:.1f})."
+                logger.error(
+                    "Could not find a path to any remaining %s waypoint from (%.1f, %.1f, %.1f).",
+                    candidate_type_str,
+                    current_node.x,
+                    current_node.y,
+                    current_node.z,
                 )
-                print(
-                    f"Stopping path construction. {len(remaining_mounting)} mounting, {len(remaining_non_mounting)} non-mounting waypoints remain unreached."
+                logger.error(
+                    "Stopping path construction. %d mounting, %d non-mounting waypoints remain unreached.",
+                    len(remaining_mounting),
+                    len(remaining_non_mounting),
                 )
                 self._verify_mounting_waypoints_visited(
                     initial_mounting, visited_waypoints, start_node
@@ -616,7 +642,7 @@ class AStarPathFinder:
                 node.puzzle_end = False
             total_path[-1].puzzle_end = True
         else:
-            print("Warning: No path generated.")
+            logger.warning("No path generated.")
 
         return total_path
 
