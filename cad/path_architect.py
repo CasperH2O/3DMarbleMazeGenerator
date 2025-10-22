@@ -25,6 +25,16 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
+def _format_node(node: Optional[Node]) -> str:
+    if node is None:
+        return "None"
+    return f"({node.x:.3f}, {node.y:.3f}, {node.z:.3f})"
+
+
+def _format_node_list(nodes: list[Node]) -> str:
+    return "[" + ", ".join(_format_node(node) for node in nodes) + "]"
+
+
 class PathArchitect:
     def __init__(self, nodes: list[Node], obstacles: Optional[list["Obstacle"]] = None):
         # Inputs
@@ -78,11 +88,25 @@ class PathArchitect:
 
         nodes_length = len(self.nodes)
 
+        def log_segment_creation(reason: str, nodes: list[Node]):
+            logger.debug(
+                "split_path_into_segments: creating segment main_index=%s waypoint_counter=%s reason=%s nodes=%s",
+                self.main_index_counter,
+                waypoint_counter,
+                reason,
+                _format_node_list(nodes),
+            )
+
         # Handle the first two nodes as a special segment, the start ramp
         if nodes_length >= 2:
             # Create a segment with the first two nodes
             first_two_nodes = self.nodes[:2]
             segment = PathSegment(first_two_nodes, main_index=self.main_index_counter)
+            logger.debug(
+                "split_path_into_segments: creating initial start ramp main_index=%s nodes=%s",
+                self.main_index_counter,
+                _format_node_list(first_two_nodes),
+            )
             self.segments.append(segment)
             self.main_index_counter += 1
             # Start processing from the third node
@@ -107,6 +131,9 @@ class PathArchitect:
             if obstacle is not None:
                 # Close any open segment before the obstacle
                 if len(current_segment_nodes) > 1:
+                    log_segment_creation(
+                        "pre-obstacle closure", current_segment_nodes
+                    )
                     self._create_segment(
                         current_segment_nodes, main_index=self.main_index_counter
                     )
@@ -120,6 +147,15 @@ class PathArchitect:
                     obstacle, main_index=self.main_index_counter
                 )
                 if obstacle_segments:
+                    logger.debug(
+                        "split_path_into_segments: splicing obstacle segments for %s at main_index=%s segments=%s",
+                        getattr(obstacle, "name", obstacle.__class__.__name__),
+                        self.main_index_counter,
+                        [
+                            _format_node_list(segment.nodes)
+                            for segment in obstacle_segments
+                        ],
+                    )
                     self.segments.extend(obstacle_segments)
                     self.main_index_counter += 1
                     # ensure we don't immediately start another segment at the teleported exit
@@ -130,6 +166,9 @@ class PathArchitect:
                 waypoint_counter += 1
                 if waypoint_counter % self.waypoint_change_interval == 0:
                     # Create a segment with collected nodes
+                    log_segment_creation(
+                        "waypoint interval reached", current_segment_nodes
+                    )
                     self._create_segment(
                         current_segment_nodes, main_index=self.main_index_counter
                     )
@@ -138,6 +177,7 @@ class PathArchitect:
 
         if current_segment_nodes:
             # Create a segment with any remaining nodes
+            log_segment_creation("final remainder", current_segment_nodes)
             self._create_segment(
                 current_segment_nodes, main_index=self.main_index_counter
             )
@@ -646,6 +686,7 @@ class PathArchitect:
         i = 0
         while i < len(self.segments):
             segment = self.segments[i]
+            inserted_bridge = False
 
             # Bridge prior to curved segment
             # If this segment has a curve_type (so it can't be adjusted)
@@ -656,6 +697,7 @@ class PathArchitect:
                 if not is_same_location(
                     _node_to_vector(previous_end), _node_to_vector(segment.nodes[0])
                 ):
+                    target_segment = segment
                     bridge = PathSegment(
                         nodes=[previous_end, segment.nodes[0]],
                         main_index=segment.main_index,
@@ -673,9 +715,19 @@ class PathArchitect:
                         else PathCurveType.STRAIGHT
                     )
 
+                    logger.debug(
+                        "adjust_segments: inserting bridging segment before main_index=%s secondary_index=%s from %s to %s as %s",
+                        target_segment.main_index,
+                        target_segment.secondary_index,
+                        _format_node(previous_end),
+                        _format_node(target_segment.nodes[0]),
+                        bridge.curve_type,
+                    )
+
                     # Insert the bridge before the current segment
                     self.segments.insert(i, bridge)
                     segment = bridge
+                    inserted_bridge = True
 
                     # Bridge’s end is the new “previous_end”
                     previous_end = bridge.nodes[-1]
@@ -687,6 +739,17 @@ class PathArchitect:
             )
             next_curve = (
                 self.segments[i + 1].curve_type if i + 1 < len(self.segments) else None
+            )
+
+            logger.debug(
+                "adjust_segments: handing %ssegment main_index=%s secondary_index=%s to adjust_start_and_endpoints with previous_end=%s next_start=%s previous_curve=%s next_curve=%s",
+                "bridge " if inserted_bridge else "",
+                segment.main_index,
+                segment.secondary_index,
+                _format_node(previous_end),
+                _format_node(next_start),
+                previous_curve,
+                next_curve,
             )
 
             segment.adjust_start_and_endpoints(

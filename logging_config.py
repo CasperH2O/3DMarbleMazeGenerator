@@ -16,9 +16,9 @@ DEFAULT_LOG_LEVEL: int = logging.INFO
 
 # Module log level overrides
 MODULE_LOG_LEVELS: MutableMapping[str, Union[int, str]] = {
-    "puzzle.path_finder": "INFO",
-    "puzzle.puzzle": "INFO",
-    "assembly.casing": "INFO",
+    # "cad.path_architect": "DEBUG",
+    # "cad.path_segment": "DEBUG",
+    # "cad.path_builder": "DEBUG",
     "obstacles.obstacle_manager": "DEBUG",
     "build123d": "WARNING",
 }

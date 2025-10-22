@@ -1,5 +1,6 @@
 # cad/path_segment.py
 
+import logging
 import math
 from typing import Optional, Union
 
@@ -7,6 +8,9 @@ from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 
 from config import PathCurveModel, PathCurveType, PathProfileType
 from puzzle.node import Node
+
+
+logger = logging.getLogger(__name__)
 
 
 def _node_to_vector(node: Node) -> Vector:
@@ -51,6 +55,20 @@ def midpoint(P: Vector, Q: Vector, circular: bool = False) -> Vector:
         return Vector(r_mid * math.cos(theta_mid), r_mid * math.sin(theta_mid), z_mid)
     else:
         return (P + Q) * 0.5
+
+
+def _format_node(node: Optional[Node]) -> str:
+    if node is None:
+        return "None"
+    return f"({node.x:.3f}, {node.y:.3f}, {node.z:.3f})"
+
+
+def _format_vector(vec: Vector) -> str:
+    return f"({vec.X:.3f}, {vec.Y:.3f}, {vec.Z:.3f})"
+
+
+def _format_node_list(nodes: list[Node]) -> str:
+    return "[" + ", ".join(_format_node(node) for node in nodes) + "]"
 
 
 class PathSegment:
@@ -118,27 +136,67 @@ class PathSegment:
             previous_curve_type: Curve type of the previous segment.
             next_curve_type: Curve type of the next segment.
         """
+        logger.debug(
+            "PathSegment[%s.%s] adjust_start_and_endpoints nodes=%s previous_end=%s next_start=%s previous_curve=%s next_curve=%s",
+            self.main_index,
+            self.secondary_index,
+            _format_node_list(self.nodes),
+            _format_node(previous_end_node),
+            _format_node(next_start_node),
+            previous_curve_type,
+            next_curve_type,
+        )
+
         # If this segment has a defined curve type, no adjustment is needed.
         if self.curve_type is not None:
+            logger.debug(
+                "PathSegment[%s.%s] has fixed curve_type=%s, skipping adjustments",
+                self.main_index,
+                self.secondary_index,
+                self.curve_type,
+            )
             return
 
         # Check if this segment is bridging (its nodes match both previous and next endpoints)
         if self._check_and_handle_bridging_segment(previous_end_node, next_start_node):
+            logger.debug(
+                "PathSegment[%s.%s] detected bridging segment between %s and %s",
+                self.main_index,
+                self.secondary_index,
+                _format_node(previous_end_node),
+                _format_node(next_start_node),
+            )
             return
 
         # Special handling for single-node segments flagged as puzzle_end.
         if self._handle_single_node_puzzle_end(node_size, previous_end_node):
+            logger.debug(
+                "PathSegment[%s.%s] handled single-node puzzle end using half-node extension",
+                self.main_index,
+                self.secondary_index,
+            )
             return
 
         # FIXME found a bug, if this is followed by a SINGLE segment, say pre spline
         # Then the half way point is adjusted again
         # Adept first segment midpoint for half node size path corner:
         if self._handle_first_segment_midpoint(previous_end_node, next_start_node):
+            logger.debug(
+                "PathSegment[%s.%s] inserted first-segment midpoint towards %s",
+                self.main_index,
+                self.secondary_index,
+                _format_node(next_start_node),
+            )
             return
 
         # For segments with two or more nodes, perform multi-node adjustment;
         # otherwise, handle the single-node case.
         if len(self.nodes) >= 2:
+            logger.debug(
+                "PathSegment[%s.%s] using multi-node adjustment path",
+                self.main_index,
+                self.secondary_index,
+            )
             self._adjust_multi_node_segment(
                 node_size,
                 previous_end_node,
@@ -149,6 +207,11 @@ class PathSegment:
         else:
             # Single-node segment that is not a puzzle_end bridging scenario.
             # Possibly a mounting node or partial bridging scenario that didn't match above.
+            logger.debug(
+                "PathSegment[%s.%s] using single-node adjustment path",
+                self.main_index,
+                self.secondary_index,
+            )
             self._adjust_single_node_segment(
                 node_size,
                 previous_end_node,
@@ -211,6 +274,13 @@ class PathSegment:
             and self.nodes[0].puzzle_end
             and previous_end_node is not None
         ):
+            logger.debug(
+                "PathSegment[%s.%s] handling puzzle_end single node from %s towards %s",
+                self.main_index,
+                self.secondary_index,
+                _format_node(previous_end_node),
+                _format_node(self.nodes[0]),
+            )
             # Create a new start node from the previous segment's end node.
             start_node = Node(
                 previous_end_node.x, previous_end_node.y, previous_end_node.z
@@ -224,6 +294,14 @@ class PathSegment:
                 adjusted_end = midpoint(
                     _node_to_vector(previous_end_node), end_node_point, circular=True
                 )
+                logger.debug(
+                    "PathSegment[%s.%s] puzzle_end midpoint (circular) between %s and %s -> %s",
+                    self.main_index,
+                    self.secondary_index,
+                    _format_node(previous_end_node),
+                    _format_node(self.nodes[0]),
+                    _format_vector(adjusted_end),
+                )
             else:
                 # Otherwise, use a linear offset by half the node size.
                 entering_vector = end_node_point - _node_to_vector(previous_end_node)
@@ -233,6 +311,14 @@ class PathSegment:
                 move_distance = node_size / 2
                 move_vector = entering_direction * move_distance
                 adjusted_end = end_node_point + move_vector
+                logger.debug(
+                    "PathSegment[%s.%s] puzzle_end linear extension half-node %.3f along %s -> %s",
+                    self.main_index,
+                    self.secondary_index,
+                    move_distance,
+                    _format_vector(entering_direction),
+                    _format_vector(adjusted_end),
+                )
 
             # Update the puzzle-end node's coordinates.
             self.nodes[0].x = adjusted_end.X
@@ -242,6 +328,13 @@ class PathSegment:
 
             # Insert the start node at the beginning of the segment.
             self.nodes.insert(0, start_node)
+            logger.debug(
+                "PathSegment[%s.%s] puzzle_end segment expanded with start %s and adjusted end %s",
+                self.main_index,
+                self.secondary_index,
+                _format_node(start_node),
+                _format_vector(adjusted_end),
+            )
             return True
 
         return False
@@ -287,12 +380,26 @@ class PathSegment:
             )
             start_node.segment_start = True
             self.nodes.insert(0, start_node)
+            logger.debug(
+                "PathSegment[%s.%s] multi-node start anchored at %s (circular=%s)",
+                self.main_index,
+                self.secondary_index,
+                _format_vector(adjusted_start),
+                is_circular_start,
+            )
         else:
             self.nodes[0].segment_start = True
+            logger.debug(
+                "PathSegment[%s.%s] multi-node start retains existing puzzle start at %s",
+                self.main_index,
+                self.secondary_index,
+                _format_node(self.nodes[0]),
+            )
 
         # Adjust end node.
         end_node_point = _node_to_vector(self.nodes[-1])
         is_circular_end = False
+        end_adjustment_reason = ""
         if next_start_node is not None:
             next_is_circular = (
                 next_start_node.in_circular_grid
@@ -305,6 +412,9 @@ class PathSegment:
                     self.nodes[-1].in_circular_grid
                     and next_is_circular
                 )
+                end_adjustment_reason = (
+                    "snapped to next start (fixed curve)"
+                )
             else:
                 # For half adjustment: if current end node is circular, compute arc midpoint.
                 if (
@@ -315,13 +425,25 @@ class PathSegment:
                     adjusted_end = midpoint(
                         end_node_point, _node_to_vector(next_start_node), circular=True
                     )
+                    end_adjustment_reason = "circular midpoint"
                 else:
                     adjusted_end = midpoint(
                         end_node_point, _node_to_vector(next_start_node), circular=False
                     )
+                    end_adjustment_reason = "linear midpoint"
         else:
             # Fallback if no next_start_point: use the current end node's position (no adjustment)
             adjusted_end = end_node_point
+            end_adjustment_reason = "no next segment"
+
+        logger.debug(
+            "PathSegment[%s.%s] multi-node end adjusted via %s to %s (circular=%s)",
+            self.main_index,
+            self.secondary_index,
+            end_adjustment_reason,
+            _format_vector(adjusted_end),
+            is_circular_end,
+        )
 
         if self.nodes[-1].puzzle_end:
             # For a puzzle_end node, update the node in place
@@ -331,6 +453,12 @@ class PathSegment:
             self.nodes[-1].segment_end = True
             if is_circular_end:
                 self.nodes[-1].in_circular_grid = True
+            logger.debug(
+                "PathSegment[%s.%s] multi-node end updated in place at %s",
+                self.main_index,
+                self.secondary_index,
+                _format_vector(adjusted_end),
+            )
         else:
             # Otherwise, append a new node at the adjusted position
             end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
@@ -338,6 +466,13 @@ class PathSegment:
             end_node.in_rectangular_grid = self.nodes[-1].in_rectangular_grid
             end_node.segment_end = True
             self.nodes.append(end_node)
+            logger.debug(
+                "PathSegment[%s.%s] multi-node end appended at %s (circular=%s)",
+                self.main_index,
+                self.secondary_index,
+                _format_vector(adjusted_end),
+                is_circular_end,
+            )
 
     def _adjust_single_node_segment(
         self,
@@ -376,6 +511,13 @@ class PathSegment:
             else self.nodes[0].in_rectangular_grid
         )
         start_node.segment_start = True
+        logger.debug(
+            "PathSegment[%s.%s] single-node start anchored at %s (circular=%s)",
+            self.main_index,
+            self.secondary_index,
+            _format_vector(adjusted_start),
+            is_circular_start,
+        )
 
         is_circular_end = False
         if next_start_node is not None:
@@ -386,6 +528,13 @@ class PathSegment:
             exiting_vector = Vector(1, 0, 0)
 
         exiting_direction = _safe_normalize(exiting_vector)
+        logger.debug(
+            "PathSegment[%s.%s] single-node exiting direction %s from vector %s",
+            self.main_index,
+            self.secondary_index,
+            _format_vector(exiting_direction),
+            _format_vector(exiting_vector),
+        )
 
         if self.nodes[0].puzzle_end:
             if next_start_node is not None:
@@ -401,16 +550,44 @@ class PathSegment:
                     adjusted_end = midpoint(
                         node_point, _node_to_vector(next_start_node), circular=True
                     )
+                    logger.debug(
+                        "PathSegment[%s.%s] single-node puzzle_end using circular midpoint towards %s -> %s",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_node(next_start_node),
+                        _format_vector(adjusted_end),
+                    )
                 else:
                     adjusted_end = midpoint(
                         node_point, _node_to_vector(next_start_node), circular=False
                     )
+                    logger.debug(
+                        "PathSegment[%s.%s] single-node puzzle_end using linear midpoint towards %s -> %s",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_node(next_start_node),
+                        _format_vector(adjusted_end),
+                    )
             else:
                 adjusted_end = node_point + exiting_direction * (node_size / 2)
+                logger.debug(
+                    "PathSegment[%s.%s] single-node puzzle_end extending by half-node %.3f along %s -> %s",
+                    self.main_index,
+                    self.secondary_index,
+                    node_size / 2,
+                    _format_vector(exiting_direction),
+                    _format_vector(adjusted_end),
+                )
             self.nodes[0].x = adjusted_end.X
             self.nodes[0].y = adjusted_end.Y
             self.nodes[0].z = adjusted_end.Z
             self.nodes[0].segment_end = True
+            logger.debug(
+                "PathSegment[%s.%s] single-node puzzle_end positioned at %s",
+                self.main_index,
+                self.secondary_index,
+                _format_vector(adjusted_end),
+            )
         else:
             # For nodes that are neither puzzle_start nor puzzle_end,
             # create start and end nodes on either side.
@@ -426,6 +603,12 @@ class PathSegment:
                             self.nodes[0].in_circular_grid
                             and next_is_circular
                         )
+                        logger.debug(
+                            "PathSegment[%s.%s] single-node snapped end to next start %s (fixed curve)",
+                            self.main_index,
+                            self.secondary_index,
+                            _format_node(next_start_node),
+                        )
                     else:
                         # For half adjustment, use arc midpoint if the node is circular.
                         if (
@@ -438,14 +621,34 @@ class PathSegment:
                                 _node_to_vector(next_start_node),
                                 circular=True,
                             )
+                            logger.debug(
+                                "PathSegment[%s.%s] single-node using circular midpoint towards %s -> %s",
+                                self.main_index,
+                                self.secondary_index,
+                                _format_node(next_start_node),
+                                _format_vector(adjusted_end),
+                            )
                         else:
                             adjusted_end = midpoint(
                                 node_point,
                                 _node_to_vector(next_start_node),
                                 circular=False,
                             )
+                            logger.debug(
+                                "PathSegment[%s.%s] single-node using linear midpoint towards %s -> %s",
+                                self.main_index,
+                                self.secondary_index,
+                                _format_node(next_start_node),
+                                _format_vector(adjusted_end),
+                            )
                 else:
                     adjusted_end = node_point
+                    logger.debug(
+                        "PathSegment[%s.%s] single-node end remains at original position %s",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_vector(adjusted_end),
+                    )
 
                 end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
                 end_node.in_circular_grid = is_circular_end
@@ -454,12 +657,27 @@ class PathSegment:
 
                 self.nodes.insert(0, start_node)
                 self.nodes.append(end_node)
+                logger.debug(
+                    "PathSegment[%s.%s] single-node expanded with start %s and end %s (circular_end=%s)",
+                    self.main_index,
+                    self.secondary_index,
+                    _format_node(start_node),
+                    _format_node(end_node),
+                    is_circular_end,
+                )
             else:
                 # If already flagged as puzzle_start or puzzle_end, simply mark them.
                 self.nodes[0].segment_start = self.nodes[0].puzzle_start
                 self.nodes[0].segment_end = self.nodes[0].puzzle_end
                 if self.nodes[0].segment_end and is_circular_end:
                     self.nodes[0].in_circular_grid = True
+                logger.debug(
+                    "PathSegment[%s.%s] single-node retained flags start=%s end=%s",
+                    self.main_index,
+                    self.secondary_index,
+                    self.nodes[0].segment_start,
+                    self.nodes[0].segment_end,
+                )
 
     def copy_attributes_from(self, other_segment: "PathSegment"):
         """
