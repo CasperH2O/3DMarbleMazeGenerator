@@ -100,7 +100,6 @@ class CaseCylinder(Case):
         ) / 2 - 2 * self.node_size  # 28.0  # TODO: tie to actual node pattern
 
         # Short, thicker rods (at multiple Z levels)
-        # TODO Add chamfer to smaller vertical rods for 3D printing
         diameter_short = 0.8 * self.node_size
         r_short = diameter_short / 2
         h_short = 1.5 * self.node_size
@@ -110,7 +109,7 @@ class CaseCylinder(Case):
 
         # Discs
         base_r = (self.diameter + self.node_size) / 2
-        base_h = self.node_size
+        base_h = self.node_size * 2
         bottom_z = -h_long / 2 - base_h / 2
         top_z = h_long / 2 + base_h / 2
 
@@ -166,6 +165,14 @@ class CaseCylinder(Case):
             with Locations((0, 0, bottom_z)):
                 Cylinder(radius=base_r, height=base_h)
 
+            # Chamfer the bottom disc
+            chamfer(
+                bottom_case.edges(Select.LAST)
+                .filter_by(GeomType.CIRCLE)
+                .sort_by(Axis.Z)[0],
+                length=self.node_size / 2,
+            )
+
             # External mounting bridge: small radial spokes
             for z in z_planes:
                 with Locations((0, 0, z)):
@@ -197,6 +204,12 @@ class CaseCylinder(Case):
         with BuildPart() as top_disc:
             with Locations((0, 0, top_z)):
                 Cylinder(radius=base_r, height=base_h)
+                chamfer(
+                    top_disc.edges(Select.LAST)
+                    .filter_by(GeomType.CIRCLE)
+                    .sort_by(Axis.Z)[-1],
+                    length=self.node_size / 2,
+                )
 
         # Cut rod clearance holes in top disc, with tolerance for glue
         with BuildPart() as rod_cutter:
@@ -215,10 +228,10 @@ class CaseCylinder(Case):
         self.casing.part.label = CasePart.CASING.value
         self.casing.part.color = Config.Puzzle.TRANSPARENT_CASE_COLOR
 
-        bottom_case.part.label = CasePart.CASE_BOTTOM.value
+        bottom_case.part.label = CasePart.MOUNTING_RING_BOTTOM.value
         bottom_case.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
-        top_disc.part.label = CasePart.CASE_TOP.value
+        top_disc.part.label = CasePart.MOUNTING_RING_TOP.value
         top_disc.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         internal_path_bridges.part.label = CasePart.INTERNAL_PATH_BRIDGES.value
@@ -238,23 +251,27 @@ class CaseCylinder(Case):
         return self.base_parts
 
     def _create_base_parts(self) -> list[Part]:
-        tolerance = 0.5
+        tolerance = 1
 
         with BuildPart() as base:
             with BuildSketch():
-                Circle(radius=self.diameter / 2 + self.node_size)
-            extrude(amount=-self.node_size * 2, taper=-6)
+                Circle(radius=self.diameter / 2 + 2 * self.node_size)
+            extrude(amount=-self.node_size * 5)
+            chamfer(
+                base.edges(Select.LAST).filter_by(GeomType.CIRCLE).sort_by(Axis.Z)[-1],
+                length=self.node_size,
+            )
+
             with BuildSketch():
-                Circle(radius=self.diameter / 2 + tolerance)
+                Circle(radius=(self.diameter + self.node_size) / 2 + tolerance)
             extrude(amount=-self.node_size, mode=Mode.SUBTRACT)
 
-        base.part.position = (0, 0, -self.height * 0.5 + self.node_size)
+        base.part.position = (0, 0, -self.height * 0.5 - 0.5 * self.node_size - 0.01)
         base.part.label = CasePart.BASE.value
-        base.part.color = Config.Puzzle.PATH_ACCENT_COLOR
+        base.part.color = Config.Puzzle.MOUNTING_RING_COLOR
 
         return [base.part]
 
 
 if __name__ == "__main__":
-    case = CaseCylinder()
-    show_object(case.get_parts())
+    CaseCylinder().preview()
