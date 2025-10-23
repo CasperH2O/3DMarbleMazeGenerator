@@ -6,6 +6,8 @@ from build123d import (
     BuildLine,
     BuildSketch,
     Circle,
+    Location,
+    Locations,
     Mode,
     Plane,
     Polyline,
@@ -230,8 +232,10 @@ def create_o_shape(
     inner_radius = inner_diameter / 2
 
     with BuildSketch(Plane.XY) as o_shape_sketch:
-        Circle(radius=outer_radius)
-        Circle(radius=inner_radius, mode=Mode.SUBTRACT)
+        # Position the seam with Location and rotation angle
+        with Locations(Location((0, 0, 0), (0, 0, rotation_angle))):
+            Circle(radius=outer_radius)
+            Circle(radius=inner_radius, mode=Mode.SUBTRACT)
 
     return o_shape_sketch
 
@@ -259,10 +263,12 @@ def create_o_shape_support(
     inner_diameter = outer_diameter - 2 * wall_thickness - distance
 
     with BuildSketch(Plane.XY) as support_sketch:
-        Circle(radius=inner_diameter / 2)
-        RegularPolygon(
-            radius=(inner_diameter - distance) / 2, side_count=4, mode=Mode.SUBTRACT
-        )
+        # Position the seam with Location and rotation angle
+        with Locations(Location((0, 0, 0), (0, 0, rotation_angle))):
+            Circle(radius=inner_diameter / 2)
+            RegularPolygon(
+                radius=(inner_diameter - distance) / 2, side_count=4, mode=Mode.SUBTRACT
+            )
 
     return support_sketch
 

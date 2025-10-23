@@ -13,6 +13,8 @@ from build123d import (
     Face,
     FrameMethod,
     Line,
+    Location,
+    Locations,
     Part,
     Plane,
     Polyline,
@@ -1297,45 +1299,93 @@ def sweep_single_profile(
 ) -> Part | None:
     """
     Helper for sweeping a single profile (main path, accent, or support).
+
+    Special consideration for circle shaped path profiles to try different orientation to work with OCCT seam sweep issues
     """
 
-    try:
-        # Create part out of path profile and path
-        with BuildPart() as sweep_result:
-            with BuildLine() as path_line:
-                add(segment.path)
-            # Create the path profile sketch on the work plane
-            with BuildSketch(path_line.line ^ 0) as sketch_path_profile:
-                add(profile)
-            sweep(transition=transition_type, is_frenet=is_frenet)
+    rotation_attempts: list[float] = [0.0]
+    is_o_shape_profile = segment.path_profile_type in (
+        PathProfileType.O_SHAPE,
+        PathProfileType.O_SHAPE_SUPPORT,
+    )
+    if is_o_shape_profile:
+        rotation_attempts.extend([180.0, 90.0, 270.0])
 
-        # Debugging / visualization
+    for attempt_index, rotation_angle in enumerate(rotation_attempts):
+        if rotation_angle != 0.0:
+            logger.debug(
+                "Retrying %s sweep for O shaped path profile segment %s.%s with profile rotation %s°",
+                sweep_label.lower(),
+                segment.main_index,
+                segment.secondary_index,
+                rotation_angle,
+            )
+        try:
+            # Create part out of path profile and path
+            with BuildPart() as sweep_result:
+                with BuildLine() as path_line:
+                    add(segment.path)
+                # Create the path profile sketch on the work plane
+                with BuildSketch(path_line.line ^ 0) as sketch_path_profile:
+                    if rotation_angle != 0.0:
+                        with Locations(Location((0, 0, 0), (0, 0, rotation_angle))):
+                            add(profile)
+                    else:
+                        add(profile)
+                sweep(transition=transition_type, is_frenet=is_frenet)
 
-        """
-        show_object(
-            path_line,
-            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path",
-        )
-        show_object(
-            sketch_path_profile.sketch,
-            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile",
-        )
-        show_object(
-            sweep_result,
-            name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
-        )
-        """
+            # Debugging / visualization
 
-        return sweep_result
+            
+            from ocp_vscode import show_object
 
-    except Exception as e:
-        logger.exception(
-            "Error sweeping %s for segment %s.%s",
-            sweep_label.lower(),
-            segment.main_index,
-            segment.secondary_index,
-        )
-        return None
+            show_object(
+                path_line,
+                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path",
+            )
+            show_object(
+                sketch_path_profile.sketch,
+                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile",
+            )
+            show_object(
+                sweep_result,
+                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
+            )
+            
+
+            return sweep_result
+
+        except Exception as exc:
+            has_more_attempts = is_o_shape_profile and (attempt_index + 1) < len(
+                rotation_attempts
+            )
+            if has_more_attempts:
+                logger.debug(
+                    "Sweep attempt failed for O shaped path profile segment %s.%s with %s° rotation; trying next angle.",
+                    segment.main_index,
+                    segment.secondary_index,
+                    rotation_angle,
+                )
+                continue
+
+            if is_o_shape_profile:
+                logger.exception(
+                    "Error sweeping %s for O shaped path profile segment %s.%s after trying rotations %s",
+                    sweep_label.lower(),
+                    segment.main_index,
+                    segment.secondary_index,
+                    rotation_attempts,
+                )
+            else:
+                logger.exception(
+                    "Error sweeping %s for segment %s.%s",
+                    sweep_label.lower(),
+                    segment.main_index,
+                    segment.secondary_index,
+                )
+            return None
+
+    return None
 
 
 def round_to_nearest_90(value: float) -> float:
