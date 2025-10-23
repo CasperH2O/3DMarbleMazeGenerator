@@ -1,9 +1,26 @@
 # cad/curve_detection.py
 
+import logging
 import math
+from typing import Optional
 
 from config import Path, PathCurveType
 from puzzle.node import Node
+
+
+logger = logging.getLogger(__name__)
+
+
+def _format_node(node: Optional[Node]) -> str:
+    """Return a compact string representation of a node for logging."""
+    if node is None:
+        return "None"
+    return f"({node.x:.3f}, {node.y:.3f}, {node.z:.3f})"
+
+
+def _format_node_list(nodes: list[Node]) -> str:
+    """Return a compact string representation of multiple nodes for logging."""
+    return "[" + ", ".join(_format_node(node) for node in nodes) + "]"
 
 
 def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
@@ -17,25 +34,45 @@ def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
     Returns:
         int: The next curve ID after processing.
     """
+    logger.debug(
+        "detect_curves: starting with %s nodes and curve_id_counter=%s", len(nodes), curve_id_counter
+    )
+
     if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
+        logger.debug("detect_curves: S-curve detection enabled")
         curve_id_counter = detect_s_curves(nodes, curve_id_counter)
 
     if PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
+        logger.debug("detect_curves: 90-degree arc detection enabled")
         curve_id_counter = detect_arcs(nodes, curve_id_counter)
 
     if PathCurveType.ARC in Path.PATH_CURVE_TYPE:
+        logger.debug("detect_curves: circular segment detection enabled")
         curve_id_counter = detect_circular_segments(nodes, curve_id_counter)
 
+    logger.debug(
+        "detect_curves: completed with curve_id_counter=%s", curve_id_counter
+    )
     return curve_id_counter
 
 
 def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
     s_curve_length = 6  # Number of nodes in an S-curve
     if len(nodes) < s_curve_length:
+        logger.debug(
+            "detect_s_curves: skipping detection, require %s nodes but received %s",
+            s_curve_length,
+            len(nodes),
+        )
         return curve_id_counter  # Not enough nodes to form an S-curve
 
     for i in range(len(nodes) - s_curve_length + 1):
         segment = nodes[i : i + s_curve_length]
+        logger.debug(
+            "detect_s_curves: evaluating segment index=%s nodes=%s",
+            i,
+            _format_node_list(segment),
+        )
         if is_in_plane(segment):
             # Split into three parts and check linearity and direction changes
             first_part = segment[:3]
@@ -66,14 +103,31 @@ def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
                     # Threshold for same direction
                     direction_threshold = 0.95
 
+                    logger.debug(
+                        "detect_s_curves: axis=%s dot_product=%.3f threshold=%.3f",
+                        axis,
+                        dot_product,
+                        direction_threshold,
+                    )
                     if dot_product > direction_threshold:
                         # Mark nodes as part of an S-curve
                         for node in segment[1:-1]:  # Exclude first and last nodes
                             node.path_curve_type = PathCurveType.S_CURVE
                             node.used_in_curve = True  # Mark node as used
                             node.curve_id = curve_id_counter  # Assign curve ID
+                        logger.debug(
+                            "detect_s_curves: detected S-curve curve_id=%s indices=[%s,%s) nodes=%s",
+                            curve_id_counter,
+                            i,
+                            i + s_curve_length,
+                            _format_node_list(segment[1:-1]),
+                        )
                         curve_id_counter += 1  # Increment curve ID counter
                         break  # No need to check other axes
+        else:
+            logger.debug(
+                "detect_s_curves: skipping segment index=%s not in single plane", i
+            )
 
     return curve_id_counter
 
@@ -89,6 +143,12 @@ def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
     Returns:
         int: The updated curve ID counter.
     """
+    logger.debug(
+        "detect_circular_segments: starting with %s nodes and curve_id_counter=%s",
+        len(nodes),
+        curve_id_counter,
+    )
+
     i = 0
     while i < len(nodes):
         # Check if the node is circular; adjust this check if needed (e.g., using membership)
@@ -103,9 +163,19 @@ def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
                 node.path_curve_type = PathCurveType.ARC
                 node.used_in_curve = True
                 node.curve_id = curve_id_counter
+            logger.debug(
+                "detect_circular_segments: detected circular segment curve_id=%s indices=[%s,%s) nodes=%s",
+                curve_id_counter,
+                start,
+                i,
+                _format_node_list(nodes[start:i]),
+            )
             curve_id_counter += 1  # Increment the counter after processing a block.
         else:
             i += 1
+    logger.debug(
+        "detect_circular_segments: completed with curve_id_counter=%s", curve_id_counter
+    )
     return curve_id_counter
 
 
@@ -122,14 +192,31 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
     for n in curve_lengths:
         segment_length = n + 2  # Actual segment length to consider
         if len(nodes) < segment_length:
+            logger.debug(
+                "detect_arcs: skipping curve length=%s requires segment_length=%s but only %s nodes",
+                n,
+                segment_length,
+                len(nodes),
+            )
             continue  # Not enough nodes for this curve length
 
         for i in range(len(nodes) - segment_length + 1):
             segment = nodes[i : i + segment_length]
+            logger.debug(
+                "detect_arcs: evaluating length=%s segment index=%s nodes=%s",
+                n,
+                i,
+                _format_node_list(segment),
+            )
 
             # Check if any node in the segment (excluding first and last) has already been used
             middle_nodes = segment[1:-1]
             if any(getattr(node, "used_in_curve", False) for node in middle_nodes):
+                logger.debug(
+                    "detect_arcs: skipping segment index=%s length=%s due to reused middle nodes",
+                    i,
+                    n,
+                )
                 continue  # Skip overlapping segments
 
             if check_90_deg_curve(segment):
@@ -138,6 +225,14 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
                     node.path_curve_type = n_to_curve_type[n]
                     node.used_in_curve = True  # Mark node as used
                     node.curve_id = curve_id_counter  # Assign curve ID
+                logger.debug(
+                    "detect_arcs: detected 90-degree curve curve_id=%s length=%s indices=[%s,%s) middle_nodes=%s",
+                    curve_id_counter,
+                    n,
+                    i,
+                    i + segment_length,
+                    _format_node_list(middle_nodes),
+                )
                 curve_id_counter += 1  # Increment curve ID counter
 
     return curve_id_counter
