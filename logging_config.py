@@ -16,6 +16,7 @@ DEFAULT_LOG_LEVEL: int = logging.INFO
 
 # Module log level overrides
 MODULE_LOG_LEVELS: MutableMapping[str, Union[int, str]] = {
+    # "cad.curve_detection": "DEBUG",
     # "cad.path_architect": "DEBUG",
     # "cad.path_segment": "DEBUG",
     # "cad.path_builder": "DEBUG",

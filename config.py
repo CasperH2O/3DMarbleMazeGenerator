@@ -16,8 +16,8 @@ class Puzzle:
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 2  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 6  # Number of randomly placed waypoints
+    SEED = 4  # Random seed for reproducibility
+    NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
