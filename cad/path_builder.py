@@ -792,6 +792,7 @@ class PathBuilder:
         new_seg = combined[0]
         # Restore the original secondary index
         new_seg.secondary_index = segment.secondary_index
+        new_seg.transition_type = previous_segment.transition_type
 
         # Sweep as a standard compound segment
         return self.sweep_standard_segment(
@@ -1335,8 +1336,7 @@ def sweep_single_profile(
                 sweep(transition=transition_type, is_frenet=is_frenet)
 
             # Debugging / visualization
-
-            
+            """
             from ocp_vscode import show_object
 
             show_object(
@@ -1351,7 +1351,7 @@ def sweep_single_profile(
                 sweep_result,
                 name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
             )
-            
+            """
 
             return sweep_result
 
