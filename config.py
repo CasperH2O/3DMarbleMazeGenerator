@@ -122,24 +122,21 @@ class Path:
 
     PATH_PROFILE_TYPES = [
         PathProfileType.U_SHAPE,
+        PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
+        PathProfileType.L_SHAPE,
         PathProfileType.L_SHAPE_MIRRORED,
         PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+        PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT,
         PathProfileType.O_SHAPE,
-        PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.V_SHAPE,
     ]
 
     # Map a segment main index to a forced profile type, optionally
-    ENABLE_OVERRIDES = False
+    ENABLE_OVERRIDES = True
 
     PATH_PROFILE_TYPE_OVERRIDES = (
         {
-            2: PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
-            3: PathProfileType.L_SHAPE_MIRRORED,
-            4: PathProfileType.V_SHAPE,
-            6: PathProfileType.O_SHAPE,
-            7: PathProfileType.U_SHAPE,
-            8: PathProfileType.O_SHAPE,
+            7: PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT
         }
         if ENABLE_OVERRIDES
         else {}
@@ -150,6 +147,20 @@ class Path:
     wall_thickness = 1.2
 
     PATH_PROFILE_TYPE_PARAMETERS = {
+        "l_shape": {
+            "height_width": 10.0 - sweep_tolerance,
+            "wall_thickness": wall_thickness,
+        },
+        "l_shape_path_color": {
+            "height": 10.0 - sweep_tolerance,
+            "width": 10.0 - sweep_tolerance,
+            "wall_thickness": wall_thickness,
+        },
+        "l_shape_adjusted_height": {
+            "height_width": 10.0 - sweep_tolerance,
+            "wall_thickness": wall_thickness,
+            "lower_distance": 3.5,
+        },
         "l_shape_mirrored": {
             "height_width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
@@ -159,19 +170,10 @@ class Path:
             "width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
         },
-        "l_shape": {
-            "height_width": 10.0 - sweep_tolerance,
-            "wall_thickness": wall_thickness,
-        },
-        "l_shape_adjusted_height": {
+        "l_shape_mirrored_adjusted_height": {
             "height_width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
             "lower_distance": 3.5,
-        },
-        "l_shape_adjusted_height_path_color": {
-            "height": 10.0 - sweep_tolerance,
-            "width": 10.0 - sweep_tolerance,
-            "wall_thickness": wall_thickness,
         },
         "o_shape": {
             "outer_diameter": 10.0 - sweep_tolerance,
@@ -196,11 +198,6 @@ class Path:
             "wall_thickness": wall_thickness,
             "lower_distance": 3.5,
         },
-        "u_shape_adjusted_height_path_color": {
-            "height": 10.0 - sweep_tolerance,
-            "width": 10.0 - sweep_tolerance,
-            "wall_thickness": wall_thickness,
-        },
         "v_shape": {
             "height_width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
@@ -209,8 +206,12 @@ class Path:
             "height_width": 10.0 - sweep_tolerance,
             "wall_thickness": wall_thickness,
         },
-        "rectangle_shape": {
+        "square_closed_shape": {
             "height_width": 10.0 - sweep_tolerance,
+        },
+        "square_with_hole_shape": {
+            "height_width": 10.0 - sweep_tolerance,
+            "wall_thickness": wall_thickness,
         },
     }
 

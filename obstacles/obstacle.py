@@ -108,18 +108,6 @@ class Obstacle(ABC):
         """
         pass
 
-    """
-    @staticmethod
-    def default_path_profile_type(rotation_angle: float = -90) -> Face:
-        
-        Return default U path profile type shape for sweep
-        
-        u_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS[
-            PathProfileType.RECTANGLE_SHAPE.value
-        ]
-        return create_rectangle_shape(**u_params, rotation_angle=rotation_angle)
-    """
-
     def default_path_profile_type(self, rotation_angle: float = -90) -> Face:
         """Build the configured path profile shape for use in sweeps."""
         profile_type = self.path_profile_type
@@ -445,7 +433,7 @@ class Obstacle(ABC):
         # Create obstacle solid with fully filled rectangle sweep
         # Swap back and forth the original type
         original_profile_type = self.path_profile_type  # Store
-        # self.path_profile_type = PathProfileType.RECTANGLE_SHAPE
+        self.path_profile_type = PathProfileType.SQUARE_CLOSED_SHAPE
         obstacle_solid = self.model_solid()
         self.path_profile_type = original_profile_type  # Restore
 

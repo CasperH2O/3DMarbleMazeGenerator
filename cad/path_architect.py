@@ -131,9 +131,7 @@ class PathArchitect:
             if obstacle is not None:
                 # Close any open segment before the obstacle
                 if len(current_segment_nodes) > 1:
-                    log_segment_creation(
-                        "pre-obstacle closure", current_segment_nodes
-                    )
+                    log_segment_creation("pre-obstacle closure", current_segment_nodes)
                     self._create_segment(
                         current_segment_nodes, main_index=self.main_index_counter
                     )
