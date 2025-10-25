@@ -1,5 +1,6 @@
 # cad/path_architect.py
 
+import copy
 import logging
 import random
 from typing import Dict, Optional
@@ -732,12 +733,47 @@ class PathArchitect:
                     previous_curve = bridge.curve_type
 
             # Regular adjustment
+            next_segment = self.segments[i + 1] if i + 1 < len(self.segments) else None
             next_start = (
-                self.segments[i + 1].nodes[0] if i + 1 < len(self.segments) else None
+                next_segment.nodes[0] if next_segment and next_segment.nodes else None
             )
-            next_curve = (
-                self.segments[i + 1].curve_type if i + 1 < len(self.segments) else None
-            )
+            next_curve = next_segment.curve_type if next_segment is not None else None
+
+            # TODO obstacle intgration clean up
+            # Track a synthetic hand-off target when the next run is the obstacle entry
+            synthetic_next_start: Node | None = None
+            # Remember the entry segment so we can anchor it after the approach is shifted
+            obstacle_entry_segment: PathSegment | None = None
+            if (
+                segment.nodes
+                and next_segment is not None
+                and next_segment.curve_model == PathCurveModel.SINGLE
+                and len(next_segment.nodes) >= 2
+            ):
+                following_segment = (
+                    self.segments[i + 2] if i + 2 < len(self.segments) else None
+                )
+                if (
+                    following_segment is not None
+                    and following_segment.main_index == next_segment.main_index
+                    and following_segment.is_obstacle
+                ):
+                    entry_first = next_segment.nodes[0]
+                    current_last = segment.nodes[-1]
+                    if is_same_location(
+                        _node_to_vector(current_last), _node_to_vector(entry_first)
+                    ):
+                        # Push the approach half a node into the entry by aiming for its second node
+                        synthetic_next_start = copy.copy(next_segment.nodes[1])
+                        obstacle_entry_segment = next_segment
+                        logger.debug(
+                            "adjust_segments: synthetic obstacle entry target %s.%s using %s",
+                            segment.main_index,
+                            segment.secondary_index,
+                            _format_node(synthetic_next_start),
+                        )
+
+            effective_next_start = synthetic_next_start or next_start
 
             logger.debug(
                 "adjust_segments: handing %ssegment main_index=%s secondary_index=%s to adjust_start_and_endpoints with previous_end=%s next_start=%s previous_curve=%s next_curve=%s",
@@ -745,7 +781,7 @@ class PathArchitect:
                 segment.main_index,
                 segment.secondary_index,
                 _format_node(previous_end),
-                _format_node(next_start),
+                _format_node(effective_next_start),
                 previous_curve,
                 next_curve,
             )
@@ -753,10 +789,28 @@ class PathArchitect:
             segment.adjust_start_and_endpoints(
                 self.node_size,
                 previous_end,
-                next_start,
+                effective_next_start,
                 previous_curve,
                 next_curve,
             )
+
+            if obstacle_entry_segment is not None and segment.nodes:
+                # TODO Clean up from obstacle integration
+                # Copy the approach's adjusted tail so the entry begins at the new halfway point
+                updated_start = segment.nodes[-1]
+                entry_first = obstacle_entry_segment.nodes[0]
+                entry_first.x = updated_start.x
+                entry_first.y = updated_start.y
+                entry_first.z = updated_start.z
+                entry_first.in_circular_grid = updated_start.in_circular_grid
+                entry_first.in_rectangular_grid = updated_start.in_rectangular_grid
+                entry_first.segment_start = True
+                logger.debug(
+                    "adjust_segments: obstacle entry %s.%s start anchored to %s",
+                    obstacle_entry_segment.main_index,
+                    obstacle_entry_segment.secondary_index,
+                    _format_node(entry_first),
+                )
 
             # Split mixed SINGLE segments
             if segment.curve_model == PathCurveModel.SINGLE:

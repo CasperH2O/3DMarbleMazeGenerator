@@ -8,6 +8,7 @@ from build123d import (
     Polyline,
     Spline,
     ThreePointArc,
+    Transition,
     add,
     sweep,
 )
@@ -61,6 +62,7 @@ class QuestionMark(Obstacle):
                 add(arc_line)
 
         self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.transition_type = Transition.ROUND
 
     def model_solid(self) -> Part:
         """
