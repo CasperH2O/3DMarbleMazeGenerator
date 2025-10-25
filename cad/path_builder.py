@@ -41,7 +41,7 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
-from cad.solid_check import do_faces_intersect
+from cad.intersection_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
 from logging_config import configure_logging
 from puzzle.puzzle import Node, Puzzle
@@ -768,7 +768,7 @@ class PathBuilder:
 
         # Fallback, build as a COMPOUND of standard sub‐segments
         logger.info(
-            "Segment %s.%s spline not possible. Falling back to %s.",
+            "Segment %s.%s spline not possible. Falling back to %s. Alternatively, configure a path profile type override.",
             segment.main_index,
             segment.secondary_index,
             PathCurveModel.COMPOUND.name,

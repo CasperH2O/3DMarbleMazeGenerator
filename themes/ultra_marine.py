@@ -13,6 +13,6 @@ def apply_overrides(
         "#4166F5",
     ]  # Ultra marine blue
     puzzle.PATH_ACCENT_COLOR = "#F5F2EA"  # White
-    puzzle.TEXT_COLOR = "#F5F2EA"  # White
+    puzzle.TEXT_COLOR = "#F4C131"  # White
     puzzle.MOUNTING_RING_COLOR = "#464646"  # Dark metal grey
     manufacturing.DIVIDE_PATHS_IN = 1

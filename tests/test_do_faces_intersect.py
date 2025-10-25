@@ -1,7 +1,7 @@
 import pytest
 from build123d import Compound, Cone, Face, Plane
 
-from cad.solid_check import do_faces_intersect
+from cad.intersection_check import do_faces_intersect
 
 
 @pytest.fixture
