@@ -1,5 +1,5 @@
 # obstacles/obstacle.py
-
+import copy
 import json
 import logging
 import time
@@ -32,6 +32,7 @@ from cad.path_segment import PathSegment
 from logging_config import configure_logging
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
+from puzzle.utils.geometry import snap
 from visualization.visualization_helpers import (
     plot_casing,
     plot_node_cubes,
@@ -212,21 +213,63 @@ class Obstacle(ABC):
         # Return a located copy
         return self._part_extras.located(self.location)
 
-    def get_placed_node_coordinates(self, nodes: list[Node]) -> list[Node]:
-        """
-        Transforms the local Node list in-place to world coordinates.
-        Updates each Node.x, Node.y, Node.z without creating new Node instances.
-        """
+    def _apply_location(self, nodes: list[Node]) -> list[Node]:
+        """Apply the obstacle's placement location to the supplied nodes."""
+
         if self.location is None:
             return nodes
 
-        # Update each node in-place
-        for n in nodes:
-            loc = self.location * Location(Pos(Vector(n.x, n.y, n.z)))
-            n.x, n.y, n.z = loc.position.X, loc.position.Y, loc.position.Z
-            # TODO, perhaps snap here to grid?
+        for node in nodes:
+            loc = self.location * Location(Pos(Vector(node.x, node.y, node.z)))
+            node.x, node.y, node.z = (
+                loc.position.X,
+                loc.position.Y,
+                loc.position.Z,
+            )
 
         return nodes
+
+    def get_placed_node_coordinates(
+        self, nodes: list[Node] | None
+    ) -> list[Node]:
+        """Return transformed *copies* of nodes expressed in local coordinates."""
+
+        if not nodes:
+            return []
+
+        copies = [copy.deepcopy(node) for node in nodes]
+        return self._apply_location(copies)
+
+    def world_nodes(
+        self, nodes: list[Node] | None, *, snap_to_grid: bool = False
+    ) -> list[Node]:
+        """Return placed helper nodes suitable for path splicing."""
+
+        if not nodes:
+            return []
+
+        clones = [
+            Node(
+                node.x,
+                node.y,
+                node.z,
+                occupied=node.occupied,
+                overlap_allowed=node.overlap_allowed,
+                in_circular_grid=node.in_circular_grid,
+                in_rectangular_grid=node.in_rectangular_grid,
+            )
+            for node in nodes
+        ]
+
+        placed = self._apply_location(clones)
+
+        if snap_to_grid:
+            for node in placed:
+                node.x = snap(round(node.x / self.node_size) * self.node_size)
+                node.y = snap(round(node.y / self.node_size) * self.node_size)
+                node.z = snap(round(node.z / self.node_size) * self.node_size)
+
+        return placed
 
     def get_placed_entry_exit_coords(self) -> Optional[Tuple[tuple, tuple]]:
         """

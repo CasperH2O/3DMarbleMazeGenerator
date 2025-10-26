@@ -18,8 +18,6 @@ from config import Config, PathCurveModel, PathCurveType
 from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node
-from puzzle.utils.geometry import snap
-
 from . import curve_detection
 
 configure_logging()
@@ -195,30 +193,12 @@ class PathArchitect:
         """Create [entry SINGLE] → [main locked] → [exit SINGLE] for one obstacle."""
         segments: list[PathSegment] = []
 
-        # World-place helper nodes (copy first to avoid mutating obstacle state)
-        # TODO, move this to obstacle somehow
-        def world_nodes(local_nodes: list[Node]) -> list[Node]:
-            if not local_nodes:
-                return []
-            copies = [
-                Node(
-                    n.x,
-                    n.y,
-                    n.z,
-                    in_circular_grid=n.in_circular_grid,
-                    in_rectangular_grid=n.in_rectangular_grid,
-                )
-                for n in local_nodes
-            ]
-            obstacle.get_placed_node_coordinates(copies)
-            for node in copies:
-                node.x = snap(round(node.x / self.node_size) * self.node_size)
-                node.y = snap(round(node.y / self.node_size) * self.node_size)
-                node.z = snap(round(node.z / self.node_size) * self.node_size)
-            return copies
-
-        entry_world = world_nodes(obstacle.entry_path_segment.nodes)
-        exit_world = world_nodes(obstacle.exit_path_segment.nodes)
+        entry_world = obstacle.world_nodes(
+            obstacle.entry_path_segment.nodes, snap_to_grid=True
+        )
+        exit_world = obstacle.world_nodes(
+            obstacle.exit_path_segment.nodes, snap_to_grid=True
+        )
 
         # Entry segment single
         if len(entry_world) >= 2:

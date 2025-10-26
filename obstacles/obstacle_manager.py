@@ -375,8 +375,8 @@ class ObstacleManager:
             Node(n.x, n.y, n.z, overlap_allowed=True)
             for n in (obstacle.overlap_nodes or [])
         ]
-        obstacle.get_placed_node_coordinates(occupied_nodes)
-        obstacle.get_placed_node_coordinates(overlap_nodes)
+        occupied_nodes = obstacle.get_placed_node_coordinates(occupied_nodes)
+        overlap_nodes = obstacle.get_placed_node_coordinates(overlap_nodes)
 
         # Quantize coordinates to avoid drift
         for n in occupied_nodes + overlap_nodes:
