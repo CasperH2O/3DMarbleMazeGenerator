@@ -416,7 +416,7 @@ class AStarPathFinder:
                     break  # Found the first occurrence
 
             if end_path_idx != -1:
-                logger.info(
+                logger.warning(
                     "Path End Rule: Trimming path to end after waypoint (%.1f,%.1f,%.1f) at path index %d",
                     target_end_waypoint.x,
                     target_end_waypoint.y,

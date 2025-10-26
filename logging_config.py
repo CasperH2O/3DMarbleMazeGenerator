@@ -20,7 +20,7 @@ MODULE_LOG_LEVELS: MutableMapping[str, Union[int, str]] = {
     # "cad.path_architect": "DEBUG",
     # "cad.path_segment": "DEBUG",
     # "cad.path_builder": "DEBUG",
-    "obstacles.obstacle_manager": "DEBUG",
+    # "obstacles.obstacle_manager": "DEBUG",
     "build123d": "WARNING",
 }
 

@@ -34,6 +34,7 @@ from build123d import (
     sweep,
 )
 
+from cad.intersection_check import do_faces_intersect
 from cad.path_profile_type_shapes import (
     PROFILE_TYPE_FUNCTIONS,
     PathProfileType,
@@ -41,7 +42,6 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
-from cad.intersection_check import do_faces_intersect
 from config import Config, PathCurveModel, PathCurveType
 from logging_config import configure_logging
 from puzzle.puzzle import Node, Puzzle
@@ -1130,7 +1130,7 @@ class PathBuilder:
                         return angle
 
         # If no matching angle found, notify and return 0 degrees
-        logger.info(
+        logger.warning(
             "No matching profile type angle found for segment %s.%s to segment %s.%s.",
             previous_segment.main_index,
             previous_segment.secondary_index,

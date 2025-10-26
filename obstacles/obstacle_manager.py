@@ -132,8 +132,8 @@ class ObstacleManager:
         while placed_total < total_target:
             cycle_progress = False
             cycle_idx += 1
-            logger.info("")
-            logger.info("=== Cycle %s ===", cycle_idx)
+            logger.debug("")
+            logger.debug("=== Cycle %s ===", cycle_idx)
 
             for obstacle_name in types:
                 if placed_total >= total_target:
@@ -143,7 +143,7 @@ class ObstacleManager:
                     per_type_limit is not None
                     and counts[obstacle_name] >= per_type_limit
                 ):
-                    logger.info(
+                    logger.debug(
                         "Skipping '%s' (reached per-type limit %s).",
                         obstacle_name,
                         per_type_limit,
@@ -158,7 +158,7 @@ class ObstacleManager:
                     counts[obstacle_name] += 1
                     placed_total += 1
                     cycle_progress = True
-                    logger.info(
+                    logger.debug(
                         " -> Placed '%s'. Totals: placed=%s/%s (this type=%s)",
                         obstacle_name,
                         placed_total,
@@ -166,12 +166,12 @@ class ObstacleManager:
                         counts[obstacle_name],
                     )
                 else:
-                    logger.info(
+                    logger.debug(
                         " -> Could not place '%s' in this cycle.", obstacle_name
                     )
 
             if not cycle_progress:
-                logger.warning(
+                logger.debug(
                     "No further placements possible with current constraints."
                 )
                 break
@@ -422,21 +422,21 @@ class ObstacleManager:
         # TODO some consolidation of marking these nodes and aligning them with the grid, happens both here and in obstacle class
         coords = obstacle.get_placed_entry_exit_coords()
         if not coords:
-            logger.info("No entry/exit coords.")
+            logger.debug("No entry/exit coords.")
             return
         entry, exit = coords
         ex = tuple(_quantize_coord(c, self.node_size) for c in entry)
         et = tuple(_quantize_coord(c, self.node_size) for c in exit)
-        logger.info("Entry quantized: %s, Exit quantized: %s", ex, et)
+        logger.debug("Entry quantized: %s, Exit quantized: %s", ex, et)
         entry_node = self._find_closest_node(ex)
         exit_node = self._find_closest_node(et)
         if entry_node:
-            logger.info(
+            logger.debug(
                 "  Found entry node at %s",
                 (entry_node.x, entry_node.y, entry_node.z),
             )
         if exit_node:
-            logger.info(
+            logger.debug(
                 "  Found exit node at %s", (exit_node.x, exit_node.y, exit_node.z)
             )
         if entry_node:
