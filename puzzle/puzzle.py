@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 
 from cad.path_architect import PathArchitect
-from config import CaseShape, Config
+from config import CaseShape, Config, PathProfileType
 from logging_config import configure_logging
 from obstacles.obstacle_manager import ObstacleManager
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
@@ -376,17 +376,46 @@ class Puzzle:
             segments = self.path_architect.segments
 
             # Profile Type Distribution
+            logical_segment_profiles: dict[int, Optional[PathProfileType]] = {}
+            for segment in segments:
+                idx = segment.main_index
+                if idx not in logical_segment_profiles:
+                    logical_segment_profiles[idx] = segment.path_profile_type
+                elif (
+                    logical_segment_profiles[idx] is None
+                    and segment.path_profile_type is not None
+                ):
+                    logical_segment_profiles[idx] = segment.path_profile_type
+
+            num_logical_segments = len(logical_segment_profiles)
             profile_counter = Counter(
-                s.path_profile_type for s in segments if s.path_profile_type
+                profile
+                for profile in logical_segment_profiles.values()
+                if profile is not None
             )
+            missing_profile_count = sum(
+                1
+                for profile in logical_segment_profiles.values()
+                if profile is None
+            )
+
             logger.info("Profile Type Distribution:")
-            for profile_type, count in profile_counter.most_common():
-                logger.info(
-                    "  - %s: %s (%.1f%%)",
-                    profile_type.value,
-                    count,
-                    (count / num_segments) * 100,
-                )
+            if num_logical_segments == 0:
+                logger.info("  No logical segments with assigned profile types.")
+            else:
+                for profile_type, count in profile_counter.most_common():
+                    logger.info(
+                        "  - %s: %s (%.1f%%)",
+                        profile_type.value,
+                        count,
+                        (count / num_logical_segments) * 100,
+                    )
+                if missing_profile_count:
+                    logger.info(
+                        "  - Unknown: %s (%.1f%%)",
+                        missing_profile_count,
+                        (missing_profile_count / num_logical_segments) * 100,
+                    )
 
             # Curve Model Distribution
             model_counter = Counter(s.curve_model for s in segments if s.curve_model)
