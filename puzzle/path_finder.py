@@ -636,12 +636,8 @@ class AStarPathFinder:
         # Enforce end condition (max 1 non-mounting after last mounting)
         total_path = self._trim_path_end_condition(total_path)
 
-        # Mark the actual last node of the final path as the puzzle end
-        if total_path:
-            for node in puzzle.nodes:
-                node.puzzle_end = False
-            total_path[-1].puzzle_end = True
-        else:
+        # Check
+        if not total_path:
             logger.warning("No path generated.")
 
         return total_path

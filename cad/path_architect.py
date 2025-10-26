@@ -182,6 +182,9 @@ class PathArchitect:
             )
             self.main_index_counter += 1
 
+        # Mark last node of last segment as puzzle end
+        self.segments[-1].nodes[-1].puzzle_end = True
+
     def _create_segment(self, nodes: list[Node], main_index: int):
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
