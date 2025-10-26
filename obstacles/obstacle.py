@@ -16,7 +16,6 @@ from build123d import (
     Part,
     Plane,
     Pos,
-    Rotation,
     Transition,
     Vector,
 )
@@ -32,7 +31,7 @@ from cad.path_segment import PathSegment
 from logging_config import configure_logging
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
-from puzzle.utils.geometry import snap
+from puzzle.utils.geometry import frange, snap
 from visualization.visualization_helpers import (
     plot_casing,
     plot_node_cubes,
@@ -99,18 +98,28 @@ class Obstacle(ABC):
     @abstractmethod
     def model_solid(self) -> Part:
         """
-        Returns solid model of obstacle, swept path
+        Solid model the obstacle, used for:
+        - determining occupied nodes
+        - individual obstacle preview
+        - obstacle overview
+
+        Not used for modelling obstacles for puzzle
         """
         pass
 
     def model_solid_extras(self) -> Part:
         """
         Returns solid model of obstacle extra's ie part's not from path sweep
+        TODO Remove, keep as placeholder or create basic example implementation?
         """
         pass
 
     def default_path_profile_type(self, rotation_angle: float = -90) -> Face:
-        """Build the configured path profile shape for use in sweeps."""
+        """
+        Build the configured path profile shape for use in sweeps.
+
+        Used by obstacle preview, obstacle overview and determining occupied nodes.
+        """
         profile_type = self.path_profile_type
         profile_params = config.Path.PATH_PROFILE_TYPE_PARAMETERS.get(
             profile_type.value, {}
@@ -138,7 +147,7 @@ class Obstacle(ABC):
 
             occ_nodes = self.determine_occupied_nodes()
 
-            # TODO add nodes from entry and exit path to ensure they are not blocked
+            # Add nodes from entry and exit paths to ensure they are not blocked
             entry_exit_nodes = self.get_relative_entry_exit_nodes()
             if entry_exit_nodes is not None:
                 existing = {(n.x, n.y, n.z) for n in occ_nodes}
@@ -170,7 +179,7 @@ class Obstacle(ABC):
                     {"occupied_nodes": occ, "overlap_allowed": overlap}, f, indent=2
                 )
 
-        # rebuild node grid coordinates for puzzle node size
+        # Rebuild node grid coordinates for puzzle node size
         self.occupied_nodes = [
             Node(
                 c["x"] * self.node_size,
@@ -229,9 +238,7 @@ class Obstacle(ABC):
 
         return nodes
 
-    def get_placed_node_coordinates(
-        self, nodes: list[Node] | None
-    ) -> list[Node]:
+    def get_placed_node_coordinates(self, nodes: list[Node] | None) -> list[Node]:
         """Return transformed *copies* of nodes expressed in local coordinates."""
 
         if not nodes:
@@ -372,32 +379,6 @@ class Obstacle(ABC):
         self.entry_node = None
         self.exit_node = None
 
-    def rotate(self, rotation: Rotation):
-        """Rotates the obstacle around its current origin."""
-        if self.location:
-            self.location *= rotation
-            # Clear caches
-            self._part = None
-            self._occupied_node_coords = None
-            self.entry_node = None
-            self.exit_node = None
-        else:
-            # If not placed yet, initialize location with rotation
-            self.location = Location(rotation)
-
-    def translate(self, vector: Vector):
-        """Translates the obstacle."""
-        if self.location:
-            self.location *= Pos(vector)
-            # Clear caches
-            self._part = None
-            self._occupied_node_coords = None
-            self.entry_node = None
-            self.exit_node = None
-        else:
-            # If not placed yet, initialize location with translation
-            self.location = Location(Pos(vector))
-
     def visualize(self):
         """
         Plot this obstacle's occupied nodes, basic puzzle casing and raw path
@@ -443,22 +424,13 @@ class Obstacle(ABC):
         fig.update_layout(title=f"{self.name} obstacle view", template="plotly_dark")
         fig.show()
 
-    def determine_occupied_nodes(self, grid_count: int = 30) -> list[Node]:
+    def determine_occupied_nodes(self) -> list[Node]:
         """
-        Determine occupied nodes by testing a `grid_count^3` cube grid around the origin.
+        Determine occupied nodes by scanning only lattice cells whose centers fall within
+        a padded AABB (axis-aligned bounding box) of the obstacle solid.
 
         A node is considered occupied iff the intersection volume between the node's cube
         and the obstacle solid is >= `min_overlap_pct` percent of the cube's volume.
-
-        Parameters:
-            grid_count (int): Number of cubes to evaluate along each axis. The value is
-                coerced to an odd count so the origin is sampled.
-            min_overlap_pct (float): Minimum % of cube volume that must be overlapped by
-                the obstacle for the node to be marked occupied. Example: 5.0 -> 5%.
-
-        Returns:
-            list[Node]: Nodes whose cube volume overlaps the obstacle geometry
-                        by at least `min_overlap_pct` percent.
         """
         start_time = time.perf_counter()
 
@@ -466,91 +438,83 @@ class Obstacle(ABC):
         min_overlap_pct = self.overlap_percentage
         overlap_threshold = max(0.0, min(min_overlap_pct, 100.0)) / 100.0
 
-        # Prepare node grid
         node_size = config.Puzzle.NODE_SIZE
-        if grid_count % 2 == 0:
-            grid_count += 1
-        half = grid_count // 2
-        coords = [(i * node_size) for i in range(-half, half + 1)]
+        cube_volume = node_size**3
+        eps = 1e-9 * cube_volume  # tiny tolerance to avoid floating-point chatter
 
-        # Create obstacle solid with fully filled rectangle sweep
-        # Swap back and forth the original type
-        original_profile_type = self.path_profile_type  # Store
+        # Build the obstacle solid using the fully filled rectangle sweep
+        original_profile_type = self.path_profile_type
         self.path_profile_type = PathProfileType.SQUARE_CLOSED_SHAPE
         obstacle_solid = self.model_solid()
-        self.path_profile_type = original_profile_type  # Restore
+        self.path_profile_type = original_profile_type
 
-        # fetch the raw bounding box and pad by half a node so we don't miss border cells
+        # Bounding box of obstacle, padded by half a node so border cells are included
         bbox = obstacle_solid.bounding_box()
-        orig_min = bbox.min  # Vector(xmin, ymin, zmin)
-        orig_max = bbox.max  # Vector(xmax, ymax, zmax)
-
         pad = node_size / 2.0
-        min_pt = Vector(orig_min.X - pad, orig_min.Y - pad, orig_min.Z - pad)
-        max_pt = Vector(orig_max.X + pad, orig_max.Y + pad, orig_max.Z + pad)
+        min_pt = Vector(bbox.min.X - pad, bbox.min.Y - pad, bbox.min.Z - pad)
+        max_pt = Vector(bbox.max.X + pad, bbox.max.Y + pad, bbox.max.Z + pad)
+
+        # Coordinates: multiples of node_size within [min_pt, max_pt]
+        # frange() keeps them aligned to the global lattice (…,-2h,-h,0,h,2h,…)
+        x_values = frange(min_pt.X, max_pt.X, node_size)
+        y_values = frange(min_pt.Y, max_pt.Y, node_size)
+        z_values = frange(min_pt.Z, max_pt.Z, node_size)
 
         occupied: list[Node] = []
-        tested_centers: list[tuple[float, float, float]] = []
+        tested_count = 0
 
-        cube_volume = node_size**3
-        # tiny tolerance to avoid floating-point chatter around the threshold
-        eps = 1e-9 * cube_volume
+        for x in x_values:
+            for y in y_values:
+                for z in z_values:
+                    tested_count += 1
 
-        for x in coords:
-            if x < min_pt.X or x > max_pt.X:
-                continue
-            for y in coords:
-                if y < min_pt.Y or y > max_pt.Y:
-                    continue
-                for z in coords:
-                    if z < min_pt.Z or z > max_pt.Z:
-                        continue
-
-                    tested_centers.append((x, y, z))
+                    # Lattice cell centered at (x,y,z)
                     cube = (
                         Plane.XY * Pos(x, y, z) * Box(node_size, node_size, node_size)
                     )
 
                     # Boolean intersect
                     inter = cube & obstacle_solid
-
                     if inter is None:
                         continue
 
                     solids = inter.solids()
                     if not solids:
-                        if x == 0.0 and y == 0.0 and z == 0.0:
-                            logger.debug(
-                                "No intersection solids at cube center (%.3f, %.3f, %.3f)",
-                                x,
-                                y,
-                                z,
-                            )
                         continue
 
                     # Sum volumes in case the intersection yields multiple solids
-                    overlap_volume = 0.0
-                    for s in solids:
-                        overlap_volume += s.volume
+                    overlap_volume = sum(s.volume for s in solids)
 
-                    # Check the treshold
+                    # Check threshold
                     if overlap_volume + eps >= overlap_threshold * cube_volume:
                         occupied.append(Node(x, y, z, occupied=True))
 
         elapsed = time.perf_counter() - start_time
         logger.info(
-            "determine_occupied_nodes took %.3f s – tested %d cubes, occupied nodes: %d, threshold: %.2f%%",
+            "determine_occupied_nodes took %.3f s – tested %d cubes, occupied: %d, "
+            "threshold: %.2f%%, bbox(min→max): (%.3f, %.3f, %.3f) → (%.3f, %.3f, %.3f)",
             elapsed,
-            len(tested_centers),
+            tested_count,
             len(occupied),
             min_overlap_pct,
+            min_pt.X,
+            min_pt.Y,
+            min_pt.Z,
+            max_pt.X,
+            max_pt.Y,
+            max_pt.Z,
         )
 
         return occupied
 
     def determine_overlap_allowed_nodes(self, occupied: list[Node]) -> list[Node]:
-        """cardinal 6‐neigh offsets in world coords"""
-        offs = [
+        """
+        Find neighbor nodes in 6 carindal directions that can overlap
+        without colliding with occupied nodes.
+        """
+
+        # Define the six cardinal direction offsets around each occupied node.
+        neighbor_offsets = [
             (self.node_size, 0, 0),
             (-self.node_size, 0, 0),
             (0, self.node_size, 0),
@@ -558,15 +522,26 @@ class Obstacle(ABC):
             (0, 0, self.node_size),
             (0, 0, -self.node_size),
         ]
-        s = {(n.x, n.y, n.z) for n in occupied}
-        shell = set()
-        for x, y, z in s:
-            for dx, dy, dz in offs:
-                nb = (x + dx, y + dy, z + dz)
-                if nb not in s:
-                    shell.add(nb)
+
+        # Store occupied coordinates for quick membership checks while iterating neighbors.
+        occupied_coordinate_set = {(node.x, node.y, node.z) for node in occupied}
+
+        # Explore the immediate neighbors around each occupied node to build the allowed set.
+        candidate_overlap_coordinates: set[tuple[float, float, float]] = set()
+        for occupied_x, occupied_y, occupied_z in occupied_coordinate_set:
+            for offset_x, offset_y, offset_z in neighbor_offsets:
+                neighbor_coordinate = (
+                    occupied_x + offset_x,
+                    occupied_y + offset_y,
+                    occupied_z + offset_z,
+                )
+                if neighbor_coordinate not in occupied_coordinate_set:
+                    candidate_overlap_coordinates.add(neighbor_coordinate)
+
+        # Convert the coordinate tuples into Node instances marked as overlap-allowed.
         return [
-            Node(x, y, z, occupied=False, overlap_allowed=True) for x, y, z in shell
+            Node(x, y, z, occupied=False, overlap_allowed=True)
+            for x, y, z in candidate_overlap_coordinates
         ]
 
     @staticmethod
@@ -607,7 +582,9 @@ class Obstacle(ABC):
 
         if self.main_path_segment.path is None:
             return [Vector(0, 0, 0)]
+
         ts = linspace(0.0, 1.0, samples)
+
         return [self.main_path_segment.path @ float(t) for t in ts]
 
     def sample_obstacle_path_world(self) -> list[Vector]:
@@ -633,13 +610,15 @@ class Obstacle(ABC):
 
     def show_solid_model(self):
         """
-        Build the obstacle solid, its occupied and
-        overlap node cubes, and show them.
+        Build the obstacle solid, its occupied and overlap node cubes,
+        and show them.
         """
+
+        # Obstacles
         self.create_obstacle_geometry()
         obstacle_solid = self.model_solid()
 
-        # cubes
+        # Cubes
         occupied_cubes = self.solid_model_node_cubes(
             nodes=self.occupied_nodes,
             name="Occupied Node",
@@ -653,7 +632,7 @@ class Obstacle(ABC):
 
         set_defaults(reset_camera=Camera.KEEP)
 
-        # show everything with custom group names
+        # Show everything with custom group names
         show(
             obstacle_solid,
             occupied_cubes,
