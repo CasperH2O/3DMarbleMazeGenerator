@@ -138,7 +138,7 @@ def ball_and_path_indicators(puzzle: Puzzle):
         # Small circle for sweep
         with BuildSketch(ball_path_line.line ^ 0):
             Circle(Config.Puzzle.BALL_DIAMETER / 10)
-        sweep(transition=Transition.RIGHT)
+        sweep(transition=Transition.ROUND)
 
         # Insert cones every n nodes for direction indication
         total_pts = len(node_positions)

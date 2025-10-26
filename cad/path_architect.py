@@ -229,6 +229,7 @@ class PathArchitect:
             )
             entry_seg.copy_attributes_from(obstacle.main_path_segment)
             entry_seg.curve_model = PathCurveModel.SINGLE
+            entry_seg.transition_type = None  # Reset to prevent Transformed type
             segments.append(entry_seg)
 
         # Main segment, the obstacle path
@@ -273,6 +274,7 @@ class PathArchitect:
             )
             exit_seg.copy_attributes_from(obstacle.main_path_segment)
             exit_seg.curve_model = PathCurveModel.SINGLE
+            exit_seg.transition_type = None  # Reset to prevent Transformed type
             # not locked
             segments.append(exit_seg)
 
@@ -401,9 +403,11 @@ class PathArchitect:
                 # For mounting segments, only select specific types, ensures linking with bridge
                 # Respect config, if none of these are allowed, fall back to U_SHAPE.
                 candidates_for_mounting = [
-                    PathProfileType.O_SHAPE,
-                    PathProfileType.U_SHAPE,
+                    # PathProfileType.O_SHAPE,
+                    # PathProfileType.U_SHAPE,
                     PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
+                    PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+                    PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT,
                 ]
                 # Filter against allowed types from config
                 available_profile_types = [

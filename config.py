@@ -21,9 +21,9 @@ class Puzzle:
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0FF"  # Metal grey
-    PATH_COLORS = ["#FFD700FF", "#00E4EBFF", "#EB009FFF"]  # Gold, Cyan, Magenta
-    PATH_ACCENT_COLOR = "#2F66F5FF"  # Blue
-    TEXT_COLOR = "#2F66F5FF"  # Blue
+    PATH_COLORS = ["#F0CC00FF", "#3D3FCEFF", "#B82D2DFF"]  # Gold, Cyan, Magenta
+    PATH_ACCENT_COLOR = "#ECECECFF"  # Blue
+    TEXT_COLOR = "#C4C4C4FF"  # Blue
     MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
     TRANSPARENT_CASE_COLOR = "#FFFFFF0D"  # White with alpha 0.05
     SUPPORT_MATERIAL_COLOR = "#FFFFFF1A"  # White with alpha 0.10
@@ -32,14 +32,14 @@ class Puzzle:
 class Obstacles:
     RANDOM_PLACEMENT_ENABLED = False  # random obstacle on/off switch.
     ALLOWED_TYPES = [  # registry names to consider
-        ObstacleType.ALPHA,
-        ObstacleType.OVERHAND_KNOT,
         ObstacleType.QUESTION_MARK,
         ObstacleType.SPIRAL,
         ObstacleType.U_TURN,
         ObstacleType.ARROW,
         ObstacleType.OMEGA,
         ObstacleType.GOSPER_CURVE,
+        # ObstacleType.ALPHA, # TODO multi section
+        # ObstacleType.OVERHAND_KNOT, # TODO multi section
     ]
     MAX_TO_PLACE = 5  # target number of obstacles to place (total)
     ATTEMPTS_PER_PLACEMENT = 5  # random tries per single obstacle instance
@@ -121,7 +121,7 @@ class Path:
     ]
 
     PATH_PROFILE_TYPES = [
-        PathProfileType.U_SHAPE,
+        # PathProfileType.U_SHAPE,
         PathProfileType.U_SHAPE_ADJUSTED_HEIGHT,
         PathProfileType.L_SHAPE,
         PathProfileType.L_SHAPE_MIRRORED,
