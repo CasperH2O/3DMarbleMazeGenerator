@@ -123,7 +123,7 @@ class ObstacleManager:
         cycle_idx = 0
 
         logger.info(
-            "Starting placement: Target=%s, AttemptsPerPlacement=%s, PerTypeLimit=%s, SeedCounts=%s",
+            "Starting placement: Target=%s, AttemptsPerPlacement=%s, PerTypeLimit=%s, Pre Placed Counts=%s",
             total_target,
             attempts_per_placement,
             per_type_limit,
@@ -172,9 +172,7 @@ class ObstacleManager:
                     )
 
             if not cycle_progress:
-                logger.debug(
-                    "No further placements possible with current constraints."
-                )
+                logger.debug("No further placements possible with current constraints.")
                 break
 
     def _apply_automatic_placements(self, manual_counts: Counter):
@@ -275,7 +273,7 @@ class ObstacleManager:
             )
 
             # Validate space on the node grid
-            is_valid = self._is_placement_valid(obstacle, debug=True)
+            is_valid = self._is_placement_valid(obstacle)
             logger.info("  -> Manual placement valid? %s", is_valid)
             if not is_valid:
                 logger.warning("  -> Manual #%s FAILED validation -> not placed", index)
@@ -357,9 +355,9 @@ class ObstacleManager:
             )
 
             # Validate
-            valid = self._is_placement_valid(obstacle, debug=True)
-            logger.debug("  -> Placement valid? %s", valid)
-            if valid:
+            is_valid = self._is_placement_valid(obstacle)
+            logger.debug("  -> Placement valid? %s", is_valid)
+            if is_valid:
                 self.placed_obstacles.append(obstacle)
                 self._occupy_nodes_for_obstacle(obstacle)
                 self._assign_entry_exit_nodes(obstacle)
@@ -370,41 +368,73 @@ class ObstacleManager:
         # Exhausted attempts for this type instance
         return False
 
-    def _is_placement_valid(self, obstacle: Obstacle, debug: bool = False) -> bool:
-        """Checks if the proposed placement is valid (inside grid, no collisions)."""
-        # Transform and quantize nodes
-        occupied_nodes = [
-            Node(n.x, n.y, n.z, occupied=True) for n in (obstacle.occupied_nodes or [])
+    def _is_placement_valid(self, obstacle: Obstacle) -> bool:
+        """
+        Checks if the proposed placement is valid:
+        - Boundary checks: occupied nodes must be in-grid (overlap nodes are not boundary-checked)
+        - Collision rules vs previously placed nodes:
+            * occupied ∩ occupied -> invalid
+            * occupied ∩ overlap  -> invalid
+            * overlap  ∩ occupied -> invalid
+            * overlap  ∩ overlap  -> allowed
+        Debug logging always uses logger.debug (no debug flag).
+        """
+        # Transform local occupied/overlap nodes to world space
+        local_occupied = [
+            Node(node.x, node.y, node.z, occupied=True)
+            for node in (obstacle.occupied_nodes or [])
         ]
-        overlap_nodes = [
-            Node(n.x, n.y, n.z, overlap_allowed=True)
-            for n in (obstacle.overlap_nodes or [])
+        local_overlap = [
+            Node(node.x, node.y, node.z, overlap_allowed=True)
+            for node in (obstacle.overlap_nodes or [])
         ]
-        occupied_nodes = obstacle.get_placed_node_coordinates(occupied_nodes)
-        overlap_nodes = obstacle.get_placed_node_coordinates(overlap_nodes)
 
-        # Quantize coordinates to avoid drift
-        for n in occupied_nodes + overlap_nodes:
-            n.x = _quantize_coord(n.x, self.node_size)
-            n.y = _quantize_coord(n.y, self.node_size)
-            n.z = _quantize_coord(n.z, self.node_size)
+        world_occupied = obstacle.get_placed_node_coordinates(local_occupied)
+        world_overlap = obstacle.get_placed_node_coordinates(local_overlap)
 
-        # Boundary check (only consider occupied nodes for grid inclusion)
-        for n in occupied_nodes:
-            if (n.x, n.y, n.z) not in self.node_dict:
-                if debug:
-                    logger.debug(
-                        "    Occupied node %s is outside grid.", (n.x, n.y, n.z)
-                    )
+        # Quantize to grid keys
+        def to_quantized_key(node: Node) -> tuple[float, float, float]:
+            return (
+                _quantize_coord(node.x, self.node_size),
+                _quantize_coord(node.y, self.node_size),
+                _quantize_coord(node.z, self.node_size),
+            )
+
+        occupied_keys = {to_quantized_key(node) for node in world_occupied}
+        overlap_keys = {to_quantized_key(node) for node in world_overlap}
+
+        # Boundary checks, occupied must be in-grid
+        for key in occupied_keys:
+            if key not in self.node_dict:
+                logger.debug("    Occupied node %s is outside grid.", key)
                 return False
 
-        # Collision check
-        for n in occupied_nodes + overlap_nodes:
-            if (n.x, n.y, n.z) in self.occupied_positions:
-                if debug:
-                    logger.debug("    Node %s collides.", (n.x, n.y, n.z))
-                return False
+        # Collision checks
+        # occupied ∩ occupied -> invalid
+        conflict = occupied_keys & self.occupied_positions
+        if conflict:
+            logger.debug(
+                "    Occupied vs occupied collision at %s", next(iter(conflict))
+            )
+            return False
 
+        # occupied ∩ overlap -> invalid
+        conflict = occupied_keys & self.overlap_positions
+        if conflict:
+            logger.debug(
+                "    Occupied vs overlap collision at %s", next(iter(conflict))
+            )
+            return False
+
+        # overlap ∩ occupied -> invalid
+        conflict = overlap_keys & self.occupied_positions
+        if conflict:
+            logger.debug(
+                "    Overlap vs occupied collision at %s", next(iter(conflict))
+            )
+            return False
+
+        # overlap ∩ overlap -> allowed
         return True
 
     def _occupy_nodes_for_obstacle(self, obstacle: Obstacle):

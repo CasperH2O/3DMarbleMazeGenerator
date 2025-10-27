@@ -481,8 +481,8 @@ class Obstacle(ABC):
         Find neighbor nodes in the six cardinal directions that can overlap
         without colliding with occupied nodes.
 
-        The search expands outward in a two-layer shell (one and two node sizes
-        away) to provide additional flexibility for obstacle placement while
+        The search expands outward in a n-layer shell (n node sizes away) 
+        to provide additional flexibility for obstacle placement while
         still avoiding occupied coordinates.
         """
 
