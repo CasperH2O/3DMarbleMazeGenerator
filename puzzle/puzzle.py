@@ -160,13 +160,12 @@ class Puzzle:
                 num_waypoints,
             )
 
-        random.seed(self.seed)
-        np.random.seed(self.seed)
+        rng = random.Random(self.seed)
 
         waypoints: list[Node] = []
         for _ in range(num_waypoints):
             # Generate candidates
-            candidates: list[Node] = random.sample(
+            candidates: list[Node] = rng.sample(
                 unoccupied_nodes, min(num_candidates, len(unoccupied_nodes))
             )
 
