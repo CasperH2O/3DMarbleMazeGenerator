@@ -282,23 +282,14 @@ class Obstacle(ABC):
         """
         Entry/exit in *world* coordinates after placement (self.location).
         """
-        if self.location is None:
+        placed_nodes = self.get_placed_entry_exit_nodes()
+        if placed_nodes is None:
             return None
 
-        relative_nodes = self.get_relative_entry_exit_nodes()
-        if relative_nodes is None:
-            return None
+        entry_node, exit_node = placed_nodes
 
-        entry_node, exit_node = relative_nodes
-        entry_loc = self.location * Location(
-            Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
-        )
-        exit_loc = self.location * Location(
-            Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
-        )
-
-        entry_coord = (entry_loc.position.X, entry_loc.position.Y, entry_loc.position.Z)
-        exit_coord = (exit_loc.position.X, exit_loc.position.Y, exit_loc.position.Z)
+        entry_coord = (entry_node.x, entry_node.y, entry_node.z)
+        exit_coord = (exit_node.x, exit_node.y, exit_node.z)
 
         return entry_coord, exit_coord
 
@@ -334,10 +325,7 @@ class Obstacle(ABC):
         return entry_node, exit_node
 
     def get_placed_entry_exit_nodes(self) -> Optional[Tuple[Node, Node]]:
-        """
-        Return the entry and exit nodes transformed into world coordinates.
-        # TODO some akward recreation of nodes going on here
-        """
+        """Return the entry and exit nodes transformed into world coordinates."""
 
         if self.location is None:
             return None
@@ -346,32 +334,17 @@ class Obstacle(ABC):
         if relative_nodes is None:
             return None
 
-        entry_node, exit_node = relative_nodes
-        entry_loc = self.location * Location(
-            Pos(Vector(entry_node.x, entry_node.y, entry_node.z))
-        )
-        exit_loc = self.location * Location(
-            Pos(Vector(exit_node.x, exit_node.y, exit_node.z))
-        )
+        placed_nodes = self.world_nodes(list(relative_nodes))
+        if len(placed_nodes) < 2:
+            return None
 
-        placed_entry = Node(
-            entry_loc.position.X,
-            entry_loc.position.Y,
-            entry_loc.position.Z,
-            occupied=True,
-        )
-
-        placed_exit = Node(
-            exit_loc.position.X,
-            exit_loc.position.Y,
-            exit_loc.position.Z,
-            occupied=True,
-        )
-
-        return placed_entry, placed_exit
+        return placed_nodes[0], placed_nodes[1]
 
     def set_placement(self, location: Location):
-        """TODO Directly sets the obstacle's placement location."""
+        """
+        Directly sets the obstacle's placement location.
+        TODO Do more with this, handle cache etc?
+        """
         self.location = location
         # Clear caches as placement changed
         self._part = None
