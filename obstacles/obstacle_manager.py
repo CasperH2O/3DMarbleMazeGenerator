@@ -55,6 +55,7 @@ class ObstacleManager:
         # Track placed obstacles and occupied grid positions
         self.placed_obstacles: list[Obstacle] = []
         self.occupied_positions: set = set()
+        self.overlap_positions: set[tuple[float, float, float]] = set()
         # Track placement duration
         self.placement_time: float = 0.0
 
@@ -313,8 +314,12 @@ class ObstacleManager:
             # Check for unoccupied nodes for origin placement
             pool: list[Node] = []
             for node in interior_nodes:
-                if (node.x, node.y, node.z) not in self.occupied_positions:
-                    pool.append(node)
+                key = (node.x, node.y, node.z)
+                if key in self.occupied_positions:
+                    continue
+                if key in self.overlap_positions or node.overlap_allowed:
+                    continue
+                pool.append(node)
 
             # No canditates for this orientation
             if len(pool) == 0:
@@ -384,15 +389,17 @@ class ObstacleManager:
             n.y = _quantize_coord(n.y, self.node_size)
             n.z = _quantize_coord(n.z, self.node_size)
 
-        # Boundary check
-        for n in occupied_nodes + overlap_nodes:
+        # Boundary check (only consider occupied nodes for grid inclusion)
+        for n in occupied_nodes:
             if (n.x, n.y, n.z) not in self.node_dict:
                 if debug:
-                    logger.debug("    Node %s is outside grid.", (n.x, n.y, n.z))
+                    logger.debug(
+                        "    Occupied node %s is outside grid.", (n.x, n.y, n.z)
+                    )
                 return False
 
         # Collision check
-        for n in occupied_nodes:
+        for n in occupied_nodes + overlap_nodes:
             if (n.x, n.y, n.z) in self.occupied_positions:
                 if debug:
                     logger.debug("    Node %s collides.", (n.x, n.y, n.z))
@@ -416,6 +423,22 @@ class ObstacleManager:
             if node:
                 node.occupied = True
                 self.occupied_positions.add(key)
+
+        overlap_local = [
+            Node(n.x, n.y, n.z, overlap_allowed=True)
+            for n in (obstacle.overlap_nodes or [])
+        ]
+        overlap_world = obstacle.get_placed_node_coordinates(overlap_local)
+
+        for n in overlap_world:
+            x = _quantize_coord(n.x, self.node_size)
+            y = _quantize_coord(n.y, self.node_size)
+            z = _quantize_coord(n.z, self.node_size)
+            key = (x, y, z)
+            node = self.node_dict.get(key)
+            if node:
+                node.overlap_allowed = True
+                self.overlap_positions.add(key)
 
     def _assign_entry_exit_nodes(self, obstacle: Obstacle):
         """Find closest nodes to entry/exit and mark them (if obstacle provides such coords)."""

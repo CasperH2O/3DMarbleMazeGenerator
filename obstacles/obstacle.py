@@ -464,52 +464,57 @@ class Obstacle(ABC):
 
         elapsed = time.perf_counter() - start_time
         logger.info(
-            "determine_occupied_nodes took %.3f s – tested %d cubes, occupied: %d, "
-            "threshold: %.2f%%, bbox(min→max): (%.3f, %.3f, %.3f) → (%.3f, %.3f, %.3f)",
+            "Obstacle: %s. "
+            "Determining occupied nodes took %.3f s – tested %d cubes, occupied: %d, "
+            "threshold: %.2f%%",
+            self.name,
             elapsed,
             tested_count,
             len(occupied),
             min_overlap_pct,
-            min_pt.X,
-            min_pt.Y,
-            min_pt.Z,
-            max_pt.X,
-            max_pt.Y,
-            max_pt.Z,
         )
 
         return occupied
 
     def determine_overlap_allowed_nodes(self, occupied: list[Node]) -> list[Node]:
         """
-        Find neighbor nodes in 6 carindal directions that can overlap
+        Find neighbor nodes in the six cardinal directions that can overlap
         without colliding with occupied nodes.
+
+        The search expands outward in a two-layer shell (one and two node sizes
+        away) to provide additional flexibility for obstacle placement while
+        still avoiding occupied coordinates.
         """
 
-        # Define the six cardinal direction offsets around each occupied node.
-        neighbor_offsets = [
-            (self.node_size, 0, 0),
-            (-self.node_size, 0, 0),
-            (0, self.node_size, 0),
-            (0, -self.node_size, 0),
-            (0, 0, self.node_size),
-            (0, 0, -self.node_size),
+        shells_layer_amount = 1  # [1, 2, 3 etc] amount of shell nodes
+        shell_layers = list(range(1, shells_layer_amount + 1))
+
+        # Define the six cardinal direction unit offsets around each occupied node.
+        cardinal_directions = [
+            (1, 0, 0),
+            (-1, 0, 0),
+            (0, 1, 0),
+            (0, -1, 0),
+            (0, 0, 1),
+            (0, 0, -1),
         ]
 
         # Store occupied coordinates for quick membership checks while iterating neighbors.
         occupied_coordinate_set = {(node.x, node.y, node.z) for node in occupied}
 
-        # Explore the immediate neighbors around each occupied node to build the allowed set.
+        # Explore neighbors around each occupied node to build the allowed set.
         candidate_overlap_coordinates: set[tuple[float, float, float]] = set()
         for occupied_x, occupied_y, occupied_z in occupied_coordinate_set:
-            for offset_x, offset_y, offset_z in neighbor_offsets:
-                neighbor_coordinate = (
-                    occupied_x + offset_x,
-                    occupied_y + offset_y,
-                    occupied_z + offset_z,
-                )
-                if neighbor_coordinate not in occupied_coordinate_set:
-                    candidate_overlap_coordinates.add(neighbor_coordinate)
+            for distance_multiplier in shell_layers:
+                offset_scale = self.node_size * distance_multiplier
+                for direction_x, direction_y, direction_z in cardinal_directions:
+                    neighbor_coordinate = (
+                        occupied_x + direction_x * offset_scale,
+                        occupied_y + direction_y * offset_scale,
+                        occupied_z + direction_z * offset_scale,
+                    )
+                    if neighbor_coordinate not in occupied_coordinate_set:
+                        candidate_overlap_coordinates.add(neighbor_coordinate)
 
         # Convert the coordinate tuples into Node instances marked as overlap-allowed.
         return [
