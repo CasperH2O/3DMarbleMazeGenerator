@@ -37,7 +37,9 @@ class Obstacles:
         ObstacleType.U_TURN,
         ObstacleType.ARROW,
         ObstacleType.OMEGA,
-        ObstacleType.GOSPER_CURVE,
+        ObstacleType.GOSPER_CURVE_RANGE_1_TO_4,
+        ObstacleType.GOSPER_CURVE_RANGE_6_TO_10,
+        ObstacleType.GOSPER_CURVE_RANGE_11_TO_15,
         # ObstacleType.ALPHA, # TODO multi section
         # ObstacleType.OVERHAND_KNOT, # TODO multi section
     ]

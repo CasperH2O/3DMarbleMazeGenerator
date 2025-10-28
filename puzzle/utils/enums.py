@@ -10,7 +10,9 @@ class ObstacleType(Enum):
 
     ALPHA = "Alpha"
     ARROW = "Arrow"
-    GOSPER_CURVE = "Gosper Curve"
+    GOSPER_CURVE_RANGE_1_TO_4 = "Gosper Curve - Range 1-4"
+    GOSPER_CURVE_RANGE_6_TO_10 = "Gosper Curve - Range 6-10"
+    GOSPER_CURVE_RANGE_11_TO_15 = "Gosper Curve - Range 11-15"
     OMEGA = "Omega"
     OVERHAND_KNOT = "Overhand Knot"
     QUESTION_MARK = "Question Mark"

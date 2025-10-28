@@ -9,6 +9,8 @@ from build123d import (
     BuildLine,
     BuildPart,
     BuildSketch,
+    Location,
+    Locations,
     Part,
     Polyline,
     Transition,
@@ -19,6 +21,49 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
+
+
+def _apply_index_range(
+    points_xy: List[Tuple[float, float]],
+    start_index: int | None,
+    end_index: int | None,
+) -> List[Tuple[float, float]]:
+    """
+    If both indices are provided, return the contiguous slice
+    points_xy[start_index : end_index + 1] (inclusive).
+
+    - Indices are clamped to [0, len(points) - 1]
+    - If start_index > end_index, the slice is reversed so the path flows
+      from 'start' to 'end'
+    - If start_index == end_index, we try to extend to a neighbor so that the
+      result has at least 2 points (when possible)
+    - Consecutive duplicates are removed
+    """
+    if start_index is None or end_index is None:
+        return points_xy
+    if not points_xy:
+        return points_xy
+
+    total = len(points_xy)
+    start_index = max(0, min(start_index, total - 1))
+    end_index = max(0, min(end_index, total - 1))
+
+    if start_index == end_index:
+        if end_index + 1 < total:
+            end_index += 1
+        elif start_index - 1 >= 0:
+            start_index -= 1
+        else:
+            # Single point only; let downstream safety handle it
+            return [points_xy[start_index]]
+
+    if start_index <= end_index:
+        subpath = points_xy[start_index : end_index + 1]
+    else:
+        subpath = list(reversed(points_xy[end_index : start_index + 1]))
+
+    return _deduplicate_consecutive_points_2d(subpath)
 
 
 def _apply_shortcut_by_indices(
@@ -274,6 +319,52 @@ def _snap_start_to_grid_by_translation(
     return _translate_points(points_xy, delta_x, delta_y)
 
 
+def _horizontal_connector_farpoint(
+    anchor_xy: tuple[float, float],
+    direction_unit_xy: tuple[float, float],
+    length: float,
+    is_entry: bool,
+    grid_size: float | None = None,
+    snap_to_grid: bool = True,
+) -> tuple[float, float]:
+    """
+    Compute a far-point for an entry/exit connector that is guaranteed to be horizontal.
+
+    Rules:
+      - Keep y the same as the anchor (purely horizontal segment).
+      - Choose left/right based on the sign of the local path's dx.
+      - Entry goes opposite the path direction; exit goes along the path.
+      - If dx is ~0 (vertical tangent), use a deterministic fallback:
+            entry -> left  (-x), exit -> right (+x).
+      - Optionally snap far_x to the nearest node grid multiple.
+
+    Returns:
+        (far_x, far_y)
+    """
+    anchor_x, anchor_y = anchor_xy
+    direction_unit_x, _direction_unit_y = direction_unit_xy
+
+    # Entry goes opposite; exit goes along the path
+    along_sign = 1.0 if not is_entry else -1.0
+
+    # Horizontal sign from local dx; robust fallback when nearly zero
+    if abs(direction_unit_x) <= 1e-12:
+        direction_sign = (
+            -1.0 if is_entry else 1.0
+        )  # entry left, exit right (deterministic)
+    else:
+        direction_sign = 1.0 if direction_unit_x >= 0.0 else -1.0
+
+    step = along_sign * direction_sign * length
+    far_x = anchor_x + step
+    far_y = anchor_y
+
+    if snap_to_grid and grid_size:
+        far_x = _round_to_nearest_multiple(far_x, grid_size)
+
+    return (far_x, far_y)
+
+
 class GosperCurve(Obstacle):
     """
     A Gosper (flowsnake) curve obstacle:
@@ -284,38 +375,52 @@ class GosperCurve(Obstacle):
     """
 
     def __init__(self):
+        # Name may be updated by presets via apply_preset()
         super().__init__(name="Gosper Curve")
 
-        # Gosper settings
-        self.gosper_order: int = 2
-        grid_multiplier = 2
-        self.gosper_step: float = (2.0 * grid_multiplier * self.node_size) / math.sqrt(
-            3.0
-        )
+        # Optional inclusive index range on the raw point list
+        # If both are None, disabled.
+        self.curve_index_range: tuple[int | None, int | None] = (None, None)
 
-        # Stop the path at certain point, optional
-        self.stop_at_index: int | None = 13
+        # Optional truncate at index (only used when no range is set)
+        self.stop_at_index: int | None = None
 
-        # Shortcut, optional
+        # Optional shortcut (keep up to i, jump to j..end)
         self.shortcut_indices: tuple[int, int] | None = None
+
+        # Allow subclasses obstacle with own name and parameters before cache/load nodes
+        self.apply_preset()
 
         # Load nodes from cache or determine
         self.load_relative_node_coords()
 
+    def apply_preset(self) -> None:
+        """
+        Hook for subclasses to tweak settings
+        """
+        pass
+
     def create_obstacle_geometry(self):
         """Generates the geometry for the Gosper curve obstacle (polyline + connectors)."""
         # Generate Gosper points (2D)
-        program = _expand_gosper_lsystem(order=self.gosper_order)
+        program = _expand_gosper_lsystem(order=2)
+        grid_multiplier = 2
+        gosper_step: float = (2.0 * grid_multiplier * self.node_size) / math.sqrt(3.0)
         points_xy = _turtle_to_points_hex(
             program=program,
-            step=self.gosper_step,
+            step=gosper_step,
             start_direction_index=0,
         )
 
-        # Stop path, optional
-        points_xy = _apply_stop_at_index(
-            stop_at_index=self.stop_at_index, points_xy=points_xy
-        )
+        # Apply explicit index range, optionally; when active, it supersedes stop at index.
+        start_index, end_index = self.curve_index_range
+        if start_index is not None and end_index is not None:
+            points_xy = _apply_index_range(points_xy, start_index, end_index)
+        else:
+            # Stop path, optional
+            points_xy = _apply_stop_at_index(
+                stop_at_index=self.stop_at_index, points_xy=points_xy
+            )
 
         # Shortcut, optional
         if self.shortcut_indices is not None:
@@ -346,12 +451,6 @@ class GosperCurve(Obstacle):
             # Safety: ensure we have at least two segments to define directions
             points_xy = [(0.0, 0.0), (self.node_size, 0.0), (2.0 * self.node_size, 0.0)]
 
-        # Find endpoint directions for connector alignment
-        start_point = points_xy[0]
-        second_point = points_xy[1]
-        start_dir_x, start_dir_y = _unit_direction(start_point, second_point)
-        end_point = points_xy[-1]
-
         # Build the obstacle polyline at z = 0
         points_xyz = [(x, y, 0.0) for (x, y) in points_xy]
         with BuildPart():
@@ -359,27 +458,44 @@ class GosperCurve(Obstacle):
                 Polyline(*points_xyz)
 
         self.main_path_segment.path = obstacle_line.line
-        self.main_path_segment.transition_type = (
-            Transition.RIGHT
-        )  # Both RIGHT and ROUND work for this, TODO tbd.
+        self.main_path_segment.transition_type = Transition.RIGHT
 
         # Connectors: snap onto curve endpoints to guarantee continuity ---
         connector_length = self.node_size  # outward “lead-in/out” length
 
+        # Find start point directions for connector alignment
+        start_point = points_xy[0]
+        second_point = points_xy[1]
+        start_dir_x, start_dir_y = _unit_direction(start_point, second_point)
+
         # Entry: first node is outward from the start, second node IS the start
-        entry_far_x = start_point[0] - connector_length * start_dir_x
-        entry_far_y = start_point[1] - connector_length * start_dir_y
+        entry_far_x, entry_far_y = _horizontal_connector_farpoint(
+            anchor_xy=(start_point[0], start_point[1]),
+            direction_unit_xy=(start_dir_x, start_dir_y),
+            length=connector_length,
+            is_entry=True,
+            grid_size=self.node_size,
+            snap_to_grid=True,
+        )
         self.entry_path_segment.nodes = [
             Node(entry_far_x, entry_far_y, 0.0, occupied=True),
             Node(start_point[0], start_point[1], 0.0, occupied=True),
         ]
 
-        # Exit: first node is the end, second node is outward from the end,
-        # intentionally made exit far horizontal, left from the final point
-        exit_far_x = _round_to_nearest_multiple(
-            end_point[0] - connector_length, self.node_size
+        # Find start point directions for connector alignment
+        end_point = points_xy[-1]
+        second_last_point = points_xy[-2]
+        end_dir_x, end_dir_y = _unit_direction(second_last_point, end_point)
+
+        # Exit: first node is the end, second node is outward from the end
+        exit_far_x, exit_far_y = _horizontal_connector_farpoint(
+            anchor_xy=(end_point[0], end_point[1]),
+            direction_unit_xy=(end_dir_x, end_dir_y),
+            length=connector_length,
+            is_entry=False,
+            grid_size=self.node_size,
+            snap_to_grid=True,
         )
-        exit_far_y = end_point[1]
         self.exit_path_segment.nodes = [
             Node(end_point[0], end_point[1], 0.0, occupied=True),
             Node(exit_far_x, exit_far_y, 0.0, occupied=True),
@@ -393,20 +509,52 @@ class GosperCurve(Obstacle):
             with BuildLine() as line:
                 add(self.main_path_segment.path)
             with BuildSketch(line.line ^ 0):
-                add(self.default_path_profile_type())
+                with Locations(Location((0, 0, 0), (0, 0, -90))):
+                    add(self.default_path_profile_type())
             sweep(transition=self.main_path_segment.transition_type)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
         return obstacle.part
 
 
-# Register the obstacle
-register_obstacle("Gosper Curve", GosperCurve)
+# Gospers
+class GosperCurveFull(GosperCurve):
+    def apply_preset(self) -> None:
+        # A full order-2 curve, no truncation, no shortcut
+        self.name = "Gosper Curve - Full"
 
+
+class GosperCurveRange1to4(GosperCurve):
+    def apply_preset(self) -> None:
+        # Only render indices [1..4], inclusive
+        self.name = ObstacleType.GOSPER_CURVE_RANGE_1_TO_4.value
+        self.curve_index_range = (1, 4)
+
+
+class GosperCurverRange6to10(GosperCurve):
+    def apply_preset(self) -> None:
+        # Only render indices [6..10], inclusive
+        self.name = ObstacleType.GOSPER_CURVE_RANGE_6_TO_10.value
+        self.curve_index_range = (6, 10)
+
+
+class GosperCurverRange11to15(GosperCurve):
+    def apply_preset(self) -> None:
+        # Only render indices [11..15], inclusive
+        self.name = ObstacleType.GOSPER_CURVE_RANGE_11_TO_15.value
+        self.curve_index_range = (11, 15)
+
+
+# Register the obstacle(s)
+register_obstacle(ObstacleType.GOSPER_CURVE_RANGE_1_TO_4.value, GosperCurveRange1to4)
+register_obstacle(ObstacleType.GOSPER_CURVE_RANGE_6_TO_10.value, GosperCurverRange6to10)
+register_obstacle(
+    ObstacleType.GOSPER_CURVE_RANGE_11_TO_15.value, GosperCurverRange11to15
+)
 
 if __name__ == "__main__":
     # Create
-    obstacle = GosperCurve()
+    obstacle = GosperCurveRange1to4()
 
     # Visualization
     obstacle.visualize()
