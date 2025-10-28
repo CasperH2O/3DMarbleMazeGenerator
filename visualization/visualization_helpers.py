@@ -20,7 +20,10 @@ from puzzle.node import Node
 
 
 def plot_nodes(
-    nodes: list[Node], segments: list[PathSegment] | None = None, group_name: str = ""
+    nodes: list[Node],
+    segments: list[PathSegment] | None = None,
+    group_name: str = "",
+    obstacles_present: bool = False,
 ) -> list[go.Scatter3d]:
     """
     Groups nodes by their primary property so that the legend only displays the primary label,
@@ -160,6 +163,11 @@ def plot_nodes(
             legendgroup=group_name,
             text=coords["hover"],  # Custom detailed info (all flags, with line breaks).
             hovertemplate="X: %{x}<br>Y: %{y}<br>Z: %{z}<br>%{text}<extra></extra>",
+            visible=(
+                "legendonly"
+                if obstacles_present and primary in {"Occupied", "Overlap"}
+                else True
+            ),
         )
         traces.append(trace)
     return traces

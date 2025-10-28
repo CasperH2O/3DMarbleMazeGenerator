@@ -30,7 +30,11 @@ def visualize_path_architect(
     fig = go.Figure()
 
     # Plot all nodes with shared styling.
-    for trace in plot_nodes(nodes, segments):
+    for trace in plot_nodes(
+        nodes,
+        segments,
+        obstacles_present=bool(obstacles),
+    ):
         fig.add_trace(trace)
 
     # Segments

@@ -157,7 +157,7 @@ def set_viewer():
 
     # Rotating animation
     animation = Animation(Part())
-    times = np.linspace(0, 6, 33)  # 4 seconds split in 0.2 intervals
+    times = np.linspace(0, 12, 33)  # 12 seconds split in 0.2 intervals
     values = np.linspace(0, -360, 33)  # as many positions as times
 
     # add all groups to animation tracks except for the base
