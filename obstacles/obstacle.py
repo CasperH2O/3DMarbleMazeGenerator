@@ -10,11 +10,13 @@ from typing import Optional, Tuple
 import plotly.graph_objects as go
 from build123d import (
     Box,
+    BuildLine,
     BuildPart,
     Face,
     Location,
     Part,
     Plane,
+    Polyline,
     Pos,
     Transition,
     Vector,
@@ -113,6 +115,21 @@ class Obstacle(ABC):
         TODO Remove, keep as placeholder or create basic example implementation?
         """
         pass
+
+    def _ensure_entry_exit_paths(self) -> None:
+        """Ensure entry and exit path segments have Build123d wires assigned."""
+
+        def _build_wire_from_nodes(segment: PathSegment) -> None:
+            if segment.path is not None or len(segment.nodes) < 2:
+                return
+
+            with BuildLine() as line_builder:
+                Polyline(*[(node.x, node.y, node.z) for node in segment.nodes])
+
+            segment.path = line_builder.line
+
+        _build_wire_from_nodes(self.entry_path_segment)
+        _build_wire_from_nodes(self.exit_path_segment)
 
     def default_path_profile_type(self, rotation_angle: float = -90) -> Face:
         """

@@ -69,10 +69,14 @@ class Alpha(Obstacle):
         Solid model the obstacle, but used for determining
         occupied nodes, debug and overview.
         """
+        self._ensure_entry_exit_paths()
+
         with BuildPart() as obstacle:
             # Recreate the path wire from the stored path
             with BuildLine() as line:
+                add(self.entry_path_segment.path)
                 add(self.main_path_segment.path)
+                add(self.exit_path_segment.path)
 
             # Sketch the path-profile at the START of the path
             with BuildSketch(line.line ^ 0) as s_start:

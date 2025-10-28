@@ -76,10 +76,13 @@ class Spiral(Obstacle):
         Solid model the obstacle, but used for, determining
         occupied nodes, debug and overview.
         """
+        self._ensure_entry_exit_paths()
 
         with BuildPart() as obstacle:
             with BuildLine() as line:
+                add(self.entry_path_segment.path)
                 add(self.main_path_segment.path)
+                add(self.exit_path_segment.path)
             with BuildSketch(line.line ^ 0):
                 add(self.default_path_profile_type())
             sweep(is_frenet=self.main_path_segment.use_frenet)

@@ -505,12 +505,15 @@ class GosperCurve(Obstacle):
         """
         Solid model of the obstacle (used for occupancy, debug, and overview).
         """
+        self._ensure_entry_exit_paths()
+
         with BuildPart() as obstacle:
             with BuildLine() as line:
+                add(self.entry_path_segment.path)
                 add(self.main_path_segment.path)
+                add(self.exit_path_segment.path)
             with BuildSketch(line.line ^ 0):
-                with Locations(Location((0, 0, 0), (0, 0, -90))):
-                    add(self.default_path_profile_type())
+                add(self.default_path_profile_type())
             sweep(transition=self.main_path_segment.transition_type)
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
