@@ -165,7 +165,14 @@ def plot_nodes(
             hovertemplate="X: %{x}<br>Y: %{y}<br>Z: %{z}<br>%{text}<extra></extra>",
             visible=(
                 "legendonly"
-                if obstacles_present and primary in {"Occupied", "Overlap"}
+                if obstacles_present
+                and primary
+                in {
+                    "Regular",
+                    "Circular",
+                    "Overlap",
+                    "Occupied",
+                }
                 else True
             ),
         )
