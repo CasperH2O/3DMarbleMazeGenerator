@@ -319,6 +319,12 @@ class Obstacle(ABC):
         entry_nodes = self.entry_path_segment.nodes
         exit_nodes = self.exit_path_segment.nodes
 
+        if not entry_nodes or not exit_nodes:
+            # Lazily build the geometry so helper segments become available
+            self.create_obstacle_geometry()
+            entry_nodes = self.entry_path_segment.nodes
+            exit_nodes = self.exit_path_segment.nodes
+
         def _snap(v: float) -> float:
             return round(v / self.node_size) * self.node_size
 
@@ -498,7 +504,7 @@ class Obstacle(ABC):
         Find neighbor nodes in the six cardinal directions that can overlap
         without colliding with occupied nodes.
 
-        The search expands outward in a n-layer shell (n node sizes away) 
+        The search expands outward in a n-layer shell (n node sizes away)
         to provide additional flexibility for obstacle placement while
         still avoiding occupied coordinates.
         """

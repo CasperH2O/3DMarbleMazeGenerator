@@ -9,8 +9,6 @@ from build123d import (
     BuildLine,
     BuildPart,
     BuildSketch,
-    Location,
-    Locations,
     Part,
     Polyline,
     Transition,
@@ -447,28 +445,21 @@ class GosperCurve(Obstacle):
             tolerance=1e-9,
         )
 
+        # Safety: ensure we have at least two segments to define directions
         if len(points_xy) < 3:
-            # Safety: ensure we have at least two segments to define directions
             points_xy = [(0.0, 0.0), (self.node_size, 0.0), (2.0 * self.node_size, 0.0)]
 
-        # Build the obstacle polyline at z = 0
-        points_xyz = [(x, y, 0.0) for (x, y) in points_xy]
-        with BuildPart():
-            with BuildLine() as obstacle_line:
-                Polyline(*points_xyz)
-
-        self.main_path_segment.path = obstacle_line.line
-        self.main_path_segment.transition_type = Transition.RIGHT
-
-        # Connectors: snap onto curve endpoints to guarantee continuity ---
-        connector_length = self.node_size  # outward “lead-in/out” length
-
-        # Find start point directions for connector alignment
+        # Determine tangents at start and end
         start_point = points_xy[0]
         second_point = points_xy[1]
         start_dir_x, start_dir_y = _unit_direction(start_point, second_point)
 
-        # Entry: first node is outward from the start, second node IS the start
+        end_point = points_xy[-1]
+        second_last_point = points_xy[-2]
+        end_dir_x, end_dir_y = _unit_direction(second_last_point, end_point)
+
+        # Determine extension coordinates for original geometry
+        connector_length = self.node_size
         entry_far_x, entry_far_y = _horizontal_connector_farpoint(
             anchor_xy=(start_point[0], start_point[1]),
             direction_unit_xy=(start_dir_x, start_dir_y),
@@ -477,17 +468,6 @@ class GosperCurve(Obstacle):
             grid_size=self.node_size,
             snap_to_grid=True,
         )
-        self.entry_path_segment.nodes = [
-            Node(entry_far_x, entry_far_y, 0.0, occupied=True),
-            Node(start_point[0], start_point[1], 0.0, occupied=True),
-        ]
-
-        # Find start point directions for connector alignment
-        end_point = points_xy[-1]
-        second_last_point = points_xy[-2]
-        end_dir_x, end_dir_y = _unit_direction(second_last_point, end_point)
-
-        # Exit: first node is the end, second node is outward from the end
         exit_far_x, exit_far_y = _horizontal_connector_farpoint(
             anchor_xy=(end_point[0], end_point[1]),
             direction_unit_xy=(end_dir_x, end_dir_y),
@@ -496,9 +476,57 @@ class GosperCurve(Obstacle):
             grid_size=self.node_size,
             snap_to_grid=True,
         )
+
+        # Extend original geometry points so it starts and ends horizontally
+        points_xy_with_connectors = (
+            [(entry_far_x, entry_far_y)] + points_xy + [(exit_far_x, exit_far_y)]
+        )
+        points_xy_with_connectors = _deduplicate_consecutive_points_2d(
+            points_xy_with_connectors
+        )
+
+        # Build the main polyline
+        points_xyz = [(x, y, 0.0) for (x, y) in points_xy_with_connectors]
+        with BuildPart():
+            with BuildLine() as obstacle_line:
+                Polyline(*points_xyz)
+
+        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.transition_type = Transition.RIGHT
+
+        # Extend again to form external entry/exit segments
+        # The new main-path endpoints are these two nodes:
+        new_main_start_xy = (entry_far_x, entry_far_y)
+        new_main_end_xy = (exit_far_x, exit_far_y)
+
+        # Entry segment, determine direction and extend
+        entry_farther_x, entry_farther_y = _horizontal_connector_farpoint(
+            anchor_xy=new_main_start_xy,
+            direction_unit_xy=(start_dir_x, start_dir_y),
+            length=connector_length,
+            is_entry=True,
+            grid_size=self.node_size,
+            snap_to_grid=True,
+        )
+
+        self.entry_path_segment.nodes = [
+            Node(entry_farther_x, entry_farther_y, 0.0, occupied=True),
+            Node(new_main_start_xy[0], new_main_start_xy[1], 0.0, occupied=True),
+        ]
+
+        # Exit segment, determine direction and extend
+        exit_farther_x, exit_farther_y = _horizontal_connector_farpoint(
+            anchor_xy=new_main_end_xy,
+            direction_unit_xy=(end_dir_x, end_dir_y),
+            length=connector_length,
+            is_entry=False,
+            grid_size=self.node_size,
+            snap_to_grid=True,
+        )
+
         self.exit_path_segment.nodes = [
-            Node(end_point[0], end_point[1], 0.0, occupied=True),
-            Node(exit_far_x, exit_far_y, 0.0, occupied=True),
+            Node(new_main_end_xy[0], new_main_end_xy[1], 0.0, occupied=True),
+            Node(exit_farther_x, exit_farther_y, 0.0, occupied=True),
         ]
 
     def model_solid(self) -> Part:
@@ -560,7 +588,7 @@ if __name__ == "__main__":
     obstacle = GosperCurveRange1to4()
 
     # Visualization
-    obstacle.visualize()
+    # obstacle.visualize()
 
     # Solid model
     obstacle.show_solid_model()
