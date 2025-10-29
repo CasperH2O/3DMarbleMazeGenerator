@@ -17,13 +17,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class OverhandKnotObstacle(Obstacle):
     """An overhand knot shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Overhand Knot")
+        super().__init__(name=ObstacleType.OVERHAND_KNOT.value)
 
         self.entry_path_segment.nodes = [
             Node(
@@ -296,7 +297,7 @@ class OverhandKnotObstacle(Obstacle):
 
 
 # Register obstacle
-register_obstacle("Overhand Knot", OverhandKnotObstacle)
+register_obstacle(ObstacleType.OVERHAND_KNOT.value, OverhandKnotObstacle)
 
 if __name__ == "__main__":
     # Create

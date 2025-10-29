@@ -14,13 +14,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class UTurn(Obstacle):
     """An obstacle."""
 
     def __init__(self):
-        super().__init__(name="U Turn")
+        super().__init__(name=ObstacleType.U_TURN.value)
 
         self.entry_path_segment.nodes = [
             Node(0, -1 * self.node_size, 0, occupied=True),
@@ -75,7 +76,7 @@ class UTurn(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("U Turn", UTurn)
+register_obstacle(ObstacleType.U_TURN.value, UTurn)
 
 if __name__ == "__main__":
     # Create

@@ -15,13 +15,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class Omega(Obstacle):
     """An omega shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Omega")
+        super().__init__(name=ObstacleType.OMEGA.value)
 
         self.entry_path_segment.nodes = [
             Node(-4 * self.node_size, -2 * self.node_size, 0, occupied=True),
@@ -85,7 +86,7 @@ class Omega(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("Omega", Omega)
+register_obstacle(ObstacleType.OMEGA.value, Omega)
 
 if __name__ == "__main__":
     # Create

@@ -16,13 +16,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class QuestionMark(Obstacle):
     """A question mark shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Question Mark")
+        super().__init__(name=ObstacleType.QUESTION_MARK.value)
 
         self.entry_path_segment.nodes = [
             Node(0, -4 * self.node_size, 0, occupied=True),
@@ -86,7 +87,7 @@ class QuestionMark(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("Question Mark", QuestionMark)
+register_obstacle(ObstacleType.QUESTION_MARK.value, QuestionMark)
 
 if __name__ == "__main__":
     # Create

@@ -14,13 +14,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class Arrow(Obstacle):
     """An arrow shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Arrow")
+        super().__init__(name=ObstacleType.ARROW.value)
 
         self.entry_path_segment.nodes = [
             Node(-1 * self.node_size, -3 * self.node_size, 0, occupied=True),
@@ -74,7 +75,7 @@ class Arrow(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("Arrow", Arrow)
+register_obstacle(ObstacleType.ARROW.value, Arrow)
 
 if __name__ == "__main__":
     # Create

@@ -14,13 +14,14 @@ from build123d import (
 from obstacles.obstacle import Obstacle
 from obstacles.obstacle_registry import register_obstacle
 from puzzle.node import Node
+from puzzle.utils.enums import ObstacleType
 
 
 class Spiral(Obstacle):
     """An spiral sweep shaped obstacle."""
 
     def __init__(self):
-        super().__init__(name="Spiral")
+        super().__init__(name=ObstacleType.SPIRAL.value)
 
         self.entry_path_segment.nodes = [
             Node(1 * self.node_size, -2 * self.node_size, 0, occupied=True),
@@ -93,7 +94,7 @@ class Spiral(Obstacle):
 
 
 # Register the obstacle
-register_obstacle("Spiral", Spiral)
+register_obstacle(ObstacleType.SPIRAL.value, Spiral)
 
 if __name__ == "__main__":
     # Create
