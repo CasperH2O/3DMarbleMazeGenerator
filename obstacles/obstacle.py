@@ -336,6 +336,11 @@ class Obstacle(ABC):
             return entry_node, exit_node
 
         # Fallback to main path start/end if helpers are missing
+        logger.warning(
+            "Obstacle: %s. has no proper entry and exit nodes, falling back to base geometry",
+            self.name,
+        )
+
         if self.main_path_segment.path is None:
             self.create_obstacle_geometry()
         if self.main_path_segment.path is None:
