@@ -18,6 +18,7 @@ from config import Config, PathCurveModel, PathCurveType
 from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node
+
 from . import curve_detection
 
 configure_logging()
@@ -209,7 +210,7 @@ class PathArchitect:
             )
             entry_seg.copy_attributes_from(obstacle.main_path_segment)
             entry_seg.curve_model = PathCurveModel.SINGLE
-            entry_seg.transition_type = None  # Reset to prevent Transformed type
+            entry_seg.transition_type = obstacle.entry_path_segment.transition_type
             segments.append(entry_seg)
 
         # Main segment, the obstacle path
@@ -254,7 +255,7 @@ class PathArchitect:
             )
             exit_seg.copy_attributes_from(obstacle.main_path_segment)
             exit_seg.curve_model = PathCurveModel.SINGLE
-            exit_seg.transition_type = None  # Reset to prevent Transformed type
+            exit_seg.transition_type = obstacle.exit_path_segment.transition_type
             # not locked
             segments.append(exit_seg)
 

@@ -513,6 +513,7 @@ class GosperCurve(Obstacle):
             Node(entry_farther_x, entry_farther_y, 0.0, occupied=True),
             Node(new_main_start_xy[0], new_main_start_xy[1], 0.0, occupied=True),
         ]
+        self.entry_path_segment.transition_type = Transition.RIGHT
 
         # Exit segment, determine direction and extend
         exit_farther_x, exit_farther_y = _horizontal_connector_farpoint(
@@ -528,6 +529,7 @@ class GosperCurve(Obstacle):
             Node(new_main_end_xy[0], new_main_end_xy[1], 0.0, occupied=True),
             Node(exit_farther_x, exit_farther_y, 0.0, occupied=True),
         ]
+        self.exit_path_segment.transition_type = Transition.RIGHT
 
     def model_solid(self) -> Part:
         """
