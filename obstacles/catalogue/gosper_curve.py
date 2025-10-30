@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, List, Tuple
+from typing import Iterable, Tuple
 
 from build123d import (
     BuildLine,
@@ -23,10 +23,10 @@ from puzzle.utils.enums import ObstacleType
 
 
 def _apply_index_range(
-    points_xy: List[Tuple[float, float]],
+    points_xy: list[Tuple[float, float]],
     start_index: int | None,
     end_index: int | None,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """
     If both indices are provided, return the contiguous slice
     points_xy[start_index : end_index + 1] (inclusive).
@@ -65,10 +65,10 @@ def _apply_index_range(
 
 
 def _apply_shortcut_by_indices(
-    points_xy: List[Tuple[float, float]],
+    points_xy: list[Tuple[float, float]],
     start_index: int,
     end_index: int,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """
     Replace the section (start_index+1 .. end_index-1) with a single straight segment
     from points_xy[start_index] directly to points_xy[end_index].
@@ -107,8 +107,8 @@ def _apply_shortcut_by_indices(
 
 
 def _apply_stop_at_index(
-    stop_at_index: int, points_xy: List[Tuple[float, float]]
-) -> List[Tuple[float, float]]:
+    stop_at_index: int, points_xy: list[Tuple[float, float]]
+) -> list[Tuple[float, float]]:
     """
     If stop_at_index is set, truncate the path at that index (inclusive).
     This runs BEFORE shortcut application.
@@ -149,7 +149,7 @@ def _expand_gosper_lsystem(order: int) -> str:
     """
     current = "A"
     for _ in range(order):
-        next_symbols: List[str] = []
+        next_symbols: list[str] = []
         for symbol in current:
             if symbol == "A":
                 next_symbols.append("A-B--B+A++AA+B-")
@@ -161,7 +161,7 @@ def _expand_gosper_lsystem(order: int) -> str:
     return current
 
 
-def _center_points(points_xy: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+def _center_points(points_xy: list[Tuple[float, float]]) -> list[Tuple[float, float]]:
     """
     Translate all points so that the bounding box center becomes (0, 0).
     """
@@ -177,11 +177,11 @@ def _center_points(points_xy: List[Tuple[float, float]]) -> List[Tuple[float, fl
 def _deduplicate_consecutive_points_2d(
     points_xy: Iterable[Tuple[float, float]],
     epsilon: float = 1e-9,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """
     Remove consecutive duplicates (within epsilon) to keep Polyline clean.
     """
-    cleaned: List[Tuple[float, float]] = []
+    cleaned: list[Tuple[float, float]] = []
     last_x: float | None = None
     last_y: float | None = None
     for x, y in points_xy:
@@ -220,10 +220,10 @@ def _round_to_nearest_multiple(value: float, multiple: float) -> float:
 
 
 def _translate_points(
-    points_xy: List[Tuple[float, float]],
+    points_xy: list[Tuple[float, float]],
     delta_x: float,
     delta_y: float,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """Uniformly translate all points by (delta_x, delta_y)."""
     return [(x + delta_x, y + delta_y) for (x, y) in points_xy]
 
@@ -232,7 +232,7 @@ def _turtle_to_points_hex(
     program: str,
     step: float,
     start_direction_index: int = 0,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """
     Execute the L-system using a fixed 6-direction hex lattice to minimize
     floating-point drift vs. repeatedly calling cos/sin.
@@ -257,7 +257,7 @@ def _turtle_to_points_hex(
     direction_index: int = start_direction_index % 6
     current_x: float = 0.0
     current_y: float = 0.0
-    points_xy: List[Tuple[float, float]] = [(current_x, current_y)]
+    points_xy: list[Tuple[float, float]] = [(current_x, current_y)]
 
     for symbol in program:
         if symbol == "+":
@@ -294,9 +294,9 @@ def _snap_y_axis_if_close(
 
 
 def _snap_start_to_grid_by_translation(
-    points_xy: List[Tuple[float, float]],
+    points_xy: list[Tuple[float, float]],
     grid_size: float,
-) -> List[Tuple[float, float]]:
+) -> list[Tuple[float, float]]:
     """
     Snap the *start* point (points_xy[0]) to a grid multiple of 'grid_size' by
     translating the entire curve so geometry stays intact.
@@ -553,36 +553,32 @@ class GosperCurve(Obstacle):
 # Gospers
 class GosperCurveFull(GosperCurve):
     def apply_preset(self) -> None:
-        # A full order-2 curve, no truncation, no shortcut
-        self.name = "Gosper Curve - Full"
+        self.name = ObstacleType.GOSPER_CURVE_FULL.value
 
 
 class GosperCurveRange1to4(GosperCurve):
     def apply_preset(self) -> None:
-        # Only render indices [1..4], inclusive
         self.name = ObstacleType.GOSPER_CURVE_RANGE_1_TO_4.value
         self.curve_index_range = (1, 4)
 
 
-class GosperCurverRange6to10(GosperCurve):
+class GosperCurveRange6to10(GosperCurve):
     def apply_preset(self) -> None:
-        # Only render indices [6..10], inclusive
         self.name = ObstacleType.GOSPER_CURVE_RANGE_6_TO_10.value
         self.curve_index_range = (6, 10)
 
 
-class GosperCurverRange11to15(GosperCurve):
+class GosperCurveRange11to15(GosperCurve):
     def apply_preset(self) -> None:
-        # Only render indices [11..15], inclusive
         self.name = ObstacleType.GOSPER_CURVE_RANGE_11_TO_15.value
         self.curve_index_range = (11, 15)
 
 
 # Register the obstacle(s)
 register_obstacle(ObstacleType.GOSPER_CURVE_RANGE_1_TO_4.value, GosperCurveRange1to4)
-register_obstacle(ObstacleType.GOSPER_CURVE_RANGE_6_TO_10.value, GosperCurverRange6to10)
+register_obstacle(ObstacleType.GOSPER_CURVE_RANGE_6_TO_10.value, GosperCurveRange6to10)
 register_obstacle(
-    ObstacleType.GOSPER_CURVE_RANGE_11_TO_15.value, GosperCurverRange11to15
+    ObstacleType.GOSPER_CURVE_RANGE_11_TO_15.value, GosperCurveRange11to15
 )
 
 if __name__ == "__main__":
