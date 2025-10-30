@@ -1,3 +1,5 @@
+# cad/path_builder.py
+
 import logging
 import math
 import random
@@ -679,7 +681,7 @@ class PathBuilder:
                     sweep_label="Path",
                 )
 
-                # Check if bodies are valid
+                # Check if bodies are valid, try other approach if fail
                 if path_body is None or not path_body.part.is_valid():
                     logger.warning(
                         "Segment %s.%s spline option %d produced an invalid path body.",
@@ -687,8 +689,9 @@ class PathBuilder:
                         segment.secondary_index,
                         opt_idx,
                     )
+                    continue
 
-                # Check if body is valid, try other approach if faces intersect
+                # Check if faces interset, try other approach if fail
                 if path_body and do_faces_intersect(path_body.part):
                     logger.warning(
                         "Segment %s.%s spline option %d encountered a main body self-intersection.",
@@ -710,7 +713,17 @@ class PathBuilder:
                         sweep_label="Accent",
                     )
 
-                    # Check if body is valid, try other approach if faces intersect
+                    # Check if body is valid, try other approach if fail
+                    if accent_body is None or not accent_body.part.is_valid():
+                        logger.warning(
+                            "Segment %s.%s spline option %d produced an invalid accent body.",
+                            segment.main_index,
+                            segment.secondary_index,
+                            opt_idx,
+                        )
+                        continue
+
+                    # Check if faces intersect
                     if accent_body and do_faces_intersect(accent_body.part):
                         logger.warning(
                             "Segment %s.%s spline option %d encountered an accent body self-intersection.",
@@ -732,7 +745,17 @@ class PathBuilder:
                         sweep_label="Support",
                     )
 
-                    # Check if body is valid, try other approach if faces intersect
+                    # Check if support body is valid, try other approach if fail
+                    if support_body is None or not support_body.part.is_valid():
+                        logger.warning(
+                            "Segment %s.%s spline option %d produced an invalid support body.",
+                            segment.main_index,
+                            segment.secondary_index,
+                            opt_idx,
+                        )
+                        continue
+
+                    # Check if faces intersect
                     if support_body and do_faces_intersect(support_body.part):
                         logger.warning(
                             "Segment %s.%s spline option %d encountered a support body self-intersection.",
@@ -745,6 +768,7 @@ class PathBuilder:
                 # If we reach this point, the sweep succeeded, return segment
 
                 """        
+                # Debug, uncomment to see line, sweep face, sweep and path orientations
                 show_object(l, f"Spline Line - segment {segment.main_index}.{segment.secondary_index}")
                 show_object(help_path, f"Help path - segment {segment.main_index}.{segment.secondary_index}")
                 path_increments = [0.1, 0.5, 0.9]
