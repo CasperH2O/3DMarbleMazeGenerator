@@ -19,6 +19,9 @@ class ObstacleType(Enum):
     QUESTION_MARK = "Question Mark"
     SPIRAL = "Spiral"
     U_TURN = "U Turn"
+    ZIG_ZAG = "Zig Zag"
+    SINE = "Sine"
+    PULSE = "Pulse"
 
 
 class PathCurveModel(Enum):
