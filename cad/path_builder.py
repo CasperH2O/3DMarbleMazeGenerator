@@ -459,29 +459,49 @@ class PathBuilder:
 
     def _generate_spline_control_point_options(
         self, sub_path_points: list[Vector]
-    ) -> list[list[Vector]]:
-        """Return ordered spline control point options for a segment."""
+    ) -> list[Optional[list[Vector]]]:
+        """
+        Return ordered spline control point options for a segment.
 
+        Different options provide different node combinations.
+
+        Use option slots for consistent numbering in logging.
+        """
+
+        # Pre-size with fixed option slots
+        options: list[Optional[list[Vector]]] = [None, None, None, None]
+
+        # Double check we have at least 2 nodes, should always be the case
         if len(sub_path_points) < 2:
-            return []
+            return options
 
         first_point = sub_path_points[0]
         last_point = sub_path_points[-1]
 
         # Option 1: Use only the first and last nodes.
         # This creates the simplest possible spline between start and end points.
-        option1 = [first_point, last_point]
+        options[0] = [first_point, last_point]
 
         # Option 2: Use the first node, every third node in between, and the last node.
         # This reduces the number of intermediate points to simplify the spline.
-        middle_points = sub_path_points[1:-2:3]
-        option2 = [first_point, *middle_points, last_point]
+        if len(sub_path_points) >= 5:
+            middle_points = sub_path_points[1:-2:3]
+            # Only add if there is at least one middle node selected; otherwise it duplicates Option 1.
+            if middle_points:
+                options[1] = [first_point, *middle_points, last_point]
 
         # Option 3: Use all nodes.
         # This attempts to create a spline that passes through every node.
-        option3 = list(sub_path_points)
+        options[2] = list(sub_path_points)
 
-        return [option1, option2, option3]
+        # Option 4: Use first, middle and last nodes.
+        # Allows for bending splines, can easily fail with very sharp corners.
+        # Requires 5 nodes or more.
+        if len(sub_path_points) >= 5:
+            middle_node_index = (len(sub_path_points) - 1) // 2
+            options[3] = [first_point, sub_path_points[middle_node_index], last_point]
+
+        return options
 
     def _compute_spline_orientation(
         self,
