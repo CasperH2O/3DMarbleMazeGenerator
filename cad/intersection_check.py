@@ -185,53 +185,76 @@ def _cross_pairs(a: BVHNode, b: BVHNode) -> Iterator[Tuple[int, int]]:
             stack.append((na, nb.right))
 
 
-def do_faces_intersect(shape: Shape) -> bool:
+def do_faces_intersect(
+    shape: Shape,
+    *,
+    skip_broad_phase: bool = True,
+    skip_aabb_precheck: bool = False,
+    leaf_size: int = 4,
+    aabb_tol: float = 1e-9,
+) -> bool:
     """Return True if *any* pair of faces in the shape intersect.
 
     Used to confirm swept spline path segments do not have any
     self intersections and can thus be properly 3D printed.
 
-    Check works in two phases, first determine
-    which faces cannot intersect at all so these don't have to be considered,
-    then the remaining faces are actually checked for intersection.
+    Check normally works in two phases:
+      - Broad-phase uses an axis-aligned Bounding Volume Hierarchy (BVH);
+      - Narrow-phase uses OCCT's ``BRepAlgoAPI_Section``.
+    You can skip the broad-phase (and optionally the AABB precheck) to
+    run the narrow-phase only on all face pairs for debugging.
 
-    Broad-phase uses an axis-aligned Bounding Volume Hierarchy (BVH);
-    narrow-phase uses OCCT's ``BRepAlgoAPI_Section``. Edges already present on
-    the source shape are ignored to avoid reporting clean shared edges.
+    Parameters
+    ----------
+    shape : Shape
+        Source shape whose faces are tested pairwise.
+    skip_broad_phase : bool, default False
+        If True, bypass BVH candidate generation and test all face pairs.
+    skip_aabb_precheck : bool, default False
+        If True, do not require AABB overlap before running the section test.
+    leaf_size : int, default 4
+        Leaf size used if building the BVH.
+    aabb_tol : float, default 1e-9
+        Overlap tolerance used by the AABB precheck when enabled.
     """
     faces = list(shape.faces())
     if len(faces) < 2:
         return False
 
-    bboxes = [face_bbox(f) for f in faces]
-
-    # BVH broad-phase
-    leaf_size = 4
-    root = build_bvh(bboxes, leaf_size=leaf_size)
-    candidate_pairs = _pairs_within_node(root)
+    bboxes = [face_bbox(face) for face in faces]
 
     # Hash the original edges so we can skip shared edges later
-    edge_hashes = {hash(e.wrapped) for e in shape.edges()}
+    edge_hashes = {hash(edge.wrapped) for edge in shape.edges()}
 
-    # Hardcoded AABB overlap tolerance for narrow-phase precheck
-    aabb_tol = 1e-9
+    # Candidate pair generation
+    if skip_broad_phase:
+        # Brute-force all unique pairs
+        candidate_pairs = (
+            (i, j) for i in range(len(faces)) for j in range(i + 1, len(faces))
+        )
+    else:
+        # BVH broad-phase
+        root = build_bvh(bboxes, leaf_size=leaf_size)
+        candidate_pairs = _pairs_within_node(root)
 
-    # Narrow-phase: exact test only on candidates whose AABBs overlap
+    # Narrow-phase on candidates (optionally without AABB precheck)
     for i, j in candidate_pairs:
-        bi, bj = bboxes[i], bboxes[j]
-        if not bi.overlaps(bj, aabb_tol):
+        if not skip_aabb_precheck:
+            bbox_i, bbox_j = bboxes[i], bboxes[j]
+            if not bbox_i.overlaps(bbox_j, aabb_tol):
+                continue
+
+        face_i, face_j = faces[i].wrapped, faces[j].wrapped
+        section = BRepAlgoAPI_Section(face_i, face_j)
+        section.Build()
+        if not section.IsDone():
             continue
 
-        fi, fj = faces[i].wrapped, faces[j].wrapped
-        sec = BRepAlgoAPI_Section(fi, fj)
-        sec.Build()
-        if not sec.IsDone():
-            continue
-
-        exp = TopExp_Explorer(sec.Shape(), TopAbs_EDGE)
-        while exp.More():
-            if hash(exp.Current()) not in edge_hashes:
+        explorer = TopExp_Explorer(section.Shape(), TopAbs_EDGE)
+        while explorer.More():
+            # Ignore edges that were already present in the source shape
+            if hash(explorer.Current()) not in edge_hashes:
                 return True
-            exp.Next()
+            explorer.Next()
 
     return False
