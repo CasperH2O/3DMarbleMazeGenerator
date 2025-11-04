@@ -9,7 +9,6 @@ from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 from config import PathCurveModel, PathCurveType, PathProfileType
 from puzzle.node import Node
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -286,16 +285,34 @@ class PathSegment:
                 previous_end_node.x, previous_end_node.y, previous_end_node.z
             )
             start_node.segment_start = True
+            start_node.in_circular_grid = previous_end_node.in_circular_grid
+            start_node.in_elliptical_grid = previous_end_node.in_elliptical_grid
+            if start_node.in_elliptical_grid:
+                # Keep the source ellipse parameters so the inserted node aligns with the ring.
+                start_node.ellipse_axis_x = previous_end_node.ellipse_axis_x
+                start_node.ellipse_axis_y = previous_end_node.ellipse_axis_y
 
             # Get current puzzle-end node position.
             end_node_point = _node_to_vector(self.nodes[0])
-            # If the current node is circular, compute the arc midpoint.
+            # If the current node is on a curved helper grid, compute a curved midpoint.
             if self.nodes[0].in_circular_grid:
                 adjusted_end = midpoint(
                     _node_to_vector(previous_end_node), end_node_point, circular=True
                 )
                 logger.debug(
                     "PathSegment[%s.%s] puzzle_end midpoint (circular) between %s and %s -> %s",
+                    self.main_index,
+                    self.secondary_index,
+                    _format_node(previous_end_node),
+                    _format_node(self.nodes[0]),
+                    _format_vector(adjusted_end),
+                )
+            elif self.nodes[0].in_elliptical_grid:
+                adjusted_end = midpoint(
+                    _node_to_vector(previous_end_node), end_node_point, circular=False
+                )
+                logger.debug(
+                    "PathSegment[%s.%s] puzzle_end midpoint (elliptical) between %s and %s -> %s",
                     self.main_index,
                     self.secondary_index,
                     _format_node(previous_end_node),
@@ -358,21 +375,35 @@ class PathSegment:
         if not self.nodes[0].puzzle_start:
             if previous_end_node is not None:
                 adjusted_start = _node_to_vector(previous_end_node)
-                previous_is_circular = (
+                previous_in_circular = (
                     previous_end_node.in_circular_grid
                     or previous_curve_type == PathCurveType.ARC
                 )
-                # Propagate only if both sides of the junction are circular.
+                previous_in_elliptical = previous_end_node.in_elliptical_grid
                 is_circular_start = (
-                    previous_is_circular
-                    and self.nodes[0].in_circular_grid
+                    previous_in_circular and self.nodes[0].in_circular_grid
+                )
+                is_elliptical_start = (
+                    previous_in_elliptical and self.nodes[0].in_elliptical_grid
                 )
             else:
                 adjusted_start = _node_to_vector(self.nodes[0])
                 is_circular_start = self.nodes[0].in_circular_grid
+                is_elliptical_start = self.nodes[0].in_elliptical_grid
 
             start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
             start_node.in_circular_grid = is_circular_start
+            start_node.in_elliptical_grid = is_elliptical_start
+            start_source = (
+                previous_end_node if previous_end_node is not None else self.nodes[0]
+            )
+            if start_node.in_elliptical_grid:
+                # Mirror the ellipse metadata so the synthetic endpoint keeps the same curvature.
+                start_node.ellipse_axis_x = start_source.ellipse_axis_x
+                start_node.ellipse_axis_y = start_source.ellipse_axis_y
+            else:
+                start_node.ellipse_axis_x = None
+                start_node.ellipse_axis_y = None
             start_node.in_rectangular_grid = (
                 previous_end_node.in_rectangular_grid
                 if previous_end_node is not None
@@ -399,33 +430,35 @@ class PathSegment:
         # Adjust end node.
         end_node_point = _node_to_vector(self.nodes[-1])
         is_circular_end = False
+        is_elliptical_end = False
         end_adjustment_reason = ""
         if next_start_node is not None:
             next_is_circular = (
-                next_start_node.in_circular_grid
-                or next_curve_type == PathCurveType.ARC
+                next_start_node.in_circular_grid or next_curve_type == PathCurveType.ARC
             )
+            next_is_elliptical = next_start_node.in_elliptical_grid
             if next_curve_type is not None:
                 # Full adjustment: snap exactly to the next segment's start node.
                 adjusted_end = _node_to_vector(next_start_node)
-                is_circular_end = (
-                    self.nodes[-1].in_circular_grid
-                    and next_is_circular
+                is_circular_end = self.nodes[-1].in_circular_grid and next_is_circular
+                is_elliptical_end = (
+                    self.nodes[-1].in_elliptical_grid and next_is_elliptical
                 )
-                end_adjustment_reason = (
-                    "snapped to next start (fixed curve)"
-                )
+                end_adjustment_reason = "snapped to next start (fixed curve)"
             else:
                 # For half adjustment: if current end node is circular, compute arc midpoint.
-                if (
-                    self.nodes[-1].in_circular_grid
-                    and next_is_circular
-                ):
+                if self.nodes[-1].in_circular_grid and next_is_circular:
                     is_circular_end = True
                     adjusted_end = midpoint(
                         end_node_point, _node_to_vector(next_start_node), circular=True
                     )
                     end_adjustment_reason = "circular midpoint"
+                elif self.nodes[-1].in_elliptical_grid and next_is_elliptical:
+                    is_elliptical_end = True
+                    adjusted_end = midpoint(
+                        end_node_point, _node_to_vector(next_start_node), circular=False
+                    )
+                    end_adjustment_reason = "elliptical midpoint"
                 else:
                     adjusted_end = midpoint(
                         end_node_point, _node_to_vector(next_start_node), circular=False
@@ -451,8 +484,18 @@ class PathSegment:
             self.nodes[-1].y = adjusted_end.Y
             self.nodes[-1].z = adjusted_end.Z
             self.nodes[-1].segment_end = True
-            if is_circular_end:
-                self.nodes[-1].in_circular_grid = True
+            self.nodes[-1].in_circular_grid = is_circular_end
+            self.nodes[-1].in_elliptical_grid = is_elliptical_end
+            if self.nodes[-1].in_elliptical_grid:
+                end_source = (
+                    next_start_node if next_start_node is not None else self.nodes[-1]
+                )
+                # Reuse the ellipse axes from whichever node anchored the connection.
+                self.nodes[-1].ellipse_axis_x = end_source.ellipse_axis_x
+                self.nodes[-1].ellipse_axis_y = end_source.ellipse_axis_y
+            else:
+                self.nodes[-1].ellipse_axis_x = None
+                self.nodes[-1].ellipse_axis_y = None
             logger.debug(
                 "PathSegment[%s.%s] multi-node end updated in place at %s",
                 self.main_index,
@@ -463,6 +506,17 @@ class PathSegment:
             # Otherwise, append a new node at the adjusted position
             end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
             end_node.in_circular_grid = is_circular_end
+            end_node.in_elliptical_grid = is_elliptical_end
+            end_source = (
+                next_start_node if next_start_node is not None else self.nodes[-1]
+            )
+            if end_node.in_elliptical_grid:
+                # Preserve the axes to maintain elliptical curvature for inserted endpoints.
+                end_node.ellipse_axis_x = end_source.ellipse_axis_x
+                end_node.ellipse_axis_y = end_source.ellipse_axis_y
+            else:
+                end_node.ellipse_axis_x = None
+                end_node.ellipse_axis_y = None
             end_node.in_rectangular_grid = self.nodes[-1].in_rectangular_grid
             end_node.segment_end = True
             self.nodes.append(end_node)
@@ -491,20 +545,33 @@ class PathSegment:
         node_point = _node_to_vector(self.nodes[0])
         if previous_end_node is not None:
             adjusted_start = _node_to_vector(previous_end_node)
-            previous_is_circular = (
+            previous_in_circular = (
                 previous_end_node.in_circular_grid
                 or previous_curve_type == PathCurveType.ARC
             )
-            is_circular_start = (
-                previous_is_circular
-                and self.nodes[0].in_circular_grid
+            previous_in_elliptical = previous_end_node.in_elliptical_grid
+            is_circular_start = previous_in_circular and self.nodes[0].in_circular_grid
+            is_elliptical_start = (
+                previous_in_elliptical and self.nodes[0].in_elliptical_grid
             )
         else:
             adjusted_start = node_point
             is_circular_start = self.nodes[0].in_circular_grid
+            is_elliptical_start = self.nodes[0].in_elliptical_grid
 
         start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
         start_node.in_circular_grid = is_circular_start
+        start_node.in_elliptical_grid = is_elliptical_start
+        start_source = (
+            previous_end_node if previous_end_node is not None else self.nodes[0]
+        )
+        if start_node.in_elliptical_grid:
+            # Carry ellipse axes forward so the synthetic start node stays on the helper ring.
+            start_node.ellipse_axis_x = start_source.ellipse_axis_x
+            start_node.ellipse_axis_y = start_source.ellipse_axis_y
+        else:
+            start_node.ellipse_axis_x = None
+            start_node.ellipse_axis_y = None
         start_node.in_rectangular_grid = (
             previous_end_node.in_rectangular_grid
             if previous_end_node is not None
@@ -520,6 +587,7 @@ class PathSegment:
         )
 
         is_circular_end = False
+        is_elliptical_end = False
         if next_start_node is not None:
             exiting_vector = _node_to_vector(next_start_node) - node_point
         elif previous_end_node is not None:
@@ -542,16 +610,34 @@ class PathSegment:
                     next_start_node.in_circular_grid
                     or next_curve_type == PathCurveType.ARC
                 )
+                next_is_elliptical = next_start_node.in_elliptical_grid
                 should_use_circular_midpoint = (
-                    self.nodes[0].in_circular_grid
-                    and next_is_circular
+                    self.nodes[0].in_circular_grid and next_is_circular
+                )
+                should_use_elliptical_midpoint = (
+                    not should_use_circular_midpoint
+                    and self.nodes[0].in_elliptical_grid
+                    and next_is_elliptical
                 )
                 if should_use_circular_midpoint:
+                    is_circular_end = True
                     adjusted_end = midpoint(
                         node_point, _node_to_vector(next_start_node), circular=True
                     )
                     logger.debug(
                         "PathSegment[%s.%s] single-node puzzle_end using circular midpoint towards %s -> %s",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_node(next_start_node),
+                        _format_vector(adjusted_end),
+                    )
+                elif should_use_elliptical_midpoint:
+                    is_elliptical_end = True
+                    adjusted_end = midpoint(
+                        node_point, _node_to_vector(next_start_node), circular=False
+                    )
+                    logger.debug(
+                        "PathSegment[%s.%s] single-node puzzle_end using elliptical midpoint towards %s -> %s",
                         self.main_index,
                         self.secondary_index,
                         _format_node(next_start_node),
@@ -582,6 +668,14 @@ class PathSegment:
             self.nodes[0].y = adjusted_end.Y
             self.nodes[0].z = adjusted_end.Z
             self.nodes[0].segment_end = True
+            if is_elliptical_end and next_start_node is not None:
+                # Promote the adjusted node onto the ellipse defined by the following segment.
+                self.nodes[0].in_elliptical_grid = True
+                self.nodes[0].ellipse_axis_x = next_start_node.ellipse_axis_x
+                self.nodes[0].ellipse_axis_y = next_start_node.ellipse_axis_y
+            elif not self.nodes[0].in_elliptical_grid:
+                self.nodes[0].ellipse_axis_x = None
+                self.nodes[0].ellipse_axis_y = None
             logger.debug(
                 "PathSegment[%s.%s] single-node puzzle_end positioned at %s",
                 self.main_index,
@@ -597,11 +691,14 @@ class PathSegment:
                         next_start_node.in_circular_grid
                         or next_curve_type == PathCurveType.ARC
                     )
+                    next_is_elliptical = next_start_node.in_elliptical_grid
                     if next_curve_type is not None:
                         adjusted_end = _node_to_vector(next_start_node)
                         is_circular_end = (
-                            self.nodes[0].in_circular_grid
-                            and next_is_circular
+                            self.nodes[0].in_circular_grid and next_is_circular
+                        )
+                        is_elliptical_end = (
+                            self.nodes[0].in_elliptical_grid and next_is_elliptical
                         )
                         logger.debug(
                             "PathSegment[%s.%s] single-node snapped end to next start %s (fixed curve)",
@@ -611,10 +708,7 @@ class PathSegment:
                         )
                     else:
                         # For half adjustment, use arc midpoint if the node is circular.
-                        if (
-                            self.nodes[0].in_circular_grid
-                            and next_is_circular
-                        ):
+                        if self.nodes[0].in_circular_grid and next_is_circular:
                             is_circular_end = True
                             adjusted_end = midpoint(
                                 node_point,
@@ -623,6 +717,20 @@ class PathSegment:
                             )
                             logger.debug(
                                 "PathSegment[%s.%s] single-node using circular midpoint towards %s -> %s",
+                                self.main_index,
+                                self.secondary_index,
+                                _format_node(next_start_node),
+                                _format_vector(adjusted_end),
+                            )
+                        elif self.nodes[0].in_elliptical_grid and next_is_elliptical:
+                            is_elliptical_end = True
+                            adjusted_end = midpoint(
+                                node_point,
+                                _node_to_vector(next_start_node),
+                                circular=False,
+                            )
+                            logger.debug(
+                                "PathSegment[%s.%s] single-node using elliptical midpoint towards %s -> %s",
                                 self.main_index,
                                 self.secondary_index,
                                 _format_node(next_start_node),
@@ -652,6 +760,17 @@ class PathSegment:
 
                 end_node = Node(adjusted_end.X, adjusted_end.Y, adjusted_end.Z)
                 end_node.in_circular_grid = is_circular_end
+                end_node.in_elliptical_grid = is_elliptical_end
+                end_source = (
+                    next_start_node if next_start_node is not None else self.nodes[0]
+                )
+                if end_node.in_elliptical_grid:
+                    # Pass along the ellipse axes so the expanded end node stays aligned.
+                    end_node.ellipse_axis_x = end_source.ellipse_axis_x
+                    end_node.ellipse_axis_y = end_source.ellipse_axis_y
+                else:
+                    end_node.ellipse_axis_x = None
+                    end_node.ellipse_axis_y = None
                 end_node.in_rectangular_grid = self.nodes[0].in_rectangular_grid
                 end_node.segment_end = True
 
@@ -669,8 +788,22 @@ class PathSegment:
                 # If already flagged as puzzle_start or puzzle_end, simply mark them.
                 self.nodes[0].segment_start = self.nodes[0].puzzle_start
                 self.nodes[0].segment_end = self.nodes[0].puzzle_end
-                if self.nodes[0].segment_end and is_circular_end:
-                    self.nodes[0].in_circular_grid = True
+                if self.nodes[0].segment_end:
+                    if is_circular_end:
+                        self.nodes[0].in_circular_grid = True
+                    end_source = (
+                        next_start_node
+                        if next_start_node is not None
+                        else self.nodes[0]
+                    )
+                    if is_elliptical_end:
+                        # Reuse the source axes when elevating an existing node onto the ellipse.
+                        self.nodes[0].in_elliptical_grid = True
+                        self.nodes[0].ellipse_axis_x = end_source.ellipse_axis_x
+                        self.nodes[0].ellipse_axis_y = end_source.ellipse_axis_y
+                    elif not self.nodes[0].in_elliptical_grid:
+                        self.nodes[0].ellipse_axis_x = None
+                        self.nodes[0].ellipse_axis_y = None
                 logger.debug(
                     "PathSegment[%s.%s] single-node retained flags start=%s end=%s",
                     self.main_index,
@@ -720,6 +853,14 @@ class PathSegment:
             # create & append the new mid-node
             end_node = Node(M.X, M.Y, M.Z)
             end_node.in_circular_grid = self.nodes[-1].in_circular_grid
+            end_node.in_elliptical_grid = self.nodes[-1].in_elliptical_grid
+            if end_node.in_elliptical_grid:
+                # Clone the axes from the preceding node to keep the midpoint on the ellipse.
+                end_node.ellipse_axis_x = self.nodes[-1].ellipse_axis_x
+                end_node.ellipse_axis_y = self.nodes[-1].ellipse_axis_y
+            else:
+                end_node.ellipse_axis_x = None
+                end_node.ellipse_axis_y = None
             end_node.in_rectangular_grid = self.nodes[-1].in_rectangular_grid
             end_node.occupied = True
             end_node.segment_end = True

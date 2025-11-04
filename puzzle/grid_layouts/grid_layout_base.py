@@ -159,6 +159,121 @@ class Casing(ABC):
 
         return added_circular
 
+    def add_elliptical_nodes_on_planes(
+        self,
+        nodes: list[Node],
+        node_dict: Dict[Coordinate, Node],
+        axis_x: float,
+        axis_y: float,
+        z_planes: list[float],
+        count_even: int,
+        grid_step: Optional[float] = None,
+        tolerance: Optional[float] = None,
+    ) -> list[Node]:
+        """Add evenly spaced and grid-aligned helper nodes along an ellipse."""
+
+        # Degenerate axes cannot produce a ring of helper nodes.
+        if axis_x <= 0.0 or axis_y <= 0.0:
+            return []
+
+        added_nodes: list[Node] = []
+        tol = tolerance if tolerance is not None else (grid_step or 0.0)
+        tol2 = tol * tol
+
+        def is_close_xy(ax: float, ay: float, bx: float, by: float) -> bool:
+            dx = ax - bx
+            dy = ay - by
+            if tol2 <= 0.0:
+                return dx == 0.0 and dy == 0.0
+            return (dx * dx + dy * dy) < tol2
+
+        def add_new_node(xf: float, yf: float, zf: float) -> Node:
+            xs, ys, zs = snap(xf), snap(yf), zf
+            node_key = key3(xs, ys, zs)
+
+            new_node = Node(
+                xs,
+                ys,
+                zs,
+                in_circular_grid=True,
+                in_elliptical_grid=True,
+            )
+            nodes.append(new_node)
+            node_dict[node_key] = new_node
+            added_nodes.append(new_node)
+            # Record the ellipse axes so downstream logic can rebuild arcs.
+            new_node.ellipse_axis_x = axis_x
+            new_node.ellipse_axis_y = axis_y
+            return new_node
+
+        for z_plane in z_planes:
+            plane_nodes: list[Node] = [
+                node
+                for node in nodes
+                if node.z == z_plane and node.in_circular_grid
+            ]
+
+            # Seed evenly spaced perimeter nodes before snapping grid intersections.
+            for index in range(count_even):
+                angle = 2.0 * math.pi * index / count_even
+                x_value = axis_x * math.cos(angle)
+                y_value = axis_y * math.sin(angle)
+                new_node = add_new_node(x_value, y_value, z_plane)
+                plane_nodes.append(new_node)
+
+            if grid_step is None or grid_step <= 0.0:
+                continue
+
+            candidate_coords: list[tuple[float, float]] = []
+
+            # Walk along vertical grid lines and project onto the ellipse.
+            max_x_steps = int(axis_x // grid_step)
+            for step_index in range(max_x_steps + 1):
+                step_distance = step_index * grid_step
+                for sign in [1] if step_index == 0 else [1, -1]:
+                    x_coord = step_distance * sign
+                    if abs(x_coord) > axis_x:
+                        continue
+                    remainder = 1.0 - (x_coord * x_coord) / (axis_x * axis_x)
+                    if remainder < 0.0:
+                        continue
+                    y_raw = axis_y * math.sqrt(max(remainder, 0.0))
+                    y_values = [y_raw] if abs(y_raw) < tol else [y_raw, -y_raw]
+                    for y_coord in y_values:
+                        candidate_coords.append((x_coord, y_coord))
+
+            # Walk along horizontal grid lines and project onto the ellipse.
+            max_y_steps = int(axis_y // grid_step)
+            for step_index in range(max_y_steps + 1):
+                step_distance = step_index * grid_step
+                for sign in [1] if step_index == 0 else [1, -1]:
+                    y_coord = step_distance * sign
+                    if abs(y_coord) > axis_y:
+                        continue
+                    remainder = 1.0 - (y_coord * y_coord) / (axis_y * axis_y)
+                    if remainder < 0.0:
+                        continue
+                    x_raw = axis_x * math.sqrt(max(remainder, 0.0))
+                    x_values = [x_raw] if abs(x_raw) < tol else [x_raw, -x_raw]
+                    for x_coord in x_values:
+                        candidate_coords.append((x_coord, y_coord))
+
+            unique_candidates: list[tuple[float, float]] = []
+            for candidate in candidate_coords:
+                if any(
+                    is_close_xy(candidate[0], candidate[1], unique[0], unique[1])
+                    for unique in unique_candidates
+                ):
+                    continue
+                unique_candidates.append(candidate)
+
+            for x_coord, y_coord in unique_candidates:
+                if any(is_close_xy(x_coord, y_coord, node.x, node.y) for node in plane_nodes):
+                    continue
+                plane_nodes.append(add_new_node(x_coord, y_coord, z_plane))
+
+        return added_nodes
+
     def remove_rectangular_nodes_close_to(
         self,
         nodes: list[Node],

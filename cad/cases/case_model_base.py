@@ -55,6 +55,7 @@ class CaseShape(Enum):
     SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES = "Sphere with flange enclosed two sides"
     BOX = "Box"
     CYLINDER = "Cylinder"
+    ELLIPSOID = "Ellipsoid"
 
 
 class Case(ABC):

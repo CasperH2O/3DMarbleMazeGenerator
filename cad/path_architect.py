@@ -791,6 +791,9 @@ class PathArchitect:
                 entry_first.y = updated_start.y
                 entry_first.z = updated_start.z
                 entry_first.in_circular_grid = updated_start.in_circular_grid
+                entry_first.in_elliptical_grid = updated_start.in_elliptical_grid
+                entry_first.ellipse_axis_x = updated_start.ellipse_axis_x
+                entry_first.ellipse_axis_y = updated_start.ellipse_axis_y
                 entry_first.in_rectangular_grid = updated_start.in_rectangular_grid
                 entry_first.segment_start = True
                 logger.debug(

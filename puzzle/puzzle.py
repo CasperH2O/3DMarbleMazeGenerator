@@ -13,6 +13,7 @@ from logging_config import configure_logging
 from obstacles.obstacle_manager import ObstacleManager
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
+from puzzle.grid_layouts.grid_layout_ellipsoid import EllipsoidCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from puzzle.path_finder import AStarPathFinder
@@ -45,6 +46,13 @@ class Puzzle:
             self.casing = SphereCasing(
                 diameter=Config.Sphere.SPHERE_DIAMETER,
                 shell_thickness=Config.Sphere.SHELL_THICKNESS,
+            )
+        elif case_shape == CaseShape.ELLIPSOID:
+            self.casing = EllipsoidCasing(
+                diameter_x=Config.Ellipsoid.DIAMETER_X,
+                diameter_y=Config.Ellipsoid.DIAMETER_Y,
+                diameter_z=Config.Ellipsoid.DIAMETER_Z,
+                shell_thickness=Config.Ellipsoid.SHELL_THICKNESS,
             )
         elif case_shape == CaseShape.BOX:
             self.casing = BoxCasing(

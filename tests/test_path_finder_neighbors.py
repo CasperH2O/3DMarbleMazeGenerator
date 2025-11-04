@@ -117,7 +117,7 @@ def _neighbors_to_map(neighbors):
 
 @pytest.mark.parametrize(
     "case_shape",
-    [CaseShape.BOX, CaseShape.SPHERE, CaseShape.CYLINDER],
+    [CaseShape.BOX, CaseShape.SPHERE, CaseShape.CYLINDER, CaseShape.ELLIPSOID],
 )
 def test_neighbor_lookup_matches_reference(case_shape):
     puzzle = Puzzle(
@@ -139,3 +139,19 @@ def test_neighbor_lookup_matches_reference(case_shape):
             assert len(new_map[key]) == len(reference_map[key])
             for new_cost, reference_cost in zip(new_map[key], reference_map[key]):
                 assert new_cost == pytest.approx(reference_cost)
+
+
+def test_ellipsoid_nodes_are_marked_as_elliptical():
+    puzzle = Puzzle(
+        node_size=Config.Puzzle.NODE_SIZE,
+        seed=Config.Puzzle.SEED,
+        case_shape=CaseShape.ELLIPSOID,
+    )
+
+    elliptical_nodes = [node for node in puzzle.nodes if node.in_elliptical_grid]
+
+    assert elliptical_nodes, "Expected helper nodes tagged with in_elliptical_grid"
+    for node in elliptical_nodes:
+        assert node.in_circular_grid
+        assert node.ellipse_axis_x is not None
+        assert node.ellipse_axis_y is not None

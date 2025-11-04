@@ -15,6 +15,7 @@ from cad.path_segment import PathSegment
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
+from puzzle.grid_layouts.grid_layout_ellipsoid import EllipsoidCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 
@@ -61,6 +62,7 @@ def plot_nodes(
         ("segment_start", "Segment Start"),
         ("segment_end", "Segment End"),
         ("occupied", "Occupied"),
+        ("elliptical", "Elliptical"),
         ("circular", "Circular"),
         ("overlap_allowed", "Overlap"),
     ]
@@ -84,7 +86,9 @@ def plot_nodes(
             labels.append("Segment End")
         if node.occupied:
             labels.append("Occupied")
-        if node.in_circular_grid:
+        if node.in_elliptical_grid:
+            labels.append("Elliptical")
+        elif node.in_circular_grid:
             labels.append("Circular")
         if node.overlap_allowed:
             labels.append("Overlap")
@@ -96,6 +100,10 @@ def plot_nodes(
         for flag, label in priority_flags:
             if flag == "circular":
                 if node.in_circular_grid:
+                    primary = label
+                    break
+            elif flag == "elliptical":
+                if node.in_elliptical_grid:
                     primary = label
                     break
             else:
@@ -131,6 +139,7 @@ def plot_nodes(
         "Segment Start": "cyan",
         "Segment End": "white",
         "Occupied": "red",
+        "Elliptical": "#FF8C00",
         "Circular": "orange",
         "Overlap": "pink",
         "Regular": "green",
@@ -143,6 +152,7 @@ def plot_nodes(
         "Segment Start": 4,
         "Segment End": 4,
         "Occupied": 3,
+        "Elliptical": 1,
         "Overlap": 3,
         "Circular": 1,
         "Regular": 1,
@@ -187,6 +197,8 @@ def plot_casing(casing: Case) -> list[go.Scatter3d]:
         return plot_box_casing(casing)
     elif isinstance(casing, CylinderCasing):
         return plot_cylinder_casing(casing)
+    elif isinstance(casing, EllipsoidCasing):
+        return plot_ellipsoid_casing(casing)
     else:
         return [go.Scatter3d()]  # Empty graph
 
@@ -307,6 +319,61 @@ def plot_sphere_casing(casing: SphereCasing) -> list[go.Scatter3d]:
         showlegend=False,
     )
     casing_traces.append(circle_trace_yz)
+
+    return casing_traces
+
+
+def plot_ellipsoid_casing(casing: EllipsoidCasing) -> list[go.Scatter3d]:
+    # Sample outlines along principal planes to communicate the ellipsoid envelope.
+    theta = np.linspace(0, 2 * np.pi, 100)
+
+    radius_x = casing.diameter_x / 2
+    radius_y = casing.diameter_y / 2
+    radius_z = casing.diameter_z / 2
+
+    casing_traces: list[go.Scatter3d] = []
+
+    # Ellipse in XY plane (z = 0)
+    x_xy = radius_x * np.cos(theta)
+    y_xy = radius_y * np.sin(theta)
+    z_xy = np.zeros_like(theta)
+    ellipse_xy = go.Scatter3d(
+        x=x_xy,
+        y=y_xy,
+        z=z_xy,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(ellipse_xy)
+
+    # Ellipse in XZ plane (y = 0)
+    x_xz = radius_x * np.cos(theta)
+    y_xz = np.zeros_like(theta)
+    z_xz = radius_z * np.sin(theta)
+    ellipse_xz = go.Scatter3d(
+        x=x_xz,
+        y=y_xz,
+        z=z_xz,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(ellipse_xz)
+
+    # Ellipse in YZ plane (x = 0)
+    x_yz = np.zeros_like(theta)
+    y_yz = radius_y * np.cos(theta)
+    z_yz = radius_z * np.sin(theta)
+    ellipse_yz = go.Scatter3d(
+        x=x_yz,
+        y=y_yz,
+        z=z_yz,
+        mode="lines",
+        line=dict(color="gray", width=2),
+        showlegend=False,
+    )
+    casing_traces.append(ellipse_yz)
 
     return casing_traces
 
@@ -492,7 +559,9 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                     a = segment.nodes[i]
                     b = segment.nodes[i + 1]
                     # Both circular, generate arc
-                    if a.in_circular_grid and b.in_circular_grid:
+                    if a.in_circular_grid and b.in_circular_grid and not (
+                        a.in_elliptical_grid and b.in_elliptical_grid
+                    ):
                         theta1 = math.atan2(a.y, a.x)
                         theta2 = math.atan2(b.y, b.x)
                         dtheta = theta2 - theta1
@@ -516,6 +585,48 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                             x_vals.extend(xs)
                             y_vals.extend(ys)
                             z_vals.extend(zs)
+                    elif a.in_elliptical_grid and b.in_elliptical_grid:
+                        axis_x = a.ellipse_axis_x or b.ellipse_axis_x
+                        axis_y = a.ellipse_axis_y or b.ellipse_axis_y
+                        if axis_x and axis_y:
+                            # Interpolate directly on the ellipse implied by the helper metadata.
+                            def _ellipse_angle(node: Node) -> float:
+                                safe_x = node.x / axis_x if axis_x else 0.0
+                                safe_y = node.y / axis_y if axis_y else 0.0
+                                return math.atan2(safe_y, safe_x)
+
+                            theta1 = _ellipse_angle(a)
+                            theta2 = _ellipse_angle(b)
+                            dtheta = theta2 - theta1
+                            if dtheta > math.pi:
+                                dtheta -= 2 * math.pi
+                            elif dtheta < -math.pi:
+                                dtheta += 2 * math.pi
+
+                            num_points = 40
+                            theta_values = np.linspace(
+                                theta1, theta1 + dtheta, num_points
+                            )
+                            xs = axis_x * np.cos(theta_values)
+                            ys = axis_y * np.sin(theta_values)
+                            zs = np.linspace(a.z, b.z, num_points)
+
+                            if i > 0:
+                                x_vals.extend(xs[1:])
+                                y_vals.extend(ys[1:])
+                                z_vals.extend(zs[1:])
+                            else:
+                                x_vals.extend(xs)
+                                y_vals.extend(ys)
+                                z_vals.extend(zs)
+                        else:
+                            if i == 0:
+                                x_vals.append(a.x)
+                                y_vals.append(a.y)
+                                z_vals.append(a.z)
+                            x_vals.append(b.x)
+                            y_vals.append(b.y)
+                            z_vals.append(b.z)
                     else:
                         if i == 0:
                             x_vals.append(a.x)

@@ -4,6 +4,7 @@ from typing import Optional
 
 from config import PathCurveType
 
+
 class Node:
     """
     Represents a node in the 3D maze grid.
@@ -17,6 +18,7 @@ class Node:
         occupied: bool = False,
         overlap_allowed: bool = False,
         in_circular_grid: bool = False,
+        in_elliptical_grid: bool = False,
         in_rectangular_grid: bool = False,
     ) -> None:
         """
@@ -30,6 +32,8 @@ class Node:
             overlap_allowed (bool): Determines whether obstacles may overlap at this node
             position, enabling intentional stacking of geometry when set to True. Defaults to False.
             in_circular_grid (bool): Marks whether this node belongs to a circular helper grid.
+                Defaults to False.
+            in_elliptical_grid (bool): Marks whether this node belongs to an elliptical helper grid.
                 Defaults to False.
             in_rectangular_grid (bool): Marks whether this node belongs to a rectangular helper grid.
                 Defaults to False.
@@ -57,7 +61,12 @@ class Node:
         self.f: float = float("inf")  # Total cost
 
         self.in_circular_grid: bool = in_circular_grid
+        self.in_elliptical_grid: bool = in_elliptical_grid
         self.in_rectangular_grid: bool = in_rectangular_grid
+
+        # Elliptical helpers track their axes so arcs can be (re)generated downstream.
+        self.ellipse_axis_x: Optional[float] = None
+        self.ellipse_axis_y: Optional[float] = None
 
         # Obstacle markers
         self.is_obstacle_entry: bool = False

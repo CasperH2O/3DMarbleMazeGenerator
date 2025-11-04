@@ -10,13 +10,13 @@ from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Them
 
 # Puzzle configuration
 class Puzzle:
-    CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
+    CASE_MANUFACTURER = CaseManufacturer.GENERIC
     THEME = Theme.ULTRA_MARINE
-    CASE_SHAPE = CaseShape.SPHERE  # Options: Sphere, Box, Sphere with flange etc
+    CASE_SHAPE = CaseShape.ELLIPSOID  # Options: Sphere, Box, Cylinder, Ellipsoid, etc
 
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
-    SEED = 4  # Random seed for reproducibility
+    SEED = 6  # Random seed for reproducibility
     NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
@@ -109,6 +109,14 @@ class Cylinder:
     NUMBER_OF_MOUNTING_POINTS = 2
 
 
+class Ellipsoid:
+    DIAMETER_X = 160.0
+    DIAMETER_Y = 100.0
+    DIAMETER_Z = 100.0
+    SHELL_THICKNESS = 3.0
+    NUMBER_OF_MOUNTING_POINTS = 4
+
+
 # Path curves and profile configuration
 class Path:
     PATH_CURVE_MODEL = [
@@ -137,9 +145,7 @@ class Path:
     ENABLE_OVERRIDES = True
 
     PATH_PROFILE_TYPE_OVERRIDES = (
-        {
-            7: PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT
-        }
+        {7: PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT}
         if ENABLE_OVERRIDES
         else {}
     )
@@ -253,6 +259,7 @@ class Config:
     Sphere = Sphere
     Box = Box
     Cylinder = Cylinder
+    Ellipsoid = Ellipsoid
     Path = Path
     Manufacturing = Manufacturing
     Obstacles = Obstacles
