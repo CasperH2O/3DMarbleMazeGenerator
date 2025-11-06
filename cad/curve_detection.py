@@ -7,7 +7,6 @@ from typing import Optional
 from config import Path, PathCurveType
 from puzzle.node import Node
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +34,9 @@ def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
         int: The next curve ID after processing.
     """
     logger.debug(
-        "detect_curves: starting with %s nodes and curve_id_counter=%s", len(nodes), curve_id_counter
+        "detect_curves: starting with %s nodes and curve_id_counter=%s",
+        len(nodes),
+        curve_id_counter,
     )
 
     if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
@@ -50,9 +51,7 @@ def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
         logger.debug("detect_curves: circular segment detection enabled")
         curve_id_counter = detect_circular_segments(nodes, curve_id_counter)
 
-    logger.debug(
-        "detect_curves: completed with curve_id_counter=%s", curve_id_counter
-    )
+    logger.debug("detect_curves: completed with curve_id_counter=%s", curve_id_counter)
     return curve_id_counter
 
 
@@ -97,7 +96,9 @@ def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
                     # Compute dot product
                     dot_product = sum(
                         first * last
-                        for first, last in zip(first_vector_normalized, last_vector_normalized)
+                        for first, last in zip(
+                            first_vector_normalized, last_vector_normalized
+                        )
                     )
 
                     # Threshold for same direction
@@ -132,47 +133,71 @@ def detect_s_curves(nodes: list[Node], curve_id_counter: int) -> int:
     return curve_id_counter
 
 
-def detect_circular_segments(nodes: list[Node], curve_id_counter: int) -> int:
+def detect_circular_segments(
+    nodes: list[Node],
+    curve_id_counter: int,
+) -> int:
     """
-    Detects consecutive nodes flagged as belonging to the circular grid and marks them as ARC curves.
+    Detect consecutive nodes flagged as belonging to the circular grid and mark them as ARC curves.
+    Requires at minimum of 2 nodes in a run to consider it a valid circular segment.
 
     Args:
-        nodes (list[Node]): The list of nodes to process.
-        curve_id_counter (int): The current curve ID counter.
+        nodes: The list of nodes to process.
+        curve_id_counter: The current curve ID counter.
 
     Returns:
-        int: The updated curve ID counter.
+        The updated curve ID counter.
     """
+    min_guard_nodes = 2
+
     logger.debug(
-        "detect_circular_segments: starting with %s nodes and curve_id_counter=%s",
+        "detect_circular_segments: starting with %s nodes, curve_id_counter=%s, min_guard_nodes=%s",
         len(nodes),
         curve_id_counter,
+        min_guard_nodes,
     )
 
     i = 0
     while i < len(nodes):
-        # Check if the node is circular; adjust this check if needed (e.g., using membership)
+        # Check if the node is circular
         if nodes[i].in_circular_grid:
             start = i
             # Continue while subsequent nodes are circular.
             while i < len(nodes) and nodes[i].in_circular_grid:
                 i += 1
-            # Mark the block of consecutive circular nodes.
+            block_len = i - start
+
+            # Prevent making segments of a single node, can happen near start and end of puzzle
+            if block_len < min_guard_nodes:
+                logger.debug(
+                    "detect_circular_segments: skipping short circular run len=%s (<%s) at indices=[%s,%s) nodes=%s",
+                    block_len,
+                    min_guard_nodes,
+                    start,
+                    i,
+                    _format_node_list(nodes[start:i]),
+                )
+                continue
+
+            # Valid circular run — mark all nodes in the block
             for j in range(start, i):
                 node = nodes[j]
                 node.path_curve_type = PathCurveType.ARC
                 node.used_in_curve = True
                 node.curve_id = curve_id_counter
+
             logger.debug(
-                "detect_circular_segments: detected circular segment curve_id=%s indices=[%s,%s) nodes=%s",
+                "detect_circular_segments: ARC curve_id=%s indices=[%s,%s) len=%s nodes=%s",
                 curve_id_counter,
                 start,
                 i,
+                block_len,
                 _format_node_list(nodes[start:i]),
             )
-            curve_id_counter += 1  # Increment the counter after processing a block.
+            curve_id_counter += 1
         else:
             i += 1
+
     logger.debug(
         "detect_circular_segments: completed with curve_id_counter=%s", curve_id_counter
     )
