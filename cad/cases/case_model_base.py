@@ -156,7 +156,7 @@ class Case(ABC):
         names.append("Cut Shape")
 
         # show first (so groups exist)
-        set_defaults(reset_camera=Camera.KEEP)
+        set_defaults(reset_camera=Camera.KEEP, black_edges=True)
         show(*objs, names=names)
 
         # fetch states and edit leaves

@@ -26,8 +26,8 @@ def show_obstacles_overview() -> None:
     obstacles = [get_obstacle_class(name)() for name in names]
     obstacles.sort(key=lambda ob: len(ob.occupied_nodes))
 
-    # Prepare viewer defaults (orthographic helps when comparing sizes)
-    set_defaults(reset_camera=Camera.KEEP)  # keep orientation across runs
+    # Prepare viewer defaults, keep orientation across runs, enable edges
+    set_defaults(reset_camera=Camera.KEEP, black_edges=True)
 
     # Build geometry and collect bounding boxes
     obstacle_color = config.Puzzle.PATH_COLORS[0]

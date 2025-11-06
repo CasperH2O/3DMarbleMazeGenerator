@@ -62,7 +62,7 @@ PATH_LEN = NODE_SIZE * 8  # Y-length of every demo path
 X_SPACING = NODE_SIZE * 2  # gap between neighbouring paths
 
 # Set the default camera position, to not adjust on new show
-set_defaults(reset_camera=Camera.KEEP)
+set_defaults(reset_camera=Camera.KEEP, black_edges=True)
 
 # Iterate over every registered profile type, sweep it main profile and accent and or support if applicable
 for idx, profile_type in enumerate(PathProfileType):

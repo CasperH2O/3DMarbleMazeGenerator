@@ -636,7 +636,7 @@ class Obstacle(ABC):
             color="#00444900",
         )
 
-        set_defaults(reset_camera=Camera.KEEP)
+        set_defaults(reset_camera=Camera.KEEP, black_edges=True)
 
         # Show everything with custom group names
         show(

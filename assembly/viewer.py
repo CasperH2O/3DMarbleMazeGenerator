@@ -80,7 +80,7 @@ def display_parts(
     Display all puzzle physical objects.
     """
     # Set the default camera position, to not adjust on new show
-    set_defaults(reset_camera=Camera.KEEP)
+    set_defaults(reset_camera=Camera.KEEP, black_edges=True)
 
     # If Generic theme, assign distinct HSV colors per part
     if Config.Puzzle.THEME == Theme.HIGH_CONTRAST:
