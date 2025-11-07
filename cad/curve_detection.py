@@ -245,8 +245,9 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
                 continue  # Skip overlapping segments
 
             if check_90_deg_curve(segment):
-                # Mark only the middle nodes as part of the curve
-                for node in middle_nodes:
+                trimmed_middle_nodes = _trim_middle_nodes_to_corner_triad(middle_nodes)
+                # Mark only the trimmed middle nodes as part of the curve
+                for node in trimmed_middle_nodes:
                     node.path_curve_type = n_to_curve_type[n]
                     node.used_in_curve = True  # Mark node as used
                     node.curve_id = curve_id_counter  # Assign curve ID
@@ -256,11 +257,70 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
                     n,
                     i,
                     i + segment_length,
-                    _format_node_list(middle_nodes),
+                    _format_node_list(trimmed_middle_nodes),
                 )
                 curve_id_counter += 1  # Increment curve ID counter
 
     return curve_id_counter
+
+
+def _trim_middle_nodes_to_corner_triad(nodes: list[Node]) -> list[Node]:
+    """Return only the corner triad that defines a 90-degree turn.
+
+    The detector can return a window that includes extra collinear nodes on either
+    side of the actual corner. Those nodes should remain available for straight
+    segments, so we trim the selection to the three nodes that form the sharpest
+    bend in the window.
+    """
+
+    if len(nodes) <= 3:
+        return nodes
+
+    directions: list[tuple[float, float, float]] = []
+    for idx in range(1, len(nodes)):
+        previous_node = nodes[idx - 1]
+        current_node = nodes[idx]
+        directions.append(
+            (
+                current_node.x - previous_node.x,
+                current_node.y - previous_node.y,
+                current_node.z - previous_node.z,
+            )
+        )
+
+    max_bend_index = 1
+    max_score = -1.0
+
+    for idx in range(1, len(directions)):
+        first_vector = directions[idx - 1]
+        second_vector = directions[idx]
+        score = 1.0 - abs(_cosine_of_angle(first_vector, second_vector))
+        if score > max_score:
+            max_score = score
+            max_bend_index = idx
+
+    corner_index = max_bend_index
+    trimmed: list[Node] = []
+    if corner_index - 1 >= 0:
+        trimmed.append(nodes[corner_index - 1])
+    trimmed.append(nodes[corner_index])
+    if corner_index + 1 < len(nodes):
+        trimmed.append(nodes[corner_index + 1])
+    return trimmed
+
+
+def _cosine_of_angle(first_vector: tuple[float, float, float], second_vector: tuple[float, float, float]) -> float:
+    """Return the cosine of the angle between two vectors."""
+
+    first_length = math.sqrt(sum(component * component for component in first_vector))
+    second_length = math.sqrt(sum(component * component for component in second_vector))
+    if first_length == 0 or second_length == 0:
+        return 1.0
+    dot_product = sum(
+        first_component * second_component
+        for first_component, second_component in zip(first_vector, second_vector)
+    )
+    return dot_product / (first_length * second_length)
 
 
 def is_in_plane(pts: list[Node]) -> bool:
