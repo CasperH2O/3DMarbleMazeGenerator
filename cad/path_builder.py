@@ -1375,6 +1375,13 @@ def sweep_single_profile(
                         add(profile)
                 sweep(transition=transition_type, is_frenet=is_frenet)
 
+            # Only O-shapes: invalid geometry counts as a hard failure (to trigger different angle retries)
+            if is_o_shape_profile and not sweep_result.part.is_valid():
+                raise RuntimeError(
+                    f"Part invalid for sweep of O-shaped profile at {rotation_angle}° "
+                    f"(segment {segment.main_index}.{segment.secondary_index})"
+                )
+
             # Debugging / visualization
             if False:
                 from ocp_vscode import show_object
