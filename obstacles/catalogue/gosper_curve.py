@@ -491,7 +491,7 @@ class GosperCurve(Obstacle):
             with BuildLine() as obstacle_line:
                 Polyline(*points_xyz)
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
         self.main_path_segment.transition_type = Transition.RIGHT
 
         # Extend again to form external entry/exit segments

@@ -155,7 +155,7 @@ class OverhandKnotObstacle(Obstacle):
             # End lead
             Spline([p1, G1], tangents=[t1u, tg1_axis])
 
-        self.main_path_segment.path = full_path.line
+        self.main_path_segment.path = full_path.line.wires().first
 
     def model_solid(self) -> Part:
         """

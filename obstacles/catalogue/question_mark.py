@@ -62,7 +62,7 @@ class QuestionMark(Obstacle):
                 add(spline_line)
                 add(arc_line)
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
         self.main_path_segment.transition_type = Transition.ROUND
 
     def model_solid(self) -> Part:

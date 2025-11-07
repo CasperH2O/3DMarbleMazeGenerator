@@ -50,7 +50,7 @@ class Arrow(Obstacle):
                     (1 * self.node_size, -2 * self.node_size, 0),
                 )
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
         self.main_path_segment.transition_type = Transition.RIGHT
 
     def model_solid(self) -> Part:

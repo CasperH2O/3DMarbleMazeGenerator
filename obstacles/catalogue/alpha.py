@@ -63,7 +63,7 @@ class Alpha(Obstacle):
             add(bezier_line)
             add(end_line)
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
 
     def model_solid(self) -> Part:
         """

@@ -69,7 +69,7 @@ class Spiral(Obstacle):
                 add(helper_helix)
                 add(end_line)
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
         self.main_path_segment.use_frenet = True
 
     def model_solid(self) -> Part:

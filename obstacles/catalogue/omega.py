@@ -61,7 +61,7 @@ class Omega(Obstacle):
                 add(arc_line)
                 add(end_line)
 
-        self.main_path_segment.path = obstacle_line.line
+        self.main_path_segment.path = obstacle_line.line.wires().first
         self.main_path_segment.transition_type = Transition.ROUND
 
     def model_solid(self) -> Part:

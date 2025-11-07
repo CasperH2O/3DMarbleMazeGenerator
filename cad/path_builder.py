@@ -1057,8 +1057,11 @@ class PathBuilder:
                         segment.support_body.part = (
                             segment.support_body.part - cutting_cylinder.part
                         )
-            # For splines, use spline edge to determine location of holes to cut
-            elif segment.curve_model == PathCurveModel.SPLINE:
+            # For splines and obstacles, use edge to determine location of holes to cut
+            elif (
+                segment.curve_model == PathCurveModel.SPLINE
+                or segment.curve_model == PathCurveModel.OBSTACLE
+            ):
                 total_length = segment.path.length
                 hole_size = Config.Puzzle.BALL_DIAMETER + 1
                 interval = 2 * self.node_size
@@ -1098,6 +1101,7 @@ class PathBuilder:
                     # Subtract from bodies
                     if segment.path_body and segment.path_body.part.is_valid():
                         segment.path_body.part -= cutting_cylinder.part
+                    # Intentionally not subtracted from support bodies to improve printing
 
     def determine_path_profile_angle(
         self,
