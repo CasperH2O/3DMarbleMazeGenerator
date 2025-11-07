@@ -332,19 +332,11 @@ class PathBuilder:
                 )
 
         elif len(sub_path_points) >= 2:
-            # FIXME TODO HACK duplicates points are slipping in due to incorrect path with obstacle adjust start end node
-
-            # Remove duplicate points slipping in
-            cleaned_points = remove_duplicate_vectors(
-                sub_path_points, tolerance=1e-6, dedupe_all=False
-            )
-
-            # Still ensure there are at least two points to form a segment
-            if len(cleaned_points) >= 2:
-                segment.path = Polyline([(p.X, p.Y, p.Z) for p in cleaned_points])
+            segment.path = Polyline([(p.X, p.Y, p.Z) for p in sub_path_points])
         else:
             logger.warning(
-                "Define standard segment received a segment with a single point: %s",
+                "Define standard segment received a segment with a single point: %s, "
+                "this should not happen, identify root cause and fix.",
                 sub_path_points[0],
             )
 
@@ -1380,22 +1372,21 @@ def sweep_single_profile(
                 sweep(transition=transition_type, is_frenet=is_frenet)
 
             # Debugging / visualization
-            """
-            from ocp_vscode import show_object
+            if False:
+                from ocp_vscode import show_object
 
-            show_object(
-                path_line,
-                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path",
-            )
-            show_object(
-                sketch_path_profile.sketch,
-                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile",
-            )
-            show_object(
-                sweep_result,
-                name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
-            )
-            """
+                show_object(
+                    path_line,
+                    name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Path",
+                )
+                show_object(
+                    sketch_path_profile.sketch,
+                    name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Profile",
+                )
+                show_object(
+                    sweep_result,
+                    name=f"{segment.main_index}.{segment.secondary_index} - {sweep_label} Body",
+                )
 
             return sweep_result
 
@@ -1454,70 +1445,3 @@ def normalize_angle(angle: float) -> float:
 def is_close_to_origin(vec: Vector, tol=1e-5) -> bool:
     """Check if a vector is close to the origin within a tolerance."""
     return vec.length < tol
-
-
-def _vectors_almost_equal(a: Vector, b: Vector, tolerance: float) -> bool:
-    """Component-wise comparison with an absolute tolerance."""
-    return (
-        abs(a.X - b.X) <= tolerance
-        and abs(a.Y - b.Y) <= tolerance
-        and abs(a.Z - b.Z) <= tolerance
-    )
-
-
-def _quantize_key(point: Vector, tolerance: float) -> tuple[int, int, int]:
-    """
-    Map a point to a grid cell key so we can deduplicate with a set.
-    This avoids O(n^2) scans for global dedupe.
-    """
-    return (
-        round(point.X / tolerance),
-        round(point.Y / tolerance),
-        round(point.Z / tolerance),
-    )
-
-
-def remove_duplicate_vectors(
-    points: Iterable[Vector],
-    tolerance: float = 1e-6,
-    dedupe_all: bool = False,
-) -> list[Vector]:
-    """
-    Remove duplicate vectors with a tolerance, preserving order.
-
-    - If dedupe_all is False (default), only removes consecutive duplicates.
-    - If dedupe_all is True, removes any duplicates anywhere in the sequence.
-
-    Returns a new list of Vectors.
-    """
-    points_list = list(points)
-    if not points_list:
-        return []
-
-    if not dedupe_all:
-        # Fast path: collapse runs of equal points
-        cleaned: list[Vector] = [points_list[0]]
-        for point in points_list[1:]:
-            if not _vectors_almost_equal(point, cleaned[-1], tolerance):
-                cleaned.append(point)
-        return cleaned
-
-    # Global dedupe with quantized keys (order-preserving)
-    cleaned = []
-    seen_keys: set[tuple[int, int, int]] = set()
-    for point in points_list:
-        key = _quantize_key(point, tolerance)
-        if key in seen_keys:
-            # Key already seen; skip point
-            continue
-        # Resolve possible key collision by verifying with exact tolerance check
-        collision = False
-        for existing in cleaned:
-            if _vectors_almost_equal(point, existing, tolerance):
-                collision = True
-                break
-        if collision:
-            continue
-        seen_keys.add(key)
-        cleaned.append(point)
-    return cleaned

@@ -1,5 +1,5 @@
 from cad.path_architect import PathArchitect
-from cad.path_segment import PathSegment
+from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from config import Config, PathCurveModel, PathCurveType
 from puzzle.node import Node
 
@@ -31,6 +31,31 @@ def make_node(
 def make_xyz_node(x: float, y: float = 0.0, z: float = 0.0) -> Node:
     """Shortcut for building nodes at arbitrary coordinates."""
     return Node(x, y, z)
+
+
+def make_stub_arch() -> PathArchitect:
+    arch = PathArchitect.__new__(PathArchitect)
+    arch.segments = []
+    arch.secondary_index_counters = {}
+    arch.obstacle_by_entry = {}
+    arch.node_size = Config.Puzzle.NODE_SIZE
+    arch.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
+    arch.path_profile_types = list(Config.Path.PATH_PROFILE_TYPES)
+    arch.path_curve_models = list(Config.Path.PATH_CURVE_MODEL)
+    return arch
+
+
+def assert_no_duplicate_vectors(nodes: list[Node]):
+    vectors = [_node_to_vector(node) for node in nodes]
+    for index, vec in enumerate(vectors):
+        for other in vectors[index + 1 :]:
+            assert not is_same_location(vec, other), (
+                f"Duplicate vector detected at {_format_vector_for_assert(vec)}"
+            )
+
+
+def _format_vector_for_assert(vec):
+    return f"({vec.X:.6f}, {vec.Y:.6f}, {vec.Z:.6f})"
 
 
 def run_split_spline(
@@ -75,7 +100,7 @@ def run_adjust_segments(nodes):
     """
     seg = PathSegment(nodes, main_index=1)
     seg.curve_model = PathCurveModel.SINGLE
-    arch = PathArchitect([])  # Intialize PathArchitect with empty puzzle
+    arch = make_stub_arch()
     arch.segments = [seg]
     arch.adjust_segments()
     return arch.segments
@@ -91,7 +116,7 @@ def run_harmonise(nodes_a, nodes_b):
     seg_b = PathSegment(nodes_b, main_index=2)
     seg_a.curve_model = seg_b.curve_model = PathCurveModel.SINGLE  # pass-through
 
-    arch = PathArchitect([])  # empty puzzle
+    arch = make_stub_arch()
     arch.segments = [seg_a, seg_b]
     arch._harmonise_circular_transitions()
     return arch.segments
@@ -225,6 +250,44 @@ def test_bridge_insert_pattern_b():
     assert abs(seg_b.nodes[1].x - 2) < TOL
 
 
+def test_obstacle_exit_segment_reuses_shared_start_node():
+    previous_exit = make_xyz_node(5.0, 6.0, 7.0)
+    previous_exit.in_rectangular_grid = True
+
+    shared_exit = make_xyz_node(5.0, 6.0, 7.0)
+    shared_exit.is_obstacle_exit = True
+
+    interior_node = make_xyz_node(8.0, 6.0, 7.0)
+    segment = PathSegment([shared_exit, interior_node], main_index=99)
+    segment.is_obstacle = True
+
+    downstream_start = make_xyz_node(11.0, 6.0, 7.0)
+
+    segment.adjust_start_and_endpoints(
+        node_size=1.0,
+        previous_end_node=previous_exit,
+        next_start_node=downstream_start,
+        previous_curve_type=None,
+        next_curve_type=None,
+    )
+
+    assert segment.nodes[0] is shared_exit
+    assert shared_exit.segment_start
+    assert shared_exit.in_rectangular_grid is True
+    assert is_same_location(
+        _node_to_vector(shared_exit), _node_to_vector(previous_exit)
+    )
+
+    assert_no_duplicate_vectors(segment.nodes)
+
+    shared_locations = [
+        node
+        for node in segment.nodes
+        if is_same_location(_node_to_vector(node), _node_to_vector(previous_exit))
+    ]
+    assert len(shared_locations) == 1
+
+
 def test_single_before_non_circular_spline():
     node_size = Config.Puzzle.NODE_SIZE
 
@@ -259,7 +322,7 @@ def test_single_before_non_circular_spline():
     assert not single_segment.nodes[-1].in_circular_grid
     assert not spline_segment.nodes[0].in_circular_grid
 
-    arch = PathArchitect([])
+    arch = make_stub_arch()
     arch.segments = [single_segment, spline_segment]
     arch._harmonise_circular_transitions()
 
@@ -322,7 +385,7 @@ def test_single_after_non_circular_spline():
     assert single_segment.nodes[-1].in_circular_grid
     assert arc_segment.nodes[0].in_circular_grid
 
-    arch = PathArchitect([])
+    arch = make_stub_arch()
     arch.segments = [spline_segment, single_segment, arc_segment]
     arch._harmonise_circular_transitions()
 

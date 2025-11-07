@@ -9,7 +9,6 @@ from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 from config import PathCurveModel, PathCurveType, PathProfileType
 from puzzle.node import Node
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -356,6 +355,7 @@ class PathSegment:
         """
         # Adjust start node.
         if not self.nodes[0].puzzle_start:
+            existing_start = self.nodes[0]
             if previous_end_node is not None:
                 adjusted_start = _node_to_vector(previous_end_node)
                 previous_is_circular = (
@@ -364,29 +364,60 @@ class PathSegment:
                 )
                 # Propagate only if both sides of the junction are circular.
                 is_circular_start = (
-                    previous_is_circular
-                    and self.nodes[0].in_circular_grid
+                    previous_is_circular and existing_start.in_circular_grid
                 )
-            else:
-                adjusted_start = _node_to_vector(self.nodes[0])
-                is_circular_start = self.nodes[0].in_circular_grid
 
-            start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
-            start_node.in_circular_grid = is_circular_start
-            start_node.in_rectangular_grid = (
-                previous_end_node.in_rectangular_grid
-                if previous_end_node is not None
-                else self.nodes[0].in_rectangular_grid
-            )
-            start_node.segment_start = True
-            self.nodes.insert(0, start_node)
-            logger.debug(
-                "PathSegment[%s.%s] multi-node start anchored at %s (circular=%s)",
-                self.main_index,
-                self.secondary_index,
-                _format_vector(adjusted_start),
-                is_circular_start,
-            )
+                # In certain cases (obstacle exit path segment) there already is a start node
+                # in the same location, re use it
+                if is_same_location(adjusted_start, _node_to_vector(existing_start)):
+                    existing_start.x = adjusted_start.X
+                    existing_start.y = adjusted_start.Y
+                    existing_start.z = adjusted_start.Z
+                    existing_start.in_circular_grid = is_circular_start
+                    existing_start.in_rectangular_grid = (
+                        previous_end_node.in_rectangular_grid
+                    )
+                    existing_start.segment_start = True
+                    logger.debug(
+                        "PathSegment[%s.%s] multi-node start reused existing node at %s (circular=%s)",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_vector(adjusted_start),
+                        is_circular_start,
+                    )
+                else:
+                    start_node = Node(
+                        adjusted_start.X, adjusted_start.Y, adjusted_start.Z
+                    )
+                    start_node.in_circular_grid = is_circular_start
+                    start_node.in_rectangular_grid = (
+                        previous_end_node.in_rectangular_grid
+                    )
+                    start_node.segment_start = True
+                    self.nodes.insert(0, start_node)
+                    logger.debug(
+                        "PathSegment[%s.%s] multi-node start anchored at %s (circular=%s)",
+                        self.main_index,
+                        self.secondary_index,
+                        _format_vector(adjusted_start),
+                        is_circular_start,
+                    )
+            else:
+                adjusted_start = _node_to_vector(existing_start)
+                is_circular_start = existing_start.in_circular_grid
+
+                start_node = Node(adjusted_start.X, adjusted_start.Y, adjusted_start.Z)
+                start_node.in_circular_grid = is_circular_start
+                start_node.in_rectangular_grid = existing_start.in_rectangular_grid
+                start_node.segment_start = True
+                self.nodes.insert(0, start_node)
+                logger.debug(
+                    "PathSegment[%s.%s] multi-node start anchored at %s (circular=%s)",
+                    self.main_index,
+                    self.secondary_index,
+                    _format_vector(adjusted_start),
+                    is_circular_start,
+                )
         else:
             self.nodes[0].segment_start = True
             logger.debug(
@@ -402,25 +433,16 @@ class PathSegment:
         end_adjustment_reason = ""
         if next_start_node is not None:
             next_is_circular = (
-                next_start_node.in_circular_grid
-                or next_curve_type == PathCurveType.ARC
+                next_start_node.in_circular_grid or next_curve_type == PathCurveType.ARC
             )
             if next_curve_type is not None:
                 # Full adjustment: snap exactly to the next segment's start node.
                 adjusted_end = _node_to_vector(next_start_node)
-                is_circular_end = (
-                    self.nodes[-1].in_circular_grid
-                    and next_is_circular
-                )
-                end_adjustment_reason = (
-                    "snapped to next start (fixed curve)"
-                )
+                is_circular_end = self.nodes[-1].in_circular_grid and next_is_circular
+                end_adjustment_reason = "snapped to next start (fixed curve)"
             else:
                 # For half adjustment: if current end node is circular, compute arc midpoint.
-                if (
-                    self.nodes[-1].in_circular_grid
-                    and next_is_circular
-                ):
+                if self.nodes[-1].in_circular_grid and next_is_circular:
                     is_circular_end = True
                     adjusted_end = midpoint(
                         end_node_point, _node_to_vector(next_start_node), circular=True
@@ -495,10 +517,7 @@ class PathSegment:
                 previous_end_node.in_circular_grid
                 or previous_curve_type == PathCurveType.ARC
             )
-            is_circular_start = (
-                previous_is_circular
-                and self.nodes[0].in_circular_grid
-            )
+            is_circular_start = previous_is_circular and self.nodes[0].in_circular_grid
         else:
             adjusted_start = node_point
             is_circular_start = self.nodes[0].in_circular_grid
@@ -543,8 +562,7 @@ class PathSegment:
                     or next_curve_type == PathCurveType.ARC
                 )
                 should_use_circular_midpoint = (
-                    self.nodes[0].in_circular_grid
-                    and next_is_circular
+                    self.nodes[0].in_circular_grid and next_is_circular
                 )
                 if should_use_circular_midpoint:
                     adjusted_end = midpoint(
@@ -600,8 +618,7 @@ class PathSegment:
                     if next_curve_type is not None:
                         adjusted_end = _node_to_vector(next_start_node)
                         is_circular_end = (
-                            self.nodes[0].in_circular_grid
-                            and next_is_circular
+                            self.nodes[0].in_circular_grid and next_is_circular
                         )
                         logger.debug(
                             "PathSegment[%s.%s] single-node snapped end to next start %s (fixed curve)",
@@ -611,10 +628,7 @@ class PathSegment:
                         )
                     else:
                         # For half adjustment, use arc midpoint if the node is circular.
-                        if (
-                            self.nodes[0].in_circular_grid
-                            and next_is_circular
-                        ):
+                        if self.nodes[0].in_circular_grid and next_is_circular:
                             is_circular_end = True
                             adjusted_end = midpoint(
                                 node_point,
