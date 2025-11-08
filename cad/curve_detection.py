@@ -236,7 +236,7 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
 
             # Check if any node in the segment (excluding first and last) has already been used
             middle_nodes = segment[1:-1]
-            if any(getattr(node, "used_in_curve", False) for node in middle_nodes):
+            if any(node.used_in_curve for node in middle_nodes):
                 logger.debug(
                     "detect_arcs: skipping segment index=%s length=%s due to reused middle nodes",
                     i,
@@ -245,23 +245,52 @@ def detect_arcs(nodes: list[Node], curve_id_counter: int) -> int:
                 continue  # Skip overlapping segments
 
             if check_90_deg_curve(segment):
-                trimmed_middle_nodes = _trim_middle_nodes_to_corner_triad(middle_nodes)
-                # Mark only the trimmed middle nodes as part of the curve
-                for node in trimmed_middle_nodes:
+                # Find the sharp corner triad first
+                triad_nodes = _trim_middle_nodes_to_corner_triad(middle_nodes)
+
+                # Expand, target_count == n (the number of middle nodes to mark).
+                nodes_to_mark = _expand_triad_to_centered_span(
+                    middle_nodes=middle_nodes,
+                    triad_nodes=triad_nodes,
+                    target_count=n,
+                )
+
+                # Mark selected nodes as part of the curve
+                for node in nodes_to_mark:
                     node.path_curve_type = n_to_curve_type[n]
                     node.used_in_curve = True  # Mark node as used
                     node.curve_id = curve_id_counter  # Assign curve ID
+
                 logger.debug(
                     "detect_arcs: detected 90-degree curve curve_id=%s length=%s indices=[%s,%s) middle_nodes=%s",
                     curve_id_counter,
                     n,
                     i,
                     i + segment_length,
-                    _format_node_list(trimmed_middle_nodes),
+                    _format_node_list(nodes_to_mark),
                 )
                 curve_id_counter += 1  # Increment curve ID counter
 
     return curve_id_counter
+
+
+def _expand_triad_to_centered_span(
+    middle_nodes: list[Node],
+    triad_nodes: list[Node],
+    target_count: int,
+) -> list[Node]:
+    """
+    Return a contiguous, centered, odd-length window around the triad's center node.
+    """
+    triad_center_node = triad_nodes[1]  # center of the triad
+    center_index = middle_nodes.index(triad_center_node)
+
+    half_span = (target_count - 1) // 2
+    start_index = center_index - half_span
+    end_index = center_index + half_span + 1  # slice end is exclusive
+
+    # Slice appropriately
+    return middle_nodes[start_index:end_index]
 
 
 def _trim_middle_nodes_to_corner_triad(nodes: list[Node]) -> list[Node]:
@@ -309,7 +338,9 @@ def _trim_middle_nodes_to_corner_triad(nodes: list[Node]) -> list[Node]:
     return trimmed
 
 
-def _cosine_of_angle(first_vector: tuple[float, float, float], second_vector: tuple[float, float, float]) -> float:
+def _cosine_of_angle(
+    first_vector: tuple[float, float, float], second_vector: tuple[float, float, float]
+) -> float:
     """Return the cosine of the angle between two vectors."""
 
     first_length = math.sqrt(sum(component * component for component in first_vector))
