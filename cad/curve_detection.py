@@ -39,6 +39,10 @@ def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
         curve_id_counter,
     )
 
+    if PathCurveType.ARC in Path.PATH_CURVE_TYPE:
+        logger.debug("detect_curves: circular segment detection enabled")
+        curve_id_counter = detect_circular_segments(nodes, curve_id_counter)
+
     if PathCurveType.S_CURVE in Path.PATH_CURVE_TYPE:
         logger.debug("detect_curves: S-curve detection enabled")
         curve_id_counter = detect_s_curves(nodes, curve_id_counter)
@@ -46,10 +50,6 @@ def detect_curves(nodes: list[Node], curve_id_counter: int) -> int:
     if PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE in Path.PATH_CURVE_TYPE:
         logger.debug("detect_curves: 90-degree arc detection enabled")
         curve_id_counter = detect_arcs(nodes, curve_id_counter)
-
-    if PathCurveType.ARC in Path.PATH_CURVE_TYPE:
-        logger.debug("detect_curves: circular segment detection enabled")
-        curve_id_counter = detect_circular_segments(nodes, curve_id_counter)
 
     logger.debug("detect_curves: completed with curve_id_counter=%s", curve_id_counter)
     return curve_id_counter
