@@ -1015,7 +1015,12 @@ class PathBuilder:
                     continue  # Skip this segment
 
                 start_idx = 1  # Exclude the first node
-                end_idx = total_nodes - 1  # Exclude the last node
+
+                if segment.nodes[-1].puzzle_end:
+                    # Exclude the last node (puzzle end) and second last, which get's it's own hole cut by the finish box
+                    end_idx = total_nodes - 2
+                else:
+                    end_idx = total_nodes - 1
 
                 for idx in range(start_idx, end_idx):
                     node = segment.nodes[idx]
@@ -1023,12 +1028,6 @@ class PathBuilder:
                     adjusted_idx = idx - start_idx
                     if adjusted_idx % n != 0:
                         continue  # Skip this node
-
-                    # Skip puzzle end, finish box cut's it's own hole
-                    # FIXME puzzle end is apparently not found here
-                    if node.puzzle_end:
-                        logger.debug("Skipping puzzle end node at index %d", idx)
-                        continue
 
                     # Skip nodes that do not lie on the path, ie on curves
                     hole_vertex = Vertex(Vector(node.x, node.y, node.z))
