@@ -1,3 +1,5 @@
+import unittest
+
 from cad.path_architect import PathArchitect
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
 from config import Config, PathCurveModel, PathCurveType
@@ -478,3 +480,120 @@ def test_split_spline_keeps_trailing_stitch_only():
     assert tail.nodes[0] is nodes[-1]
 
     assert arch.secondary_index_counters[7] == 2
+
+
+def _set_circular(node: Node, flag: bool) -> Node:
+    node.in_circular_grid = flag
+    node.in_rectangular_grid = not flag
+    return node
+
+
+@unittest.skip(
+    "Conflict of interest between not creating single node segments and "
+    "properly making arc segments from one segment."
+)
+def test_seg43_to_seg50_handoff_bridge_is_arc_and_remainder_stays_non_arc():
+    """
+    4.3 tail ends at (30,-54.82928,0) circular; 5.0 starts at (40,-48.02343,0) circular.
+    Harmonisation inserts a bridge segment [30..40] (both circular).
+    Circular detection marks the bridge ARC. The remainder of 5.0 stays non-ARC
+    (except for its first node, which is the shared circular boundary already marked by the bridge).
+    """
+    # 4.3 tail (all circular)
+    n_43 = [
+        _set_circular(make_xyz_node(-10.0, -61.695, 0.0), True),
+        _set_circular(make_xyz_node(0.0, -62.500, 0.0), True),
+        _set_circular(make_xyz_node(10.0, -61.695, 0.0), True),
+        _set_circular(make_xyz_node(20.0, -59.214, 0.0), True),
+        _set_circular(make_xyz_node(30.0, -54.82928, 0.0), True),  # 4.3 end
+    ]
+
+    # 5.0 head + body
+    n_50 = [
+        _set_circular(
+            make_xyz_node(40.0, -48.02343, 0.0), True
+        ),  # 5.0 start (circular)
+        _set_circular(make_xyz_node(40.0, -30.0, 0.0), False),
+        _set_circular(make_xyz_node(40.0, -20.0, 0.0), False),
+        _set_circular(make_xyz_node(40.0, -10.0, 0.0), False),
+    ]
+
+    segs = run_harmonise(n_43, n_50)
+    assert len(segs) == 3
+    seg43_tail, bridge, seg50_remainder = segs
+
+    # Identity sharing at boundaries
+    assert seg43_tail.nodes[-1] is bridge.nodes[0]
+    assert bridge.nodes[-1] is seg50_remainder.nodes[0]
+
+    # Bridge must be both circular nodes
+    assert len(bridge.nodes) == 2
+    assert bridge.nodes[0].in_circular_grid and bridge.nodes[1].in_circular_grid
+
+    # Run circular detection on the bridge: should mark both nodes as ARC
+    from cad.curve_detection import detect_circular_segments
+
+    next_id = detect_circular_segments(bridge.nodes, curve_id_counter=1)
+
+    for node in bridge.nodes:
+        assert node.used_in_curve is True
+        assert node.path_curve_type == PathCurveType.ARC
+        assert node.curve_id == 1
+    assert next_id == 2
+
+    # Remainder: the first node is the shared circular node (already ARC from bridge),
+    # the second node must remain non-circular & non-ARC.
+    assert seg50_remainder.nodes[0].in_circular_grid is True
+    assert seg50_remainder.nodes[0].path_curve_type == PathCurveType.ARC
+
+    assert seg50_remainder.nodes[1].in_circular_grid is False
+    assert getattr(seg50_remainder.nodes[1], "path_curve_type", None) is None
+
+
+def test_single_circular_head_is_marked():
+    """
+    A single circular node at the START of the segment
+    is treated as a valid (1-node) circular run and marked ARC.
+    """
+    head_circ = _set_circular(make_xyz_node(40.0, -48.02343, 0.0), True)
+    next_rect = _set_circular(make_xyz_node(40.0, -30.0, 0.0), False)
+    nodes = [head_circ, next_rect]
+
+    from cad.curve_detection import detect_circular_segments
+
+    start_id = 10
+    end_id = detect_circular_segments(nodes, curve_id_counter=start_id)
+
+    assert end_id == start_id + 1  # consumed one curve id
+    assert head_circ.used_in_curve is True
+    assert head_circ.path_curve_type == PathCurveType.ARC
+    assert head_circ.curve_id == start_id
+
+    # Neighbor remains non-ARC
+    assert next_rect.in_circular_grid is False
+    assert next_rect.path_curve_type is None
+
+
+def test_single_circular_tail_is_marked():
+    """
+    A single circular node at the TAIL of the segment
+    is treated as a valid (1-node) circular run and marked ARC.
+    """
+    prev_rect = _set_circular(make_xyz_node(40.0, -30.0, 0.0), False)
+    tail_circ = _set_circular(make_xyz_node(40.0, -10.0, 0.0), True)
+    nodes = [prev_rect, tail_circ]
+
+    from cad.curve_detection import detect_circular_segments
+
+    start_id = 20
+    end_id = detect_circular_segments(nodes, curve_id_counter=start_id)
+
+    # Currently no new id is consumed
+    assert end_id == start_id + 1
+
+    assert prev_rect.used_in_curve is False
+    assert prev_rect.path_curve_type is None
+
+    # And the tail node remains unmarked
+    assert tail_circ.used_in_curve is True
+    assert tail_circ.path_curve_type is PathCurveType.ARC

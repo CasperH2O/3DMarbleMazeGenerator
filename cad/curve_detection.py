@@ -168,7 +168,9 @@ def detect_circular_segments(
             block_len = i - start
 
             # Prevent making segments of a single node, can happen near start and end of puzzle
-            if block_len < min_guard_nodes:
+            # Handle cases where at the start or end of the segment, there is a single unbridged node
+            # generally happens when going to or from circular node to rectangular node corners
+            if block_len < min_guard_nodes and not (i == 1 or i == len(nodes)):
                 logger.debug(
                     "detect_circular_segments: skipping short circular run len=%s (<%s) at indices=[%s,%s) nodes=%s",
                     block_len,
