@@ -4,7 +4,7 @@ import colorsys
 import random
 
 import numpy as np
-from build123d import Part
+from build123d import Compound
 from ocp_vscode import (
     Animation,
     Camera,
@@ -157,7 +157,7 @@ def set_viewer():
     set_viewer_config(states=st)
 
     # Rotating animation
-    animation = Animation(Part())
+    animation = Animation(Compound())
     times = np.linspace(0, 12, 33)  # 12 seconds split in 0.2 intervals
     values = np.linspace(0, -360, 33)  # as many positions as times
 
@@ -165,6 +165,7 @@ def set_viewer():
     for grp in list(status()["states"].keys()):
         if "/Group/Base" in grp:
             continue
+        animation.paths.append(grp)
         animation.add_track(grp, "rz", times, values)
 
     animation.animate(1)
