@@ -694,7 +694,7 @@ class PathBuilder:
                 )
 
                 # Check if bodies are valid, try other approach if fail
-                if path_body is None or not path_body.part.is_valid():
+                if path_body is None or not path_body.part.is_valid:
                     logger.warning(
                         "Segment %s.%s spline option %d produced an invalid path body.",
                         segment.main_index,
@@ -726,7 +726,7 @@ class PathBuilder:
                     )
 
                     # Check if body is valid, try other approach if fail
-                    if accent_body is None or not accent_body.part.is_valid():
+                    if accent_body is None or not accent_body.part.is_valid:
                         logger.warning(
                             "Segment %s.%s spline option %d produced an invalid accent body.",
                             segment.main_index,
@@ -758,7 +758,7 @@ class PathBuilder:
                     )
 
                     # Check if support body is valid, try other approach if fail
-                    if support_body is None or not support_body.part.is_valid():
+                    if support_body is None or not support_body.part.is_valid:
                         logger.warning(
                             "Segment %s.%s spline option %d produced an invalid support body.",
                             segment.main_index,
@@ -1048,7 +1048,7 @@ class PathBuilder:
 
                     # show_object(cutting_cylinder, name=f"Cutting Cylinder at Node {idx}")
 
-                    if segment.path_body and segment.path_body.part.is_valid():
+                    if segment.path_body and segment.path_body.part.is_valid:
                         segment.path_body.part = (
                             segment.path_body.part - cutting_cylinder.part
                         )
@@ -1098,7 +1098,7 @@ class PathBuilder:
                     cutting_cylinder.part = loc * Rot(0, -90, 0) * cutting_cylinder.part
 
                     # Subtract from bodies
-                    if segment.path_body and segment.path_body.part.is_valid():
+                    if segment.path_body and segment.path_body.part.is_valid:
                         segment.path_body.part -= cutting_cylinder.part
                     # Intentionally not subtracted from support bodies to improve printing
 
@@ -1375,7 +1375,7 @@ def sweep_single_profile(
                 sweep(transition=transition_type, is_frenet=is_frenet)
 
             # Only O-shapes: invalid geometry counts as a hard failure (to trigger different angle retries)
-            if is_o_shape_profile and not sweep_result.part.is_valid():
+            if is_o_shape_profile and not sweep_result.part.is_valid:
                 raise RuntimeError(
                     f"Part invalid for sweep of O-shaped profile at {rotation_angle}° "
                     f"(segment {segment.main_index}.{segment.secondary_index})"

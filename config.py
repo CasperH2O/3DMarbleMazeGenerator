@@ -1,5 +1,7 @@
 # config.py
 
+from build123d import Color
+
 from cad.cases.case_model_base import (
     CaseManufacturer,
     CaseShape,
@@ -25,8 +27,9 @@ class Puzzle:
     PATH_ACCENT_COLOR = "#ECECECFF"  # Blue
     TEXT_COLOR = "#C4C4C4FF"  # Blue
     MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
-    TRANSPARENT_CASE_COLOR = "#FFFFFF0D"  # White with alpha 0.05
-    SUPPORT_MATERIAL_COLOR = "#FFFFFF1A"  # White with alpha 0.10
+    # FIXME Build123D 0.10.0 no longer supports HEX with transparancy
+    TRANSPARENT_CASE_COLOR = Color(1.0, 1.0, 1.0, 13 / 255)  # white ~5% opacity
+    SUPPORT_MATERIAL_COLOR = Color(1.0, 1.0, 1.0, 26 / 255)  # white ~10% opacity
 
 
 class Obstacles:

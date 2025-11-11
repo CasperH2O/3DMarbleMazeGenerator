@@ -53,7 +53,7 @@ with BuildPart() as obstacle:
 
 obstacle_solid = obstacle.part
 obstacle_solid.label = "Obstacle Solid"
-print(f"Obstacle valid: {obstacle_solid.is_valid()}")
+print(f"Obstacle valid: {obstacle_solid.is_valid}")
 
 # Cubes
 base = Box(node_size, node_size, node_size)
