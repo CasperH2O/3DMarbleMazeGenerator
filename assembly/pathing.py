@@ -4,20 +4,15 @@ from typing import Optional
 
 from build123d import (
     Align,
-    BuildLine,
     BuildPart,
-    BuildSketch,
-    Circle,
     Cone,
+    Edge,
+    Location,
     Locations,
     Part,
-    Polyline,
-    Pos,
     Sphere,
-    Transition,
-    Vector,
+    Wire,
     add,
-    sweep,
 )
 
 from cad.path_builder import PathBuilder, PathTypes
@@ -103,23 +98,65 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
 
 def ball_and_path_indicators(puzzle: Puzzle):
     """
-    Create and return a ball, its swept path, and
-    directional cones every n nodes along that path.
+    Create and return a ball, its path, and
+    directional cones along that path.
     """
 
-    cad_nodes = puzzle.total_path
-    node_positions = [(node.x, node.y, node.z) for node in cad_nodes]
+    # Segments from puzzle
+    segments = puzzle.path_architect.segments
+    path_edges: list[Edge] = []
+
+    # Append edges from different data types and sources
+    # TODO Could probably be improved if all path segment
+    # paths were more consistently converted to one type
+    def _append_edges_from(source) -> None:
+        if source is None:
+            return
+        if isinstance(source, Wire):
+            for edge in source.edges():
+                _append_edges_from(edge)
+        elif isinstance(source, Edge):
+            if source.length > 0:
+                path_edges.append(source)
+        elif isinstance(source, (list, tuple)):
+            for sub_source in source:
+                _append_edges_from(sub_source)
+        elif hasattr(source, "edges"):
+            for edge in source.edges():
+                _append_edges_from(edge)
+
+    # Collect edges that represent the playable path
+    for segment in segments:
+        # Skip start segment
+        if any(node.puzzle_start for node in segment.nodes):
+            continue
+
+        _append_edges_from(segment.path)
+
+    ball_path_wire = Wire(path_edges)
+
+    # Trim path with half a node size to nicely end in the finish box
+    # Derive a normalized parameter [0..1] from lengths
+    reduced_lenght = 0.5 * Config.Puzzle.NODE_SIZE
+    end_parameter = 1.0 - (reduced_lenght / ball_path_wire.length)
+
+    ball_path_wire = ball_path_wire.trim(0, end_parameter)
+
+    ball_path_wire.label = "Ball Path"
+    ball_path_wire.color = Config.Puzzle.BALL_COLOR
 
     # Ball at the start
     with BuildPart() as ball:
         Sphere(Config.Puzzle.BALL_DIAMETER / 2)
-    ball.part = ball.part.translate(Vector(*node_positions[2]))
+
+    ball.part = ball.part.translate(ball_path_wire @ 0)
+
     ball.part.label = "Ball"
     ball.part.color = Config.Puzzle.BALL_COLOR
 
-    # Prepare a reusable direction indicator cone that can be instanced along the path
-    cone_bottom_radius = Config.Puzzle.BALL_DIAMETER / 3
-    cone_height = Config.Puzzle.BALL_DIAMETER
+    # Reusable direction indicator cone
+    cone_bottom_radius = Config.Puzzle.BALL_DIAMETER / 8
+    cone_height = Config.Puzzle.BALL_DIAMETER / 3
 
     with BuildPart() as direction_indicator:
         Cone(
@@ -128,34 +165,28 @@ def ball_and_path_indicators(puzzle: Puzzle):
             height=cone_height,
             align=(Align.CENTER, Align.CENTER, Align.MIN),
         )
-    indicator_solid = direction_indicator.part
+    indicator_cone = direction_indicator.part
 
-    # Puzzle path with direction indication
-    with BuildPart() as ball_path:
-        # Path
-        with BuildLine() as ball_path_line:
-            Polyline(node_positions[1:])
-        # Small circle for sweep
-        with BuildSketch(ball_path_line.line ^ 0):
-            Circle(Config.Puzzle.BALL_DIAMETER / 10)
-        sweep(transition=Transition.ROUND)
+    # Puzzle path direction indicators, evenly spaced
+    with BuildPart() as ball_path_direction:
+        indicator_locations: list[Location] = []
+        wire_length = ball_path_wire.length
 
-        # Insert cones every n nodes for direction indication
-        total_pts = len(node_positions)
-        indicator_step = 3
-        indicator_locations: list = []
-        if total_pts > 2:
-            for idx in range(1, total_pts, indicator_step):
-                # parameterize position along polyline: 0 at first, 1 at last
-                t = (idx - 1) / (total_pts - 2)
-                loc = ball_path_line.line ^ t
-                indicator_locations.append(loc)
+        spacing = Config.Puzzle.NODE_SIZE * 1.5
+        distance = spacing
+        while distance < wire_length:
+            parameter = min(1.0, distance / wire_length)
+            indicator_locations.append(ball_path_wire ^ parameter)
+            distance += spacing
 
-        if indicator_locations:
-            with Locations(*indicator_locations):
-                add(indicator_solid)
+        with Locations(*indicator_locations):
+            add(indicator_cone)
 
-    ball_path.part.label = "Ball Path"
-    ball_path.part.color = Config.Puzzle.BALL_COLOR
+    ball_path_direction.part.label = "Ball Path Direction"
+    ball_path_direction.part.color = "#000000"
 
-    return ball.part, ball_path.part
+    return (
+        ball.part,
+        ball_path_wire,
+        ball_path_direction.part,
+    )

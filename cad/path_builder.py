@@ -794,10 +794,10 @@ class PathBuilder:
             except Exception as e:
                 # The spline creation failed, try the next option
                 logger.warning(
-                    "Option %d: Spline creation failed for segment %s.%s with error: %s",
-                    opt_idx,
+                    "Segment %s.%s spline option %d sweep failed with error: %s",
                     segment.main_index,
                     segment.secondary_index,
+                    opt_idx,
                     e,
                 )
                 continue

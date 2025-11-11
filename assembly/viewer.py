@@ -75,6 +75,7 @@ def display_parts(
     obstacle_extras,
     ball,
     ball_path,
+    ball_path_direction,
 ):
     """
     Display all puzzle physical objects.
@@ -99,8 +100,8 @@ def display_parts(
 
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
-    # Display the ball and its path
-    show_object([ball, ball_path], name="Path Indcator")
+    # Display the ball, its path and direction
+    show_object([ball, ball_path, ball_path_direction], name="Path Indcator")
 
     if case_parts:
         if len(case_parts) == 1:
@@ -141,7 +142,7 @@ def set_viewer():
         CasePart.CASE_TOP.value,  # "Case Top"
         CasePart.CASE_BOTTOM.value,  # "Case Bottom"
         "Ball",
-        "Ball Path",
+        "Ball Path Direction",
     }
 
     # Only touch leaves whose basename matches one of the targets

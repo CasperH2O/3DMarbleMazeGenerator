@@ -23,7 +23,7 @@ def main() -> None:
     case_parts, base_parts, cut_shape = puzzle_casing()
     standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
     obstacle_extras = build_obstacle_path_body_extras(puzzle)
-    ball, ball_path = ball_and_path_indicators(puzzle)
+    ball, ball_path, ball_path_direction = ball_and_path_indicators(puzzle)
 
     merge_standard_paths_with_case(case_parts, standard_paths or [])
 
@@ -36,6 +36,7 @@ def main() -> None:
         obstacle_extras,
         ball,
         ball_path,
+        ball_path_direction,
     )
 
     set_viewer()
