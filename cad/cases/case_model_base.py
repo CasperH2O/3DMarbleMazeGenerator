@@ -24,6 +24,7 @@ class CaseManufacturer(Enum):
     SPHERE_PLAYTASTIC_120_MM = "sphere_playtastic_120_mm"
     SPHERE_PLAYTASTIC_170_MM = "sphere_playtastic_170_mm"
     SPHERE_SAIDKOCC_100_MM = "sphere_saidkocc_100_mm"
+    SPHERE_PERPLEXUS_EPIC_200_MM = "sphere_perplexus_epic_200_mm"
 
 
 class CasePart(Enum):
