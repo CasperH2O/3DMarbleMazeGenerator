@@ -22,12 +22,12 @@ class Puzzle:
     NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
-    BALL_COLOR = "#C0C0C0FF"  # Metal grey
-    PATH_COLORS = ["#F0CC00FF", "#3D3FCEFF", "#B82D2DFF"]  # Gold, Cyan, Magenta
-    PATH_ACCENT_COLOR = "#ECECECFF"  # Blue
-    TEXT_COLOR = "#C4C4C4FF"  # Blue
-    MOUNTING_RING_COLOR = "#FFD700FF"  # Yellow
-    # FIXME Build123D 0.10.0 no longer supports HEX with transparancy
+    BALL_COLOR = "#C0C0C0"  # Metal grey
+    PATH_COLORS = ["#F0CC00", "#3D3FCE", "#B82D2D"]  # Gold, Cyan, Magenta
+    PATH_ACCENT_COLOR = "#ECECEC"  # Blue
+    TEXT_COLOR = "#C4C4C4"  # Blue
+    MOUNTING_RING_COLOR = "#FFD700"  # Yellow
+    # No support for HEX with transparancy, use Color
     TRANSPARENT_CASE_COLOR = Color(1.0, 1.0, 1.0, 13 / 255)  # white ~5% opacity
     SUPPORT_MATERIAL_COLOR = Color(1.0, 1.0, 1.0, 26 / 255)  # white ~10% opacity
 
