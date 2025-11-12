@@ -86,6 +86,10 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
     for idx, obstacle in enumerate(puzzle.obstacle_manager.placed_obstacles, start=1):
         placed_part = obstacle.get_placed_obstacle_extras()
 
+        # Obstacle extra's are optional, don't add
+        if placed_part is None:
+            continue
+
         # Label and color individually
         part = Part(placed_part)
         part.label = f"Obstacle {idx} - {obstacle.name} extra's"

@@ -123,7 +123,6 @@ def display_parts(
         show_object(coloring_path)
 
     if obstacle_extras:
-        # TODO, prevent when empty
         show_object(obstacle_extras, name="Obstacle Extra's")
 
     # Display each part from the base
