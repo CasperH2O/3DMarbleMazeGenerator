@@ -70,8 +70,6 @@ class PathArchitect:
 
         self.adjust_segments()
 
-        self.create_start_ramp()
-
         self.create_finish_box()
 
         self.assign_path_transition_types()
@@ -463,6 +461,12 @@ class PathArchitect:
         # Initialize the transition tracker
         transition = Transition.ROUND  # Starting with 'round'
 
+        # Start ramp is always U shaped, do this prior to other segments
+        for segment in self.segments:
+            if any(node.puzzle_start for node in segment.nodes):
+                segment.path_profile_type = PathProfileType.U_SHAPE
+                break
+
         for segment in self.segments:
             # Check if segment already has a transition type, skip if so, also covers obstacles
             # TODO, it seems certain segments do not properly copy node properties, thus waypoint nodes do not get copied. info was lost
@@ -832,27 +836,6 @@ class PathArchitect:
 
         # Ensure segments don't start/end at a change between circular and straight or vice versa
         self._harmonise_circular_transitions()
-
-    def create_start_ramp(self):
-        # This method finds the segment containing the start node and creates the start ramp
-
-        # TODO this method does so little after update, could set U shape is path assignment?
-        # Setting the path profile here is only an indicator for the puzzle, as the path builder
-        # uses hardcoded values
-
-        # Find the segment that contains the puzzle start node
-        start_segment = None
-        for segment in self.segments:
-            for node in segment.nodes:
-                if node.puzzle_start:
-                    start_segment = segment
-                    break  # Exit the inner loop once the start node is found
-            if start_segment:
-                break  # Exit the outer loop once the start segment is identified
-
-        if start_segment:
-            # Set the path profile type to u shape for the start segment
-            start_segment.path_profile_type = PathProfileType.U_SHAPE
 
     def create_finish_box(self):
         # Locate the segment + index of the puzzle_end node
