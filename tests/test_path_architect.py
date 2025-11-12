@@ -39,7 +39,7 @@ def make_stub_arch() -> PathArchitect:
     arch = PathArchitect.__new__(PathArchitect)
     arch.segments = []
     arch.secondary_index_counters = {}
-    arch.obstacle_by_entry = {}
+    arch.obstacle_splices = {}
     arch.node_size = Config.Puzzle.NODE_SIZE
     arch.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
     arch.path_profile_types = list(Config.Path.PATH_PROFILE_TYPES)

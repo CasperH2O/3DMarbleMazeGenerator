@@ -3,7 +3,7 @@
 import copy
 import logging
 import random
-from typing import Dict, Optional
+from typing import Optional
 
 from build123d import Transition, Vector
 
@@ -42,15 +42,7 @@ class PathArchitect:
         self.segments: list[PathSegment] = []
         self.main_index_counter = 1  # Main index counter
         self.secondary_index_counters = {}  # Dictionary to track secondary indices per main_index
-
-        # TODO, clean up, better understandable
-        self.obstacle_by_entry: Dict[Node, "Obstacle"] = {}
-        if obstacles:
-            self.obstacle_by_entry = {
-                obstacle.entry_node: obstacle
-                for obstacle in obstacles
-                if getattr(obstacle, "entry_node", None) is not None
-            }
+        self.obstacle_splices = self._index_obstacle_splices(obstacles)
 
         # Configuration parameters
         self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
@@ -125,7 +117,7 @@ class PathArchitect:
 
             current_segment_nodes.append(node)
 
-            obstacle = self.obstacle_by_entry.get(node)
+            obstacle = self.obstacle_splices.get(node)
             if obstacle is not None:
                 # Close any open segment before the obstacle
                 if len(current_segment_nodes) > 1:
@@ -145,7 +137,7 @@ class PathArchitect:
                 if obstacle_segments:
                     logger.debug(
                         "split_path_into_segments: splicing obstacle segments for %s at main_index=%s segments=%s",
-                        getattr(obstacle, "name", obstacle.__class__.__name__),
+                        obstacle.name,
                         self.main_index_counter,
                         [
                             _format_node_list(segment.nodes)
@@ -185,6 +177,24 @@ class PathArchitect:
     def _create_segment(self, nodes: list[Node], main_index: int):
         segment = PathSegment(nodes, main_index=main_index)
         self.segments.append(segment)
+
+    def _index_obstacle_splices(
+        self, obstacles: Optional[list["Obstacle"]]
+    ) -> dict[Node, "Obstacle"]:
+        """Return a mapping of obstacle entry nodes to the obstacle itself."""
+        splice_map: dict[Node, "Obstacle"] = {}
+        if not obstacles:
+            return splice_map
+
+        for obstacle in obstacles:
+            entry_node = obstacle.entry_node
+            exit_node = obstacle.exit_node
+            if entry_node is None or exit_node is None:
+                continue
+
+            splice_map[entry_node] = obstacle
+
+        return splice_map
 
     def _create_obstacle_segments(
         self, obstacle: "Obstacle", main_index: int
