@@ -6,7 +6,7 @@ from typing import Optional, Union
 
 from build123d import Edge, Part, Sketch, Transition, Vector, Wire
 
-from config import PathCurveModel, PathCurveType, PathProfileType
+from config import PathCurveType, PathProfileType, PathSegmentDesignStrategy
 from puzzle.node import Node
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,9 @@ class PathSegment:
         self.secondary_index = secondary_index
 
         self.curve_type: Optional[PathCurveType] = None  # Curve type as enum
-        self.curve_model: Optional[PathCurveModel] = None  # Assigned path curve model
+        self.design_strategy: Optional[PathSegmentDesignStrategy] = (
+            None  # Assigned pathsegment design strategy
+        )
         self.transition_type: Optional[Transition] = (
             None  # Assigned path transition type
         )
@@ -700,7 +702,7 @@ class PathSegment:
         self.path_profile_type = other_segment.path_profile_type
         self.accent_profile_type = other_segment.accent_profile_type
         self.support_profile_type = other_segment.support_profile_type
-        self.curve_model = other_segment.curve_model
+        self.design_strategy = other_segment.design_strategy
         self.curve_type = other_segment.curve_type
         self.transition_type = other_segment.transition_type
 

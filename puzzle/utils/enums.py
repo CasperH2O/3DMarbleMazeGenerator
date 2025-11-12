@@ -24,9 +24,9 @@ class ObstacleType(Enum):
     PULSE = "Pulse"
 
 
-class PathCurveModel(Enum):
+class PathSegmentDesignStrategy(Enum):
     """
-    Enumeration representing the different models for path curves.
+    Enumeration representing the different path segment design approaches.
     """
 
     SINGLE = "single"

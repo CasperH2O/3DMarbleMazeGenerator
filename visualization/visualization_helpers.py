@@ -12,7 +12,7 @@ from scipy import interpolate
 
 from cad.cases.case_model_base import Case
 from cad.path_segment import PathSegment
-from config import Config, PathCurveModel, PathCurveType
+from config import Config, PathCurveType, PathSegmentDesignStrategy
 from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
@@ -455,13 +455,13 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
         segment_name = (
             f"Segment ({segment.main_index}, {segment.secondary_index})<br>"
             f"Transition Type: {segment.transition_type}<br>"
-            f"Path Curve Model: {segment.curve_model.value if segment.curve_model is not None else 'N/A'}<br>"
+            f"Design Strategy: {segment.design_strategy.value if segment.design_strategy is not None else 'N/A'}<br>"
             f"Curve Type: {segment.curve_type}<br>"
             f"Path Profile Type: {segment.path_profile_type.value if segment.path_profile_type is not None else 'N/A'}"
         )
 
         # Compute curve samples for this segment
-        if segment.curve_model == PathCurveModel.COMPOUND:
+        if segment.design_strategy == PathSegmentDesignStrategy.COMPOUND:
             # Bézier (B-Spline) for S-curve or 90° single-plane
             if segment.curve_type in [
                 PathCurveType.S_CURVE,
@@ -524,7 +524,7 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                         x_vals.append(b.x)
                         y_vals.append(b.y)
                         z_vals.append(b.z)
-        elif segment.curve_model == PathCurveModel.SPLINE:
+        elif segment.design_strategy == PathSegmentDesignStrategy.SPLINE:
             # Keep endpoints + waypoints in the middle; chord-length parameterization
             total_nodes = segment.nodes
             spline_nodes: list = []

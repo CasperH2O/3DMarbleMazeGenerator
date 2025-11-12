@@ -4,7 +4,7 @@ import logging
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional
 
 from build123d import (
     Bezier,
@@ -44,7 +44,7 @@ from cad.path_profile_type_shapes import (
     create_u_shape_path_color,
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
-from config import Config, PathCurveModel, PathCurveType
+from config import Config, PathCurveType, PathSegmentDesignStrategy
 from logging_config import configure_logging
 from puzzle.puzzle import Node, Puzzle
 
@@ -129,16 +129,16 @@ class PathBuilder:
             )
 
             logger.debug(
-                "Processing segment %s.%s with curve model %s",
+                "Processing segment %s.%s with design strategy %s",
                 segment.main_index,
                 segment.secondary_index,
-                segment.curve_model,
+                segment.design_strategy,
             )
 
-            if segment.curve_model in (
-                PathCurveModel.COMPOUND,
-                PathCurveModel.SINGLE,
-                PathCurveModel.OBSTACLE,
+            if segment.design_strategy in (
+                PathSegmentDesignStrategy.COMPOUND,
+                PathSegmentDesignStrategy.SINGLE,
+                PathSegmentDesignStrategy.OBSTACLE,
             ):
                 # Sweep the segment.
                 segment = self.sweep_standard_segment(
@@ -149,7 +149,7 @@ class PathBuilder:
 
             # Create a spline segment, trying different path combinations.
             # Requires the paths of the segment before and after it for proper tangents
-            elif segment.curve_model == PathCurveModel.SPLINE:
+            elif segment.design_strategy == PathSegmentDesignStrategy.SPLINE:
                 segment = self.create_spline_segment(
                     segment=segment,
                     previous_segment=previous_segment,
@@ -158,10 +158,10 @@ class PathBuilder:
                 )
             else:
                 logger.warning(
-                    "Unsupported curve model for segment %s.%s: %s",
+                    "Unsupported design strategy for segment %s.%s: %s",
                     segment.main_index,
                     segment.secondary_index,
-                    segment.curve_model,
+                    segment.design_strategy,
                 )
 
             # Store the processed segment back (in case it was modified)
@@ -180,7 +180,7 @@ class PathBuilder:
             if segment.lock_path:
                 # Segment (obstacle) has pre-defined geometry and must not be regenerated
                 continue
-            if segment.curve_model != PathCurveModel.SPLINE:
+            if segment.design_strategy != PathSegmentDesignStrategy.SPLINE:
                 segment = self.define_standard_segment_path(segment)
 
     def _combine_compound_segments_for_path(
@@ -195,8 +195,9 @@ class PathBuilder:
 
         # Separate compound segments from non-compound segments.
         for segment in segments:
-            if segment.curve_model == PathCurveModel.COMPOUND and not any(
-                node.puzzle_start for node in segment.nodes
+            if (
+                segment.design_strategy == PathSegmentDesignStrategy.COMPOUND
+                and not any(node.puzzle_start for node in segment.nodes)
             ):
                 compound_groups.setdefault(segment.main_index, []).append(segment)
             else:
@@ -222,7 +223,7 @@ class PathBuilder:
                 new_segment = PathSegment(
                     combined_nodes, main_index=main_index, secondary_index=0
                 )
-                new_segment.curve_model = PathCurveModel.COMPOUND
+                new_segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 new_segment.path = combined_wire
                 new_segment.path_edge_only = all_edges
                 # Inherit additional attributes (like profile type and transition) from the first segment.
@@ -359,10 +360,10 @@ class PathBuilder:
         profile_angle = -90
 
         logger.debug(
-            "Sweeping segment %s.%s with curve model %s",
+            "Sweeping segment %s.%s with design strategy %s",
             segment.main_index,
             segment.secondary_index,
-            segment.curve_model,
+            segment.design_strategy,
         )
 
         # Determine path line angle difference between the current segment and the previous segment for rotation
@@ -644,7 +645,7 @@ class PathBuilder:
         Creates a spline segment.
 
         Tries different spline point combinations to create a valid path and profile
-        for a SPLINE curve model segment. Falls back to a polyline path if no valid path can be created.
+        for a SPLINE design strategy segment. Falls back to a polyline path if no valid path can be created.
         """
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
@@ -807,7 +808,7 @@ class PathBuilder:
             "Segment %s.%s spline not possible. Falling back to %s. Alternatively, configure a path profile type override.",
             segment.main_index,
             segment.secondary_index,
-            PathCurveModel.COMPOUND.name,
+            PathSegmentDesignStrategy.COMPOUND.name,
         )
 
         # Handle different node grid types, create sub segments
@@ -986,7 +987,7 @@ class PathBuilder:
             if segment.path_profile_type not in [PathProfileType.O_SHAPE]:
                 continue  # Skip this segment
 
-            if segment.curve_model == PathCurveModel.COMPOUND:
+            if segment.design_strategy == PathSegmentDesignStrategy.COMPOUND:
                 # Determine the work plane direction for this main_index
                 if main_index not in main_index_to_work_plane_direction:
                     has_mounting_node = main_index_to_has_mounting_node[main_index]
@@ -1058,8 +1059,8 @@ class PathBuilder:
                         )
             # For splines and obstacles, use edge to determine location of holes to cut
             elif (
-                segment.curve_model == PathCurveModel.SPLINE
-                or segment.curve_model == PathCurveModel.OBSTACLE
+                segment.design_strategy == PathSegmentDesignStrategy.SPLINE
+                or segment.design_strategy == PathSegmentDesignStrategy.OBSTACLE
             ):
                 total_length = segment.path.length
                 hole_size = Config.Puzzle.BALL_DIAMETER + 1

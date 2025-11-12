@@ -14,7 +14,7 @@ from cad.path_profile_type_shapes import (
     PathProfileType,
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
-from config import Config, PathCurveModel, PathCurveType
+from config import Config, PathCurveType, PathSegmentDesignStrategy
 from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
 from puzzle.node import Node
@@ -48,7 +48,7 @@ class PathArchitect:
         self.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
         self.node_size = Config.Puzzle.NODE_SIZE
         self.path_profile_types = list(Config.Path.PATH_PROFILE_TYPES)
-        self.path_curve_models = list(Config.Path.PATH_CURVE_MODEL)
+        self.path_design_strategies = list(Config.Path.PATH_SEGMENT_DESIGN_STRATEGY)
         self.nozzle_diameter = config.Manufacturing.NOZZLE_DIAMETER
         self.seed = Config.Puzzle.SEED
         random.seed(self.seed)  # Set the random seed for reproducibility
@@ -217,7 +217,7 @@ class PathArchitect:
                 secondary_index=0,
             )
             entry_seg.copy_attributes_from(obstacle.main_path_segment)
-            entry_seg.curve_model = PathCurveModel.SINGLE
+            entry_seg.design_strategy = PathSegmentDesignStrategy.SINGLE
             entry_seg.transition_type = obstacle.entry_path_segment.transition_type
             segments.append(entry_seg)
 
@@ -249,7 +249,7 @@ class PathArchitect:
         main_seg.secondary_index = len(segments)
         main_seg.is_obstacle = True
         main_seg.lock_path = True  # keep the placed obstacle geometry
-        main_seg.curve_model = PathCurveModel.OBSTACLE
+        main_seg.design_strategy = PathSegmentDesignStrategy.OBSTACLE
         main_seg.transition_type = obstacle.main_path_segment.transition_type
 
         segments.append(main_seg)
@@ -262,7 +262,7 @@ class PathArchitect:
                 secondary_index=len(segments),
             )
             exit_seg.copy_attributes_from(obstacle.main_path_segment)
-            exit_seg.curve_model = PathCurveModel.SINGLE
+            exit_seg.design_strategy = PathSegmentDesignStrategy.SINGLE
             exit_seg.transition_type = obstacle.exit_path_segment.transition_type
             # not locked
             segments.append(exit_seg)
@@ -319,7 +319,7 @@ class PathArchitect:
                     secondary_index=seg_b.secondary_index - 1,
                 )
                 new_seg.copy_attributes_from(seg_b)  # inherit profile etc.
-                new_seg.curve_model = PathCurveModel.COMPOUND
+                new_seg.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 new_seg.curve_type = None  # No longer arc
 
                 # Insert immediately after seg-A, before seg-B
@@ -364,7 +364,7 @@ class PathArchitect:
 
                 # inherit useful attributes from seg-A (profile, transition, …)
                 new_seg.copy_attributes_from(seg_a)
-                new_seg.curve_model = PathCurveModel.COMPOUND
+                new_seg.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 new_seg.curve_type = None
 
                 # Insert immediately after seg-A, before seg-B
@@ -376,9 +376,9 @@ class PathArchitect:
                 continue  # skip re-checking pair
 
     def assign_path_properties(self):
-        # Randomly assign path profile types and path curve models to segments
+        # Randomly assign path profile types and pathsegment design stratagies to segments
         previous_profile_type = None
-        previous_curve_model = None
+        previous_design_strategy = None
 
         obstacle_main_indices = {
             segment.main_index for segment in self.segments if segment.is_obstacle
@@ -408,11 +408,11 @@ class PathArchitect:
                 if not available_profile_types:
                     available_profile_types = [PathProfileType.U_SHAPE]
 
-                available_curve_models = [PathCurveModel.COMPOUND]
+                available_design_strategies = [PathSegmentDesignStrategy.COMPOUND]
             else:
                 # For other segments, use all available types
                 available_profile_types = self.path_profile_types.copy()
-                available_curve_models = self.path_curve_models.copy()
+                available_design_strategies = self.path_design_strategies.copy()
 
             # Determine whether this segment is part of an obstacle triplet and, if so,
             # whether a shared profile has already been chosen for its main_index.
@@ -427,12 +427,12 @@ class PathArchitect:
                 ):
                     available_profile_types.remove(previous_profile_type)
 
-            # For path curve model
+            # For path design strategy
             if (
-                previous_curve_model in available_curve_models
-                and len(available_curve_models) > 1
+                previous_design_strategy in available_design_strategies
+                and len(available_design_strategies) > 1
             ):
-                available_curve_models.remove(previous_curve_model)
+                available_design_strategies.remove(previous_design_strategy)
 
             # Select random types from the available lists
             # TODO don't set for obstacle paths, altough path is not adjusted... Improve a bit more
@@ -444,17 +444,17 @@ class PathArchitect:
                     obstacle_profile_type_by_main[segment.main_index] = (
                         segment.path_profile_type
                     )
-            # IMPORTANT: do not overwrite a curve_model that is already set
-            if segment.curve_model is None:
+            # IMPORTANT: do not overwrite a design strategy that is already set
+            if segment.design_strategy is None:
                 if segment.is_obstacle:
                     # Only the locked main obstacle needs to be COMPOUND by default
-                    segment.curve_model = PathCurveModel.COMPOUND
+                    segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 else:
-                    segment.curve_model = random.choice(available_curve_models)
+                    segment.design_strategy = random.choice(available_design_strategies)
 
             # Update previous types for next round
             previous_profile_type = segment.path_profile_type
-            previous_curve_model = segment.curve_model
+            previous_design_strategy = segment.design_strategy
 
             # If applicalbe, apply forced profile for this main_index
             # Intentionally placed last as override so it does not interfer
@@ -489,7 +489,7 @@ class PathArchitect:
                 PathProfileType.O_SHAPE,
             ]:
                 segment.transition_type = Transition.ROUND
-            elif segment.curve_model == PathCurveModel.SINGLE:
+            elif segment.design_strategy == PathSegmentDesignStrategy.SINGLE:
                 # Make spline SINGLE connection segments more fluent
                 segment.transition_type = Transition.ROUND
             else:
@@ -512,7 +512,7 @@ class PathArchitect:
             if segment.is_obstacle:
                 i += 1
                 continue
-            if segment.curve_model == PathCurveModel.COMPOUND:
+            if segment.design_strategy == PathSegmentDesignStrategy.COMPOUND:
                 sub_segments = [segment]
                 new_split_segments = []
                 for sub_segment in sub_segments:
@@ -530,7 +530,7 @@ class PathArchitect:
                 # Replace the original segment with new_split_segments
                 self.segments[i : i + 1] = new_split_segments
                 i += len(new_split_segments)
-            elif segment.curve_model == PathCurveModel.SPLINE:
+            elif segment.design_strategy == PathSegmentDesignStrategy.SPLINE:
                 # Split the spline segment into parts
                 previous_segment = self.segments[i - 1] if i > 0 else None
                 next_segment = (
@@ -592,7 +592,7 @@ class PathArchitect:
                     secondary_index_counter += 1
                     # Copy attributes from the original segment to maintain consistency
                     segment.path_profile_type = original_segment.path_profile_type
-                    segment.curve_model = original_segment.curve_model
+                    segment.design_strategy = original_segment.design_strategy
                     segment.curve_type = current_curve_type
                     segment.transition_type = original_segment.transition_type
                     split_segments.append(segment)
@@ -617,8 +617,8 @@ class PathArchitect:
                         connecting_segment.path_profile_type = (
                             original_segment.path_profile_type
                         )
-                        connecting_segment.curve_model = (
-                            PathCurveModel.COMPOUND
+                        connecting_segment.design_strategy = (
+                            PathSegmentDesignStrategy.COMPOUND
                         )  # Assuming a straight line
                         connecting_segment.curve_type = None  # No specific curve type
                         connecting_segment.transition_type = (
@@ -647,7 +647,7 @@ class PathArchitect:
             secondary_index_counter += 1
             # Copy attributes from the original segment
             segment.path_profile_type = original_segment.path_profile_type
-            segment.curve_model = original_segment.curve_model
+            segment.design_strategy = original_segment.design_strategy
             segment.curve_type = current_curve_type
             segment.transition_type = original_segment.transition_type
             split_segments.append(segment)
@@ -705,7 +705,7 @@ class PathArchitect:
                         secondary_index=segment.secondary_index,
                     )
                     bridge.copy_attributes_from(segment)
-                    bridge.curve_model = PathCurveModel.COMPOUND
+                    bridge.design_strategy = PathSegmentDesignStrategy.COMPOUND
 
                     # Decide bridge curve type from the endpoints
                     a_circ = previous_end.in_circular_grid
@@ -749,7 +749,7 @@ class PathArchitect:
             if (
                 segment.nodes
                 and next_segment is not None
-                and next_segment.curve_model == PathCurveModel.SINGLE
+                and next_segment.design_strategy == PathSegmentDesignStrategy.SINGLE
                 and len(next_segment.nodes) >= 2
             ):
                 following_segment = (
@@ -815,7 +815,7 @@ class PathArchitect:
                 )
 
             # Split mixed SINGLE segments
-            if segment.curve_model == PathCurveModel.SINGLE:
+            if segment.design_strategy == PathSegmentDesignStrategy.SINGLE:
                 uniq_nodes = dedup(segment.nodes)
                 if len(uniq_nodes) > 2:
                     circ_flags = [n.in_circular_grid for n in uniq_nodes]
@@ -902,7 +902,7 @@ class PathArchitect:
             secondary_index=end_segment.secondary_index + 1,
         )
         ext_segment.copy_attributes_from(end_segment)
-        ext_segment.curve_model = PathCurveModel.COMPOUND
+        ext_segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
         ext_segment.curve_type = PathCurveType.STRAIGHT
         ext_segment.transition_type = end_segment.transition_type
 
@@ -1017,7 +1017,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter,
                 )
                 first_node_segment.copy_attributes_from(segment)
-                first_node_segment.curve_model = PathCurveModel.SINGLE
+                first_node_segment.design_strategy = PathSegmentDesignStrategy.SINGLE
                 new_segments.append(first_node_segment)
                 secondary_index_counter += 1
 
@@ -1030,7 +1030,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter,
                 )
                 middle_nodes_segment.copy_attributes_from(segment)
-                middle_nodes_segment.curve_model = PathCurveModel.SPLINE
+                middle_nodes_segment.design_strategy = PathSegmentDesignStrategy.SPLINE
                 new_segments.append(middle_nodes_segment)
                 secondary_index_counter += 1
 
@@ -1042,7 +1042,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter,
                 )
                 last_node_segment.copy_attributes_from(segment)
-                last_node_segment.curve_model = PathCurveModel.SINGLE
+                last_node_segment.design_strategy = PathSegmentDesignStrategy.SINGLE
                 new_segments.append(last_node_segment)
                 secondary_index_counter += 1
         else:
@@ -1054,7 +1054,7 @@ class PathArchitect:
                     secondary_index=secondary_index_counter,
                 )
                 single_node_segment.copy_attributes_from(segment)
-                single_node_segment.curve_model = PathCurveModel.COMPOUND
+                single_node_segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 new_segments.append(single_node_segment)
                 secondary_index_counter += 1
 
@@ -1077,6 +1077,6 @@ class PathArchitect:
         )
         # copy everything (profile_type, transition_type, etc.)
         segment.copy_attributes_from(original)
-        segment.curve_model = PathCurveModel.COMPOUND
+        segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
         segment.curve_type = PathCurveType.ARC if is_circ else PathCurveType.STRAIGHT
         return segment

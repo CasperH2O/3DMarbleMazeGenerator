@@ -7,7 +7,12 @@ from cad.cases.case_model_base import (
     CaseShape,
 )
 from cad.path_profile_type_shapes import PathProfileType
-from puzzle.utils.enums import ObstacleType, PathCurveModel, PathCurveType, Theme
+from puzzle.utils.enums import (
+    ObstacleType,
+    PathCurveType,
+    PathSegmentDesignStrategy,
+    Theme,
+)
 
 
 # Puzzle configuration
@@ -112,11 +117,11 @@ class Cylinder:
     NUMBER_OF_MOUNTING_POINTS = 2
 
 
-# Path curves and profile configuration
+# Path design strategy, curve types and profile configuration
 class Path:
-    PATH_CURVE_MODEL = [
-        PathCurveModel.COMPOUND,
-        PathCurveModel.SPLINE,
+    PATH_SEGMENT_DESIGN_STRATEGY = [
+        PathSegmentDesignStrategy.COMPOUND,
+        # SegmentDesignStrategy.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [

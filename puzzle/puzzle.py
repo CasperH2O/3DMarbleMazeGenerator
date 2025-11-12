@@ -233,8 +233,8 @@ class Puzzle:
         logger.info("")
         logger.info("--- Allowed Path Settings (from Config) ---")
         logger.info(
-            "Allowed Curve Models: %s",
-            ", ".join(m.value for m in Config.Path.PATH_CURVE_MODEL),
+            "Allowed Pathsegment Design Strategies: %s",
+            ", ".join(m.value for m in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY),
         )
         logger.info(
             "Allowed Profile Types: %s",
@@ -393,9 +393,7 @@ class Puzzle:
                 if profile is not None
             )
             missing_profile_count = sum(
-                1
-                for profile in logical_segment_profiles.values()
-                if profile is None
+                1 for profile in logical_segment_profiles.values() if profile is None
             )
 
             logger.info("Profile Type Distribution:")
@@ -416,9 +414,11 @@ class Puzzle:
                         (missing_profile_count / num_logical_segments) * 100,
                     )
 
-            # Curve Model Distribution
-            model_counter = Counter(s.curve_model for s in segments if s.curve_model)
-            logger.info("Curve Model Distribution:")
+            # Pathsegment Design Strategy Distribution
+            model_counter = Counter(
+                s.design_strategy for s in segments if s.design_strategy
+            )
+            logger.info("Design Strategy Distribution:")
             for model, count in model_counter.most_common():
                 logger.info(
                     "  - %s: %s (%.1f%%)",

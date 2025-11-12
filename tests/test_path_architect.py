@@ -2,7 +2,7 @@ import unittest
 
 from cad.path_architect import PathArchitect
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location
-from config import Config, PathCurveModel, PathCurveType
+from config import Config, PathCurveType, PathSegmentDesignStrategy
 from puzzle.node import Node
 
 
@@ -43,7 +43,7 @@ def make_stub_arch() -> PathArchitect:
     arch.node_size = Config.Puzzle.NODE_SIZE
     arch.waypoint_change_interval = Config.Puzzle.WAYPOINT_CHANGE_INTERVAL
     arch.path_profile_types = list(Config.Path.PATH_PROFILE_TYPES)
-    arch.path_curve_models = list(Config.Path.PATH_CURVE_MODEL)
+    arch.path_design_strategies = list(Config.Path.PATH_SEGMENT_DESIGN_STRATEGY)
     return arch
 
 
@@ -73,7 +73,7 @@ def run_split_spline(
     arch.secondary_index_counters = {}
 
     segment = PathSegment(segment_nodes, main_index=main_index)
-    segment.curve_model = PathCurveModel.SPLINE
+    segment.design_strategy = PathSegmentDesignStrategy.SPLINE
 
     previous_segment = (
         PathSegment(previous_nodes, main_index=main_index - 1)
@@ -101,7 +101,7 @@ def run_adjust_segments(nodes):
     the segments that come back after calling `adjust_segments()`.
     """
     seg = PathSegment(nodes, main_index=1)
-    seg.curve_model = PathCurveModel.SINGLE
+    seg.design_strategy = PathSegmentDesignStrategy.SINGLE
     arch = make_stub_arch()
     arch.segments = [seg]
     arch.adjust_segments()
@@ -116,7 +116,9 @@ def run_harmonise(nodes_a, nodes_b):
     """
     seg_a = PathSegment(nodes_a, main_index=1)
     seg_b = PathSegment(nodes_b, main_index=2)
-    seg_a.curve_model = seg_b.curve_model = PathCurveModel.SINGLE  # pass-through
+    seg_a.design_strategy = seg_b.design_strategy = (
+        PathSegmentDesignStrategy.SINGLE
+    )  # pass-through
 
     arch = make_stub_arch()
     arch.segments = [seg_a, seg_b]
@@ -142,11 +144,11 @@ def test_first_two_nodes_circular():
     assert len(segments) == 2
 
     # first sgement: circular, so ARC
-    assert segments[0].curve_model == PathCurveModel.COMPOUND
+    assert segments[0].design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert segments[0].curve_type == PathCurveType.ARC
     assert len(segments[0].nodes) == 2
     # second segment: straight
-    assert segments[1].curve_model == PathCurveModel.COMPOUND
+    assert segments[1].design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert segments[1].curve_type == PathCurveType.STRAIGHT
     assert len(segments[1].nodes) == 2
 
@@ -167,11 +169,11 @@ def test_last_two_nodes_circular():
     assert len(segments) == 2
 
     # first segment: straight
-    assert segments[0].curve_model == PathCurveModel.COMPOUND
+    assert segments[0].design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert segments[0].curve_type == PathCurveType.STRAIGHT
     assert len(segments[0].nodes) == 2
     # second segment: circular, so ARC
-    assert segments[1].curve_model == PathCurveModel.COMPOUND
+    assert segments[1].design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert segments[1].curve_type == PathCurveType.ARC
     assert len(segments[1].nodes) == 2
 
@@ -210,7 +212,7 @@ def test_bridge_insert_pattern_a():
     assert new_seg.nodes[1].in_circular_grid
     assert new_seg.main_index == seg_b.main_index  # attaches to group B
     assert new_seg.secondary_index == seg_b.secondary_index - 1
-    assert new_seg.curve_model == PathCurveModel.COMPOUND
+    assert new_seg.design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert new_seg.curve_type is None
 
     # ── seg-B now starts at bridge, second node is x=2
@@ -245,7 +247,7 @@ def test_bridge_insert_pattern_b():
     assert new_seg.nodes[0].in_circular_grid
     assert new_seg.main_index == seg_a.main_index  # attaches to group A
     assert new_seg.secondary_index == seg_a.secondary_index + 1
-    assert new_seg.curve_model == PathCurveModel.COMPOUND
+    assert new_seg.design_strategy == PathSegmentDesignStrategy.COMPOUND
     assert new_seg.curve_type is None
 
     # seg-B continues straight, node at x=2 remains
@@ -296,12 +298,12 @@ def test_single_before_non_circular_spline():
     # SINGLE segment centred on a circular node, with a following spline run
     core_node = make_node(0, circular=True)
     single_segment = PathSegment([core_node], main_index=1)
-    single_segment.curve_model = PathCurveModel.SINGLE
+    single_segment.design_strategy = PathSegmentDesignStrategy.SINGLE
 
     spline_entry = make_node(1)
     spline_follow = make_node(2)
     spline_segment = PathSegment([spline_entry, spline_follow], main_index=2)
-    spline_segment.curve_model = PathCurveModel.SPLINE
+    spline_segment.design_strategy = PathSegmentDesignStrategy.SPLINE
     spline_segment.curve_type = None  # explicit non-circular run
 
     single_segment.adjust_start_and_endpoints(
@@ -340,19 +342,19 @@ def test_single_after_non_circular_spline():
     # Upstream spline segment remains linear at the junction
     spline_exit = make_node(-1)
     spline_segment = PathSegment([make_node(-2), spline_exit], main_index=1)
-    spline_segment.curve_model = PathCurveModel.SPLINE
+    spline_segment.design_strategy = PathSegmentDesignStrategy.SPLINE
     spline_segment.curve_type = None
 
     # SINGLE segment centred on a circular grid node
     core_node = make_node(0, circular=True)
     single_segment = PathSegment([core_node], main_index=2)
-    single_segment.curve_model = PathCurveModel.SINGLE
+    single_segment.design_strategy = PathSegmentDesignStrategy.SINGLE
 
     # Following arc run should still pick up the circular context
     arc_entry = make_node(1, circular=True)
     arc_follow = make_node(2, circular=True)
     arc_segment = PathSegment([arc_entry, arc_follow], main_index=3)
-    arc_segment.curve_model = PathCurveModel.COMPOUND
+    arc_segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
     arc_segment.curve_type = PathCurveType.ARC
 
     spline_segment.adjust_start_and_endpoints(
@@ -420,10 +422,10 @@ def test_split_spline_keeps_leading_stitch_only():
     assert len(segments) == 2
     first, body = segments
 
-    assert first.curve_model == PathCurveModel.SINGLE
+    assert first.design_strategy == PathSegmentDesignStrategy.SINGLE
     assert first.nodes[0] is nodes[0]
 
-    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.design_strategy == PathSegmentDesignStrategy.SPLINE
     assert body.nodes == nodes[1:]
 
     assert arch.secondary_index_counters[7] == 2
@@ -445,13 +447,13 @@ def test_split_spline_keeps_both_boundary_stitches():
     assert len(segments) == 3
     lead, body, tail = segments
 
-    assert lead.curve_model == PathCurveModel.SINGLE
+    assert lead.design_strategy == PathSegmentDesignStrategy.SINGLE
     assert lead.nodes[0] is nodes[0]
 
-    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.design_strategy == PathSegmentDesignStrategy.SPLINE
     assert body.nodes == nodes[1:-1]
 
-    assert tail.curve_model == PathCurveModel.SINGLE
+    assert tail.design_strategy == PathSegmentDesignStrategy.SINGLE
     assert tail.nodes[0] is nodes[-1]
 
     assert arch.secondary_index_counters[7] == 3
@@ -473,10 +475,10 @@ def test_split_spline_keeps_trailing_stitch_only():
     assert len(segments) == 2
     body, tail = segments
 
-    assert body.curve_model == PathCurveModel.SPLINE
+    assert body.design_strategy == PathSegmentDesignStrategy.SPLINE
     assert body.nodes == nodes[:-1]
 
-    assert tail.curve_model == PathCurveModel.SINGLE
+    assert tail.design_strategy == PathSegmentDesignStrategy.SINGLE
     assert tail.nodes[0] is nodes[-1]
 
     assert arch.secondary_index_counters[7] == 2
