@@ -1188,53 +1188,38 @@ class PathBuilder:
         extension_length = Config.Manufacturing.NOZZLE_DIAMETER * 3
 
         # Compute the normalized start parameter so that we keep only the final extension_length
-        start_param = 1.0 - (extension_length / last_segment.path.length)
+        # Use last edge instead of entire wire due to trim [n..1] issues
+        start_param = 1.0 - (extension_length / last_segment.path.edges()[-1].length)
 
         # Generate sweep at the end of the segment to close it
         with BuildPart() as finish_box_closure:
             # Trim the last segment path to only the final bit
             with BuildLine() as closure_line:
-                add(last_segment.path.trim(start_param, 1.0))
-            with BuildSketch(closure_line.line ^ 0):
-                # Create profile depending on shape type
-
-                # Determine path line angle difference between the
-                # current segment and the previous segment for rotation
-                # Should always be 0... ?
-                loc1 = last_segment.path ^ 1
-                loc2 = closure_line.line ^ 1
-                path_angle_delta = loc2.y_axis.direction.get_signed_angle(
-                    loc1.y_axis.direction, loc2.z_axis.direction
-                )
-                path_line_angle = 90 * round(path_angle_delta / 90.0)
-
-                # Need a segment to determine angle,
-                # edge needs to be reversed for determine angle method
-                # later as we go in the opposite direction
-                place_holder_segment = PathSegment([(0, 0, 0)], main_index=0)
-                place_holder_segment.path = closure_line.edges()[0].reversed()
-
-                # Determine the angle of the profile based on the previous segment
-                # Rotate opposite direction by multiplying with -1
-                profile_angle = -1 * self.determine_path_profile_angle(
-                    last_segment, place_holder_segment, path_line_angle
+                # Use last edge instead of entire wire due to trim [n..1] issues
+                add(last_segment.path.edges()[-1].trim(start_param, 1))
+            with BuildSketch(closure_line.line ^ 1):
+                # Find the previous path segment solid body and accent end profile faces
+                # Apply them at the end of the path, create a hull
+                path_face = _find_end_face_at_location(
+                    part=last_segment.path_body,
+                    end_loc=closure_line.line ^ 1,
+                    pos_tol=self.node_size,
                 )
 
-                # Retrieve the parameters for the profile type
-                path_parameters = self.path_profile_type_parameters.get(
-                    last_segment.path_profile_type.value, {}
-                )
-                # Retrieve the function to create the profile shape
-                path_profile_function = PROFILE_TYPE_FUNCTIONS.get(
-                    last_segment.path_profile_type, create_u_shape
-                )
-                # Create the profile and assign it to the segment
-                path_profile = path_profile_function(
-                    **path_parameters,
-                    rotation_angle=path_line_angle + profile_angle,
-                )
-                # Add the created profile to the sketch
-                add(path_profile)
+                path_face.position -= closure_line.line @ 1
+                add(path_face)
+
+                # Only O shapes don't have an accent body and
+                # it's only really needed for L type shapes hull's to include accent
+                if last_segment.accent_body is not None:
+                    path_accent_face = _find_end_face_at_location(
+                        part=last_segment.accent_body,
+                        end_loc=closure_line.line ^ 1,
+                        pos_tol=self.node_size,
+                    )
+
+                    path_accent_face.position -= closure_line.line @ 1
+                    add(path_accent_face)
 
                 make_hull()
 
@@ -1276,6 +1261,31 @@ class PathBuilder:
             self.path_architect.segments[
                 -1
             ].support_body.part -= finish_box_closure.part
+
+
+def _find_end_face_at_location(part, end_loc, pos_tol=1e-6):
+    """
+    Return the face whose center_location.position matches end_loc.position
+    within the given tolerance. If multiple match, prefer the one whose
+    center is closest to end_loc.position.
+    """
+    end_position = end_loc.position
+    candidates: list[Face] = []
+
+    for face in part.faces():
+        center_location = face.center_location
+        if (center_location.position - end_position).length < pos_tol:
+            candidates.append(face)
+
+    if not candidates:
+        return None
+
+    # Prefer the candidate whose center is closest to end position
+    candidates.sort(
+        key=lambda face: (face.center_location.position - end_position).length
+    )
+
+    return candidates[0]
 
 
 def are_float_values_close(val1: float, val2: float, tolerance: float = 0.01) -> bool:
