@@ -7,6 +7,7 @@ from build123d import (
     Align,
     Axis,
     BuildPart,
+    Color,
     Cylinder,
     Keep,
     Mode,
@@ -54,6 +55,7 @@ class CaseShape(Enum):
     SPHERE = "Sphere"
     SPHERE_WITH_FLANGE = "Sphere with flange"
     SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES = "Sphere with flange enclosed two sides"
+    SPHERE_EPIC = "Sphere Epic"
     BOX = "Box"
     CYLINDER = "Cylinder"
 
@@ -152,7 +154,7 @@ class Case(ABC):
 
         # include cut shape
         self.cut_shape.part.label = "Cut Shape"
-        self.cut_shape.part.color = "#FF00000F"  # very transparent red
+        self.cut_shape.part.color = Color(1.0, 0.0, 0.0, 13 / 255)  # red ~5% opacity
         objs.append(self.cut_shape.part)
         names.append("Cut Shape")
 
@@ -183,8 +185,8 @@ class Case(ABC):
         set_group("Cut Shape", shape=0, edges=0)
 
         # Show casing solids but hide edges
-        set_group(CasePart.CASING.value, shape=1, edges=0)
-        set_group(CasePart.CASE_TOP.value, shape=1, edges=0)
-        set_group(CasePart.CASE_BOTTOM.value, shape=1, edges=0)
+        set_group(CasePart.CASING.value, shape=1, edges=1)
+        set_group(CasePart.CASE_TOP.value, shape=1, edges=1)
+        set_group(CasePart.CASE_BOTTOM.value, shape=1, edges=1)
 
         set_viewer_config(states=st)

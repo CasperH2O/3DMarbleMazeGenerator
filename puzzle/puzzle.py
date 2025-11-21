@@ -41,6 +41,7 @@ class Puzzle:
             CaseShape.SPHERE,
             CaseShape.SPHERE_WITH_FLANGE,
             CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES,
+            CaseShape.SPHERE_EPIC,
         ):
             self.casing = SphereCasing(
                 diameter=Config.Sphere.SPHERE_DIAMETER,
