@@ -25,6 +25,11 @@ def visualize_path_architect(
 ):
     """
     Visualizes the nodes and path segments as defined by path architect.
+
+    Returns
+    -------
+    go.Figure
+        Configured 3D Plotly visualization of the puzzle layout.
     """
 
     fig = go.Figure()
@@ -119,4 +124,4 @@ def visualize_path_architect(
         ],
     )
 
-    fig.show()
+    return fig

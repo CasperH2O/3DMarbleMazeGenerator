@@ -12,6 +12,46 @@ from config import Config
 from puzzle.puzzle import Puzzle
 
 
+def build_components(puzzle: Puzzle):
+    """Construct parts and paths for the provided puzzle."""
+
+    case_parts, base_parts, cut_shape = puzzle_casing()
+    standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
+    obstacle_extras = build_obstacle_path_body_extras(puzzle)
+    ball, ball_path, ball_path_direction = ball_and_path_indicators(puzzle)
+
+    merge_standard_paths_with_case(case_parts, standard_paths or [])
+
+    return (
+        case_parts,
+        base_parts,
+        standard_paths,
+        support_path,
+        coloring_path,
+        obstacle_extras,
+        ball,
+        ball_path,
+        ball_path_direction,
+    )
+
+
+def export_components(puzzle: Puzzle) -> str | None:
+    """Export STL files for the puzzle when enabled in configuration."""
+
+    (
+        case_parts,
+        base_parts,
+        standard_paths,
+        support_path,
+        coloring_path,
+        *_,
+    ) = build_components(puzzle)
+
+    additional_parts = [standard_paths, support_path, coloring_path]
+
+    return export_all(case_parts, base_parts, additional_parts)
+
+
 def main() -> None:
     """Generate the puzzle, assemble its parts, and export printable models."""
     puzzle = Puzzle(
@@ -20,12 +60,17 @@ def main() -> None:
         case_shape=Config.Puzzle.CASE_SHAPE,
     )
 
-    case_parts, base_parts, cut_shape = puzzle_casing()
-    standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
-    obstacle_extras = build_obstacle_path_body_extras(puzzle)
-    ball, ball_path, ball_path_direction = ball_and_path_indicators(puzzle)
-
-    merge_standard_paths_with_case(case_parts, standard_paths or [])
+    (
+        case_parts,
+        base_parts,
+        standard_paths,
+        support_path,
+        coloring_path,
+        obstacle_extras,
+        ball,
+        ball_path,
+        ball_path_direction,
+    ) = build_components(puzzle)
 
     display_parts(
         case_parts,

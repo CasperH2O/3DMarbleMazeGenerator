@@ -24,13 +24,14 @@ def main() -> None:
     puzzle.print_puzzle_info()
 
     # Visualize the path architect
-    visualize_path_architect(
+    visualization = visualize_path_architect(
         puzzle.nodes,
         puzzle.path_architect.segments,
         puzzle.casing,
         puzzle.total_path,
         puzzle.obstacle_manager.placed_obstacles,
     )
+    visualization.show()
 
 
 if __name__ == "__main__":

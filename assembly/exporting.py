@@ -8,12 +8,15 @@ from assembly.casing import CasePart
 from config import Config
 
 
-def export_all(case_parts: list[Part], base_parts: list[Part], additional_parts=None):
-    """
-    Export all case parts as STLs for 3D print manufacturing.
+def export_all(
+    case_parts: list[Part], base_parts: list[Part], additional_parts=None
+) -> str | None:
+    """Export all case parts as STLs for 3D print manufacturing.
+
+    Returns the export root folder when exports are enabled, otherwise ``None``.
     """
     if not Config.Manufacturing.EXPORT_STL:
-        return
+        return None
 
     # root export folder
     folder_name = f"Case-{Config.Puzzle.CASE_SHAPE.value}-Seed-{Config.Puzzle.SEED}"
@@ -84,7 +87,6 @@ def export_all(case_parts: list[Part], base_parts: list[Part], additional_parts=
 
     # export additional objects, the paths, if any.
     if additional_parts:
-
         # flatten nested lists, for split body paths
         def _flatten(parts):
             for item in parts:
@@ -95,6 +97,11 @@ def export_all(case_parts: list[Part], base_parts: list[Part], additional_parts=
 
         # all these go into the puzzle folder
         for part in _flatten(additional_parts):
-            label = part.label
-            dst = folders["Puzzle"]
-            export_stl(to_export=part, file_path=os.path.join(dst, f"{label}.stl"))
+            try:
+                label = part.label
+                dst = folders["Puzzle"]
+                export_stl(to_export=part, file_path=os.path.join(dst, f"{label}.stl"))
+            except:
+                pass
+
+    return export_root
