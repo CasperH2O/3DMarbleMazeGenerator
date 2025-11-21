@@ -8,6 +8,7 @@ from cad.cases.case_model_base import CasePart
 from cad.cases.case_model_box import CaseBox
 from cad.cases.case_model_cylinder import CaseCylinder
 from cad.cases.case_model_sphere import CaseSphere
+from cad.cases.case_model_sphere_epic import CaseSphereEpic
 from cad.cases.case_model_sphere_with_flange import CaseSphereWithFlange
 from cad.cases.case_model_sphere_with_flange_enclosed_two_sides import (
     CaseSphereWithFlangeEnclosedTwoSides,
@@ -37,6 +38,8 @@ def puzzle_casing():
         case = CaseSphereWithFlange()
     elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES:
         case = CaseSphereWithFlangeEnclosedTwoSides()
+    elif Config.Puzzle.CASE_SHAPE == CaseShape.SPHERE_EPIC:
+        case = CaseSphereEpic()
     else:
         raise ValueError(
             f"Unknown CASE_SHAPE '{Config.Puzzle.CASE_SHAPE}' specified in config.py."
