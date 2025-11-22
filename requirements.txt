@@ -1,7 +1,10 @@
 build123d==0.10.0
+colorlog==6.10.1
 geomdl==5.4.0
 numpy==2.1.3
 ocp_vscode==3.0.0
 plotly==5.24.1
+pyvista==0.44.1
 scipy==1.14.0
-colorlog==6.10.1
+stpyvista==0.0.15
+vtk==9.3.1
