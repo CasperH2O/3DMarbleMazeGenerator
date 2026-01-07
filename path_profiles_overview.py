@@ -52,7 +52,7 @@ def sweep_single_section_profile(profile_sketch, path_wire, label=None, color=No
 
 
 # Constants
-ERROR_COLOR = "#FF1A1AFF"
+ERROR_COLOR = "#FF1A1A"
 ACCENT_TYPES = set(ACCENT_REGISTRY.values())
 SUPPORT_TYPES = set(SUPPORT_REGISTRY.values())
 

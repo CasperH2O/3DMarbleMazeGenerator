@@ -53,15 +53,13 @@ path cross sections can be 3D modelled by running:
 path_profiles_overview.py
 ```
 
-This results in an overview with all path profiles, including their path accent color and support material swep along a straight line. A red color color is used to indicate the path does not have any adjustments yet in the configuration:
+This results in an overview with all path profiles, including their path accent color and support material swept along a straight line. A red color color is used to indicate the path does not have any adjustments yet in the configuration:
 
 <img src="resources/path_profiles_overview.png" alt="Path Profiles Overview" width="400"/>
 
 **Obstacles**
 
-⚠️ Obstacles are work in progress, disabled by default
-
-Obstacled can be randomly selected and placed (xyz and orientation) in the puzzle. The obstacles feature as start and end node that can be connected with paths. Through the usage of a node grid, collisions and occupancy can be handled.
+Obstacled can be randomly or manually selected and placed (xyz and orientation) in the puzzle. The obstacles feature as start and end node that can be connected with paths. Through the usage of a node grid, collisions and occupancy can be handled.
 
 For quick visualization and debugging, all the obstacles currently in the obstacle catalogue can be 3D modelled by running:
 

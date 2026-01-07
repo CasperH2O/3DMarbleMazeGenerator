@@ -58,19 +58,19 @@ class Obstacles:
     # name: ObstacleType
     # origin: world coords (x, y, z) in mm
     # rotation: Euler XYZ degrees (x, y, z) increments of 90 degrees
-    MANUAL_PLACEMENT_ENABLED = False  # global manual obstacle placement on/off switch
+    MANUAL_PLACEMENT_ENABLED = True  # global manual obstacle placement on/off switch
     MANUAL_PLACEMENTS = (
         {
-            "enabled": True,
+            "enabled": False,
             "name": ObstacleType.OMEGA.value,
             "origin": (0.0, 10.0, 0.0),
             "orientation": (90.0, 0.0, 0.0),
         },
         {
             "enabled": True,
-            "name": ObstacleType.ARROW.value,
-            "origin": (0.0, -10.0, 0.0),
-            "orientation": (90.0, 0.0, 0.0),
+            "name": ObstacleType.QUESTION_MARK.value,
+            "origin": (0.0, 0.0, 0.0),
+            "orientation": (-90.0, 180.0, 0.0),
         },
     )
 
@@ -121,7 +121,7 @@ class Cylinder:
 class Path:
     PATH_SEGMENT_DESIGN_STRATEGY = [
         PathSegmentDesignStrategy.COMPOUND,
-        # SegmentDesignStrategy.SPLINE,
+        PathSegmentDesignStrategy.SPLINE,
     ]
 
     PATH_CURVE_TYPE = [
@@ -146,7 +146,9 @@ class Path:
 
     PATH_PROFILE_TYPE_OVERRIDES = (
         {
-            7: PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT
+            7: PathProfileType.L_SHAPE_ADJUSTED_HEIGHT,
+            11: PathProfileType.L_SHAPE_MIRRORED_ADJUSTED_HEIGHT,
+            12: PathProfileType.O_SHAPE,
         }
         if ENABLE_OVERRIDES
         else {}
