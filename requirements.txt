@@ -7,4 +7,5 @@ plotly==5.24.1
 pyvista==0.44.1
 scipy==1.14.0
 stpyvista==0.0.15
+streamlit==1.40.0
 vtk==9.3.1

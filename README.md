@@ -87,6 +87,18 @@ This also results in a plot, with a sampled path, occupied and overlap nodes:
 
 <img src="resources/obstacle-spiral-plot.png" alt="Obstacle Spiral plot" width="400"/>
 
+## Browser based configurator
+
+A puzzle can be created in the browser and previewed. Allows for quick iteration through different seed values, amount of waypoints and enclosures. 
+
+Can be run and opens in the browser automatically with:
+
+```Python
+streamlit run .\streamlit_app.py
+```
+
+<img src="resources/browser-based-generator.png" alt="Browser Based Generator" width="400"/>
+
 ## Requirements
 
 Python 3.11
@@ -98,3 +110,4 @@ For the 3D model visualization, the [Visual Studio Code extension OCP CAD Viewer
 - For 3D modelling, this project relies heavily on Build123: [Build123D a python CAD library]( https://github.com/gumyr/build123d)
 - OCP CAD Viewer extension for Visual Studio Code to visualize 3D models: [OCP CAD Viewer for VS Code](https://github.com/bernhard-42/vscode-ocp-cad-viewer)
 - Plotly for graph visualization: [Plotly Python Graphing Library](https://plotly.com/python/)
+- Streamlit for browser based configurator: [Streamlit](https://streamlit.io/)

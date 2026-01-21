@@ -9,9 +9,19 @@ from config import Config
 
 
 def export_all(
-    case_parts: list[Part], base_parts: list[Part], additional_parts=None
+    case_parts: list[Part],
+    base_parts: list[Part],
+    additional_parts=None,
+    apply_manufacturing_preparation: bool = True,
 ) -> str | None:
     """Export all case parts as STLs for 3D print manufacturing.
+
+    Args:
+        case_parts: List of case parts to export.
+        base_parts: List of base parts to export.
+        additional_parts: Optional additional parts to export.
+        apply_manufacturing_preparation: If True, apply rotations and other tweaks for optimal 3D printing.
+                                        If False, export in original model orientation (for visualization).
 
     Returns the export root folder when exports are enabled, otherwise ``None``.
     """
@@ -53,18 +63,19 @@ def export_all(
     }
 
     # Adjust some orienation to prepare for 3D printing plate
-    for part in case_parts:
-        match part.label:
-            # Rotate mounting ring top upside down
-            case CasePart.MOUNTING_RING_TOP.value:
-                part.orientation = Vector(0, 180, 0)
-            # Rotate mounting clips
-            case (
-                CasePart.START_INDICATOR.value
-                | CasePart.MOUNTING_RING_CLIP_START.value
-                | CasePart.MOUNTING_RING_CLIP_SINGLE.value
-            ):
-                part.orientation = Vector(90, 0, 0)
+    if apply_manufacturing_preparation:
+        for part in case_parts:
+            match part.label:
+                # Rotate mounting ring top upside down
+                case CasePart.MOUNTING_RING_TOP.value:
+                    part.orientation = Vector(0, 180, 0)
+                # Rotate mounting clips
+                case (
+                    CasePart.START_INDICATOR.value
+                    | CasePart.MOUNTING_RING_CLIP_START.value
+                    | CasePart.MOUNTING_RING_CLIP_SINGLE.value
+                ):
+                    part.orientation = Vector(90, 0, 0)
 
     for part in case_parts:
         label = part.label

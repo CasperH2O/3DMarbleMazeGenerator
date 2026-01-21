@@ -35,8 +35,14 @@ def build_components(puzzle: Puzzle):
     )
 
 
-def export_components(puzzle: Puzzle) -> str | None:
-    """Export STL files for the puzzle when enabled in configuration."""
+def export_components(puzzle: Puzzle, apply_manufacturing_preparation: bool = True) -> str | None:
+    """Export STL files for the puzzle when enabled in configuration.
+
+    Args:
+        puzzle: The puzzle to export.
+        apply_manufacturing_preparation: If True, apply rotations and other tweaks for optimal 3D printing.
+                                        If False, export in original model orientation (for visualization).
+    """
 
     (
         case_parts,
@@ -49,7 +55,7 @@ def export_components(puzzle: Puzzle) -> str | None:
 
     additional_parts = [standard_paths, support_path, coloring_path]
 
-    return export_all(case_parts, base_parts, additional_parts)
+    return export_all(case_parts, base_parts, additional_parts, apply_manufacturing_preparation)
 
 
 def main() -> None:

@@ -96,12 +96,17 @@ def _build_pyvista_plotter(stl_files: list[Path], pyvista_module: ModuleType) ->
     except Exception:
         plotter.set_background(background_color)
 
+    # Set up camera view with parameters
+    plotter.camera_position = "iso"
+    plotter.camera.azimuth = -10
+    plotter.camera.elevation = -20
+
+    # Enable terrain interaction style (shift to pan, mouse wheel to zoom)
     try:
         plotter.enable_terrain_style()
     except Exception:
-        plotter.reset_camera()
-    else:
-        plotter.reset_camera()
+        pass  # Fallback if terrain style not available
+
     plotter.enable_anti_aliasing()
     return plotter
 
@@ -252,7 +257,7 @@ def main() -> None:
 
         with visualization_column:
             st.markdown("#### 3D Path Visualization")
-            st.plotly_chart(visualization, use_container_width=True)
+            st.plotly_chart(visualization, width="stretch")
 
         with stl_column:
             st.markdown("#### 3D Printable STL Preview")
@@ -277,7 +282,9 @@ def main() -> None:
                         0, text="Exporting STL files..."
                     )
                     try:
-                        export_root = export_components(puzzle)
+                        export_root = export_components(
+                            puzzle, apply_manufacturing_preparation=False
+                        )
                         stl_progress.progress(0.5, text="Collecting STL files...")
 
                         if export_root:
@@ -316,7 +323,6 @@ def main() -> None:
                 st.session_state.setdefault(visibility_key, default_visibility)
 
                 viewer_container = st.container()
-
                 visibility_state = st.session_state[visibility_key]
                 selected_files: list[Path] = []
                 for index, name in enumerate(relative_names):
