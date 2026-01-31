@@ -13,6 +13,7 @@ from cad.cases.case_model_base import CaseManufacturer
 from config import CaseShape, Config, apply_case_manufacturer_overrides
 from model_assembly import export_components
 from puzzle.puzzle import Puzzle
+from puzzle.utils.enums import ObstacleType
 from visualization.visualization import visualize_path_architect
 
 CASE_SHAPE_OPTIONS = list(CaseShape)
@@ -211,7 +212,34 @@ def main() -> None:
             format_func=lambda shape: shape.value,
         )
 
-    current_key = f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}"
+    # Initialize manual obstacles in session state
+    if "manual_obstacles" not in st.session_state:
+        st.session_state["manual_obstacles"] = []
+
+    # Manual Obstacle Placement Section
+    st.sidebar.header("Manual Obstacles")
+
+    obstacle_types = list(ObstacleType)
+    selected_obstacle = st.sidebar.selectbox(
+        "Obstacle Type",
+        options=obstacle_types,
+        format_func=lambda x: x.value,
+        key="new_obstacle_type",
+    )
+
+    if st.sidebar.button("Add Obstacle", type="primary"):
+        new_obstacle = {
+            "enabled": True,
+            "name": selected_obstacle.value,
+            "origin": (0.0, 0.0, 0.0),
+            "orientation": (0.0, 0.0, 0.0),
+        }
+        st.session_state["manual_obstacles"].append(new_obstacle)
+        st.rerun()
+
+    # Include obstacle configuration in cache key
+    obstacle_hash = hash(str(st.session_state["manual_obstacles"]))
+    current_key = f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}-{obstacle_hash}"
     st.session_state.setdefault("stl_exports", {"key": None, "path": None, "files": []})
     if st.session_state["stl_exports"].get("key") != current_key:
         st.session_state["stl_exports"] = {
@@ -227,6 +255,9 @@ def main() -> None:
         Config.Puzzle.NUMBER_OF_WAYPOINTS = waypoint_count
         Config.Puzzle.SEED = int(seed)
         Config.Puzzle.CASE_SHAPE = case_shape
+
+        # Apply manual obstacles from session state
+        Config.Obstacles.MANUAL_PLACEMENTS = tuple(st.session_state["manual_obstacles"])
 
         puzzle = Puzzle(
             node_size=Config.Puzzle.NODE_SIZE,
@@ -258,6 +289,103 @@ def main() -> None:
         with visualization_column:
             st.markdown("#### 3D Path Visualization")
             st.plotly_chart(visualization, width="stretch")
+
+            # Display and edit obstacle list
+            if st.session_state["manual_obstacles"]:
+                st.markdown("#### Manual Obstacles")
+                obstacles_to_remove = []
+
+                for idx, obstacle in enumerate(st.session_state["manual_obstacles"]):
+                    with st.container():
+                        col1, col2, col3 = st.columns([2, 1, 1])
+
+                        with col1:
+                            st.text(f"**{obstacle['name']}**")
+
+                        with col2:
+                            is_enabled = st.checkbox(
+                                "Enabled",
+                                value=obstacle["enabled"],
+                                key=f"obstacle_enabled_{idx}",
+                            )
+                            if is_enabled != obstacle["enabled"]:
+                                st.session_state["manual_obstacles"][idx]["enabled"] = is_enabled
+                                st.rerun()
+
+                        with col3:
+                            if st.button("🗑️", key=f"delete_obstacle_{idx}"):
+                                obstacles_to_remove.append(idx)
+
+                        # Position controls
+                        st.caption("Position (mm)")
+                        pos_col1, pos_col2, pos_col3 = st.columns(3)
+                        with pos_col1:
+                            new_pos_x = st.number_input(
+                                "X",
+                                value=obstacle["origin"][0],
+                                step=float(Config.Puzzle.NODE_SIZE),
+                                key=f"obstacle_pos_x_{idx}",
+                            )
+                        with pos_col2:
+                            new_pos_y = st.number_input(
+                                "Y",
+                                value=obstacle["origin"][1],
+                                step=float(Config.Puzzle.NODE_SIZE),
+                                key=f"obstacle_pos_y_{idx}",
+                            )
+                        with pos_col3:
+                            new_pos_z = st.number_input(
+                                "Z",
+                                value=obstacle["origin"][2],
+                                step=float(Config.Puzzle.NODE_SIZE),
+                                key=f"obstacle_pos_z_{idx}",
+                            )
+
+                        # Rotation controls
+                        st.caption("Rotation (degrees)")
+                        rot_col1, rot_col2, rot_col3 = st.columns(3)
+                        with rot_col1:
+                            new_rot_x = st.number_input(
+                                "Rot X",
+                                value=int(obstacle["orientation"][0]),
+                                step=90,
+                                key=f"obstacle_rot_x_{idx}",
+                            )
+                        with rot_col2:
+                            new_rot_y = st.number_input(
+                                "Rot Y",
+                                value=int(obstacle["orientation"][1]),
+                                step=90,
+                                key=f"obstacle_rot_y_{idx}",
+                            )
+                        with rot_col3:
+                            new_rot_z = st.number_input(
+                                "Rot Z",
+                                value=int(obstacle["orientation"][2]),
+                                step=90,
+                                key=f"obstacle_rot_z_{idx}",
+                            )
+
+                        # Update obstacle if any values changed
+                        if (
+                            new_pos_x != obstacle["origin"][0]
+                            or new_pos_y != obstacle["origin"][1]
+                            or new_pos_z != obstacle["origin"][2]
+                            or float(new_rot_x) != obstacle["orientation"][0]
+                            or float(new_rot_y) != obstacle["orientation"][1]
+                            or float(new_rot_z) != obstacle["orientation"][2]
+                        ):
+                            st.session_state["manual_obstacles"][idx]["origin"] = (new_pos_x, new_pos_y, new_pos_z)
+                            st.session_state["manual_obstacles"][idx]["orientation"] = (float(new_rot_x), float(new_rot_y), float(new_rot_z))
+                            st.rerun()
+
+                        st.divider()
+
+                # Remove obstacles marked for deletion
+                if obstacles_to_remove:
+                    for idx in sorted(obstacles_to_remove, reverse=True):
+                        st.session_state["manual_obstacles"].pop(idx)
+                    st.rerun()
 
         with stl_column:
             st.markdown("#### 3D Printable STL Preview")
