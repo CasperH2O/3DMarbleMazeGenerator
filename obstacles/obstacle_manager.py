@@ -13,6 +13,7 @@ from build123d import Extrinsic, Pos, Rotation
 from config import Config
 from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
+from obstacles.obstacle_placement_failure_types import ObstaclePlacementFailureType
 from obstacles.obstacle_registry import get_available_obstacles, get_obstacle_class
 from puzzle.node import Node
 
@@ -56,6 +57,8 @@ class ObstacleManager:
         self.placed_obstacles: list[Obstacle] = []
         self.occupied_positions: set = set()
         self.overlap_positions: set[tuple[float, float, float]] = set()
+        # Track failed manual placements (stores obstacle instances with failure info)
+        self.failed_manual_placements: list[Obstacle] = []
         # Track placement duration
         self.placement_time: float = 0.0
 
@@ -273,10 +276,19 @@ class ObstacleManager:
             )
 
             # Validate space on the node grid
-            is_valid = self._is_placement_valid(obstacle)
+            is_valid, failure_info = self._is_placement_valid(obstacle)
             logger.info("  -> Manual placement valid? %s", is_valid)
             if not is_valid:
                 logger.warning("  -> Manual #%s FAILED validation -> not placed", index)
+
+                # Store failure info
+                if failure_info is not None:
+                    failure_type, failure_coords = failure_info
+                    obstacle.placement_failure_type = failure_type
+                    obstacle.placement_failure_coordinates = failure_coords
+
+                obstacle.manual_placement_index = index
+                self.failed_manual_placements.append(obstacle)
                 continue
 
             # Succesful place, include obstacle
@@ -355,7 +367,7 @@ class ObstacleManager:
             )
 
             # Validate
-            is_valid = self._is_placement_valid(obstacle)
+            is_valid, failure_info = self._is_placement_valid(obstacle)
             logger.debug("  -> Placement valid? %s", is_valid)
             if is_valid:
                 self.placed_obstacles.append(obstacle)
@@ -368,7 +380,9 @@ class ObstacleManager:
         # Exhausted attempts for this type instance
         return False
 
-    def _is_placement_valid(self, obstacle: Obstacle) -> bool:
+    def _is_placement_valid(
+        self, obstacle: Obstacle
+    ) -> tuple[bool, Optional[tuple[ObstaclePlacementFailureType, list[tuple]]]]:
         """
         Checks if the proposed placement is valid:
         - Boundary checks: occupied nodes must be in-grid (overlap nodes are not boundary-checked)
@@ -378,6 +392,11 @@ class ObstacleManager:
             * overlap  ∩ occupied -> invalid
             * overlap  ∩ overlap  -> allowed
         Debug logging always uses logger.debug (no debug flag).
+
+        Returns:
+            tuple: (is_valid, failure_info)
+            - is_valid: True if placement is valid, False otherwise
+            - failure_info: tuple of (failure_type, conflicting_coordinates) if invalid, None if valid
         """
         # Transform local occupied/overlap nodes to world space
         local_occupied = [
@@ -407,7 +426,10 @@ class ObstacleManager:
         for key in occupied_keys:
             if key not in self.node_dict:
                 logger.debug("    Occupied node %s is outside grid.", key)
-                return False
+                return False, (
+                    ObstaclePlacementFailureType.OUTSIDE_GRID,
+                    [key],
+                )
 
         # Collision checks
         # occupied ∩ occupied -> invalid
@@ -416,7 +438,10 @@ class ObstacleManager:
             logger.debug(
                 "    Occupied vs occupied collision at %s", next(iter(conflict))
             )
-            return False
+            return False, (
+                ObstaclePlacementFailureType.OCCUPIED_VS_OCCUPIED,
+                list(conflict),
+            )
 
         # occupied ∩ overlap -> invalid
         conflict = occupied_keys & self.overlap_positions
@@ -424,7 +449,10 @@ class ObstacleManager:
             logger.debug(
                 "    Occupied vs overlap collision at %s", next(iter(conflict))
             )
-            return False
+            return False, (
+                ObstaclePlacementFailureType.OCCUPIED_VS_OVERLAP,
+                list(conflict),
+            )
 
         # overlap ∩ occupied -> invalid
         conflict = overlap_keys & self.occupied_positions
@@ -432,10 +460,13 @@ class ObstacleManager:
             logger.debug(
                 "    Overlap vs occupied collision at %s", next(iter(conflict))
             )
-            return False
+            return False, (
+                ObstaclePlacementFailureType.OVERLAP_VS_OCCUPIED,
+                list(conflict),
+            )
 
         # overlap ∩ overlap -> allowed
-        return True
+        return True, None
 
     def _occupy_nodes_for_obstacle(self, obstacle: Obstacle):
         """Marks grid nodes as occupied based on the obstacle's placement."""

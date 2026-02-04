@@ -250,6 +250,8 @@ def main() -> None:
             puzzle.casing,
             puzzle.total_path,
             puzzle.obstacle_manager.placed_obstacles,
+            failed_manual_placements=puzzle.obstacle_manager.failed_manual_placements,
+            node_size=Config.Puzzle.NODE_SIZE,
         )
     except Exception as generation_error:  # noqa: BLE001
         st.error(f"Puzzle generation failed: {generation_error}")
@@ -267,14 +269,16 @@ def main() -> None:
 
         with design_tab:
             st.markdown("#### 3D Path Visualization")
-            st.plotly_chart(visualization, use_container_width=True)
+            st.plotly_chart(visualization, width="stretch")
 
             # Display and edit obstacle list
             st.markdown("#### Manual Obstacles")
 
             if st.session_state["manual_obstacles"]:
                 # Header row
-                hdr_name, hdr_x, hdr_y, hdr_z, hdr_rx, hdr_ry, hdr_rz, hdr_actions = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+                hdr_name, hdr_x, hdr_y, hdr_z, hdr_rx, hdr_ry, hdr_rz, hdr_actions = (
+                    st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+                )
                 with hdr_name:
                     st.caption("Name")
                 with hdr_x:
@@ -294,50 +298,87 @@ def main() -> None:
 
                 obstacles_to_remove = []
 
+                # Build a set of failed obstacles for quick lookup (by name and position)
+                failed_obstacles = set()
+                if puzzle and puzzle.obstacle_manager.failed_manual_placements:
+                    for failed_obstacle in puzzle.obstacle_manager.failed_manual_placements:
+                        name = failed_obstacle.name
+                        origin = failed_obstacle.grid_origin
+                        if origin is not None:
+                            # Create a key from name and position (rounded to avoid floating point issues)
+                            key = (name, tuple(round(x, 2) for x in origin))
+                            failed_obstacles.add(key)
+
                 for idx, obstacle in enumerate(st.session_state["manual_obstacles"]):
-                    col_name, col_x, col_y, col_z, col_rx, col_ry, col_rz, col_actions = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+                    (
+                        col_name,
+                        col_x,
+                        col_y,
+                        col_z,
+                        col_rx,
+                        col_ry,
+                        col_rz,
+                        col_actions,
+                    ) = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+
+                    # Check if this obstacle failed validation
+                    obstacle_key = (
+                        obstacle["name"],
+                        tuple(round(x, 2) for x in obstacle["origin"]),
+                    )
+                    is_failed = obstacle_key in failed_obstacles
 
                     with col_name:
-                        st.text(obstacle["name"])
+                        # Add error icon if this obstacle failed validation
+                        if is_failed:
+                            st.text(f"{obstacle['name']} ❌")
+                        else:
+                            st.text(obstacle["name"])
 
                     with col_x:
                         new_pos_x = st.number_input(
-                            "X", value=obstacle["origin"][0],
+                            "X",
+                            value=obstacle["origin"][0],
                             step=float(Config.Puzzle.NODE_SIZE),
                             key=f"obstacle_pos_x_{idx}",
                             label_visibility="collapsed",
                         )
                     with col_y:
                         new_pos_y = st.number_input(
-                            "Y", value=obstacle["origin"][1],
+                            "Y",
+                            value=obstacle["origin"][1],
                             step=float(Config.Puzzle.NODE_SIZE),
                             key=f"obstacle_pos_y_{idx}",
                             label_visibility="collapsed",
                         )
                     with col_z:
                         new_pos_z = st.number_input(
-                            "Z", value=obstacle["origin"][2],
+                            "Z",
+                            value=obstacle["origin"][2],
                             step=float(Config.Puzzle.NODE_SIZE),
                             key=f"obstacle_pos_z_{idx}",
                             label_visibility="collapsed",
                         )
                     with col_rx:
                         new_rot_x = st.number_input(
-                            "Rot X", value=int(obstacle["orientation"][0]),
+                            "Rot X",
+                            value=int(obstacle["orientation"][0]),
                             step=90,
                             key=f"obstacle_rot_x_{idx}",
                             label_visibility="collapsed",
                         )
                     with col_ry:
                         new_rot_y = st.number_input(
-                            "Rot Y", value=int(obstacle["orientation"][1]),
+                            "Rot Y",
+                            value=int(obstacle["orientation"][1]),
                             step=90,
                             key=f"obstacle_rot_y_{idx}",
                             label_visibility="collapsed",
                         )
                     with col_rz:
                         new_rot_z = st.number_input(
-                            "Rot Z", value=int(obstacle["orientation"][2]),
+                            "Rot Z",
+                            value=int(obstacle["orientation"][2]),
                             step=90,
                             key=f"obstacle_rot_z_{idx}",
                             label_visibility="collapsed",
@@ -346,12 +387,15 @@ def main() -> None:
                         act_col1, act_col2 = st.columns(2)
                         with act_col1:
                             is_enabled = st.checkbox(
-                                "On", value=obstacle["enabled"],
+                                "On",
+                                value=obstacle["enabled"],
                                 key=f"obstacle_enabled_{idx}",
                                 label_visibility="collapsed",
                             )
                             if is_enabled != obstacle["enabled"]:
-                                st.session_state["manual_obstacles"][idx]["enabled"] = is_enabled
+                                st.session_state["manual_obstacles"][idx]["enabled"] = (
+                                    is_enabled
+                                )
                                 st.rerun()
                         with act_col2:
                             if st.button("🗑️", key=f"delete_obstacle_{idx}"):
@@ -366,8 +410,16 @@ def main() -> None:
                         or float(new_rot_y) != obstacle["orientation"][1]
                         or float(new_rot_z) != obstacle["orientation"][2]
                     ):
-                        st.session_state["manual_obstacles"][idx]["origin"] = (new_pos_x, new_pos_y, new_pos_z)
-                        st.session_state["manual_obstacles"][idx]["orientation"] = (float(new_rot_x), float(new_rot_y), float(new_rot_z))
+                        st.session_state["manual_obstacles"][idx]["origin"] = (
+                            new_pos_x,
+                            new_pos_y,
+                            new_pos_z,
+                        )
+                        st.session_state["manual_obstacles"][idx]["orientation"] = (
+                            float(new_rot_x),
+                            float(new_rot_y),
+                            float(new_rot_z),
+                        )
                         st.rerun()
 
                 # Remove obstacles marked for deletion
@@ -388,7 +440,7 @@ def main() -> None:
                     label_visibility="collapsed",
                 )
             with add_col2:
-                if st.button("Add Obstacle", type="primary", use_container_width=True):
+                if st.button("Add Obstacle", type="primary", width="stretch"):
                     new_obstacle = {
                         "enabled": True,
                         "name": selected_obstacle.value,

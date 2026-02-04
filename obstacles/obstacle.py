@@ -31,6 +31,7 @@ from cad.path_profile_type_shapes import (
 )
 from cad.path_segment import PathSegment
 from logging_config import configure_logging
+from obstacles.obstacle_placement_failure_types import ObstaclePlacementFailureType
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from puzzle.utils.geometry import frange, snap
@@ -66,6 +67,13 @@ class Obstacle(ABC):
         self.location: Optional[Location] = Location(Pos(Vector(0, 0, 0)))  # Position
         self.grid_origin: tuple[float, float, float] | None = None
         self.rotation_angles_deg: tuple[int, int, int] | None = None
+
+        # Placement failure tracking (for manual placements that fail validation)
+        self.placement_failure_type: Optional["ObstaclePlacementFailureType"] = None
+        self.placement_failure_coordinates: Optional[
+            list[tuple[float, float, float]]
+        ] = None
+        self.manual_placement_index: Optional[int] = None
 
         # Cache for the generated part and occupied nodes
         self._part: Optional[Part] = None

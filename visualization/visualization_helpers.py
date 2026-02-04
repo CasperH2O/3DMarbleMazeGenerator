@@ -634,6 +634,114 @@ def plot_obstacles_raw_paths(obstacles: list) -> list[go.Scatter3d]:
     return traces
 
 
+def plot_invalid_obstacles(
+    failed_obstacles: list, node_size: float
+) -> list[go.Scatter3d]:
+    """
+    Build traces for obstacles that failed placement validation.
+    Shows the attempted position with color-coding by failure type.
+
+    Parameters:
+        failed_obstacles: List of Obstacle instances with placement_failure_info set
+        node_size: Size of grid nodes for visualization
+
+    Returns:
+        List of Plotly Scatter3d traces showing invalid placements
+    """
+    traces = []
+
+    if not failed_obstacles:
+        return traces
+
+    for idx, obstacle in enumerate(failed_obstacles):
+        # Read failure info from obstacle properties
+        failure_type = obstacle.placement_failure_type
+        conflicting_coords = obstacle.placement_failure_coordinates
+
+        # Skip if no failure info is set
+        if failure_type is None or conflicting_coords is None:
+            continue
+
+        # Get color/label for this failure type using enum methods
+        color = failure_type.get_color()
+        label = failure_type.get_label()
+
+        # Draw the obstacle's path shape/curve
+        raw_path_points = obstacle.sample_obstacle_path_world()
+        if raw_path_points:
+            xs = [p.X for p in raw_path_points]
+            ys = [p.Y for p in raw_path_points]
+            zs = [p.Z for p in raw_path_points]
+
+            # Add the obstacle path trace
+            path_trace = go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines",
+                line=dict(width=6, color=color),
+                opacity=0.6,
+                showlegend=True,
+                name=f"{obstacle.name} ❌",
+                legendgroup=f"invalid_{idx}",
+                hovertext=f"<b>{obstacle.name}</b> ❌<br>Reason: {label}",
+                hoverinfo="text",
+            )
+            traces.append(path_trace)
+
+        # Draw red box wireframes for conflicting nodes
+        d = node_size / 2.0
+        corner_offsets = [
+            (dx, dy, dz) for dx in (-d, d) for dy in (-d, d) for dz in (-d, d)
+        ]
+        edges = [
+            (0, 1),
+            (1, 3),
+            (3, 2),
+            (2, 0),  # bottom
+            (4, 5),
+            (5, 7),
+            (7, 6),
+            (6, 4),  # top
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),  # verticals
+        ]
+
+        # Draw red boxes for conflicting coordinates
+        for conflict_coord in conflicting_coords:
+            x0, y0, z0 = conflict_coord
+            verts = [(x0 + dx, y0 + dy, z0 + dz) for dx, dy, dz in corner_offsets]
+
+            hover_text = (
+                f"<b>⚠️ CONFLICT NODE</b><br>"
+                f"Obstacle: {obstacle.name}<br>"
+                f"Reason: {label}<br>"
+                f"Position: ({x0:.1f}, {y0:.1f}, {z0:.1f})"
+            )
+
+            for i, j in edges:
+                x1, y1, z1 = verts[i]
+                x2, y2, z2 = verts[j]
+
+                trace = go.Scatter3d(
+                    x=[x1, x2],
+                    y=[y1, y2],
+                    z=[z1, z2],
+                    mode="lines",
+                    line=dict(width=2, color="#FF0000"),
+                    opacity=0.9,
+                    showlegend=False,
+                    legendgroup=f"invalid_{idx}",
+                    hovertext=hover_text,
+                    hoverinfo="text",
+                )
+                traces.append(trace)
+
+    return traces
+
+
 def plot_puzzle_path(path_nodes: list[Node]) -> list[go.Scatter3d]:
     """
     Plot the full puzzle path (list of Nodes) as a single line.

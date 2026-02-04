@@ -9,6 +9,7 @@ from puzzle.node import Node
 
 from .visualization_helpers import (
     plot_casing,
+    plot_invalid_obstacles,
     plot_nodes,
     plot_obstacles_raw_paths,
     plot_puzzle_path,
@@ -22,9 +23,28 @@ def visualize_path_architect(
     casing: Case,
     puzzle_path: list[Node],
     obstacles: list[Obstacle],
+    failed_manual_placements: list[dict] = None,
+    node_size: float = None,
 ):
     """
     Visualizes the nodes and path segments as defined by path architect.
+
+    Parameters
+    ----------
+    nodes : list[Node]
+        All puzzle nodes
+    segments : list[PathSegment]
+        Path segments connecting nodes
+    casing : Case
+        The puzzle casing
+    puzzle_path : list[Node]
+        The complete path through the puzzle
+    obstacles : list[Obstacle]
+        Successfully placed obstacles
+    failed_manual_placements : list[dict], optional
+        Failed manual obstacle placement attempts for visualization
+    node_size : float, optional
+        Size of grid nodes for visualization
 
     Returns
     -------
@@ -58,6 +78,11 @@ def visualize_path_architect(
         for trace in plot_obstacles_raw_paths(obstacles):
             fig.add_trace(trace)
 
+    # Add invalid obstacle traces if provided
+    if failed_manual_placements and node_size:
+        for trace in plot_invalid_obstacles(failed_manual_placements, node_size):
+            fig.add_trace(trace)
+
     # Define camera positions
     camera_views = {
         "Iso": dict(eye=dict(x=1.5, y=1.5, z=1.5)),
@@ -71,9 +96,18 @@ def visualize_path_architect(
         title="Path Visualization",
         template="plotly_dark",
         scene=dict(
-            xaxis_title="X (width, mm)",
-            yaxis_title="Y (length, mm)",
-            zaxis_title="Z (height, mm)",
+            xaxis=dict(
+                title="X (width, mm)",
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
+            yaxis=dict(
+                title="Y (length, mm)",
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
+            zaxis=dict(
+                title="Z (height, mm)",
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
             aspectmode="data",
             camera=dict(
                 projection=dict(type="orthographic"), eye=camera_views["Iso"]["eye"]
