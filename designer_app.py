@@ -13,7 +13,7 @@ from cad.cases.case_model_base import CaseManufacturer
 from config import CaseShape, Config, apply_case_manufacturer_overrides
 from model_assembly import export_components
 from puzzle.puzzle import Puzzle
-from puzzle.utils.enums import ObstacleType
+from puzzle.utils.enums import ObstacleType, PathSegmentDesignStrategy
 from visualization.visualization import visualize_path_architect
 
 CASE_SHAPE_OPTIONS = list(CaseShape)
@@ -211,6 +211,20 @@ def main() -> None:
             index=CASE_SHAPE_OPTIONS.index(Config.Puzzle.CASE_SHAPE),
             format_func=lambda shape: shape.value,
         )
+
+    # Path design strategy options
+    use_spline = st.sidebar.checkbox(
+        "Enable Spline path strategy",
+        value=PathSegmentDesignStrategy.SPLINE in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY,
+    )
+
+    # Update path segment design strategy based on checkbox
+    if use_spline:
+        if PathSegmentDesignStrategy.SPLINE not in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY:
+            Config.Path.PATH_SEGMENT_DESIGN_STRATEGY.append(PathSegmentDesignStrategy.SPLINE)
+    else:
+        if PathSegmentDesignStrategy.SPLINE in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY:
+            Config.Path.PATH_SEGMENT_DESIGN_STRATEGY.remove(PathSegmentDesignStrategy.SPLINE)
 
     # Initialize manual obstacles in session state
     if "manual_obstacles" not in st.session_state:
