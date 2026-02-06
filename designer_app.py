@@ -1,4 +1,4 @@
-# streamlit_app.py
+# designer_app.py
 
 """Streamlit entry point for generating and visualizing puzzles."""
 

@@ -92,7 +92,7 @@ A puzzle can be created in the browser and previewed. Allows for quick iteration
 Can be run and opens in the browser automatically with:
 
 ```Python
-streamlit run .\streamlit_app.py
+streamlit run .\designer_app.py
 ```
 
 <img src="resources/browser-based-generator.png" alt="Browser Based Generator" width="400"/>
