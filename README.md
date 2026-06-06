@@ -24,8 +24,8 @@ The config.py file contains parameters that can be adjusted for type, size and s
 
 The puzzle route, for paths, curve types and node grid can be generated and visualized separately. To generate a puzzle, based on settings in the config.py file and open a visualization (Plotly-generated HTML file) in your browser, run:
 
-```Python
-generate_puzzle.py
+```bash
+python generate.py
 ```
 
 Results in an HTML file which opens in the browser to showcase the enclosure shape, node grid, paths and path curve types divided by segments:
@@ -34,9 +34,17 @@ Results in an HTML file which opens in the browser to showcase the enclosure sha
 
 **Model assembly**
 
-The 3D shape objects and physical enclosure are generated and visualized through the model assembly script. A puzzle is generated from which the printable shapes are created by running:
+The 3D shape objects and physical enclosure are generated and visualized through the model assembly script.
 
-```Python
+First, start an ocp visualizer either through the VS Code UI or:
+
+```bash
+python -m ocp_vscode
+```
+
+Then, generate a puzzle from which the printable shapes are created by running:
+
+```bash
 python -m model_assembly
 ```
 
@@ -49,8 +57,8 @@ Results in a 3D model made out of separate solid bodies for the enclosure, path,
 For quick visualization and debugging, all the path profiles, also called
 path cross sections can be 3D modelled by running:
 
-```Python
-path_profiles_overview.py
+```bash
+python path_profiles_overview.py
 ```
 
 This results in an overview with all path profiles, including their path accent color and support material swept along a straight line. A red color color is used to indicate the path does not have any adjustments yet in the configuration:
@@ -63,8 +71,8 @@ Obstacled can be randomly or manually selected and placed (xyz and orientation) 
 
 For quick visualization and debugging, all the obstacles currently in the obstacle catalogue can be 3D modelled by running:
 
-```Python
-obstacle_overview.py
+```bash
+python obstacle_overview.py
 ```
 
 This results in the following overview:
@@ -73,7 +81,7 @@ This results in the following overview:
 
 Individual obstacles can be both plotted and 3D modelled by running their individual obstacle files in /obstacles/catalogue for example, spiral.py can be run by:
 
-```Python
+```bash
 python -m obstacles.catalogue.spiral
 ```
 
@@ -91,7 +99,7 @@ A puzzle can be created in the browser and previewed. Allows for quick iteration
 
 Can be run and opens in the browser automatically with:
 
-```Python
+```bash
 streamlit run .\designer_app.py
 ```
 
