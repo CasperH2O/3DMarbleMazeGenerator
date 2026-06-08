@@ -2,177 +2,15 @@
 
 """Streamlit entry point for generating and visualizing puzzles."""
 
-from importlib import import_module, util
-from pathlib import Path
-from types import ModuleType
-from typing import Any, Callable
-
 import streamlit as st
 
-from cad.cases.case_model_base import CaseManufacturer
-from config import CaseShape, Config, PathProfileType, apply_case_manufacturer_overrides
-from model_assembly import export_components
+from config import Config, PathProfileType
 from puzzle.puzzle import Puzzle
-from puzzle.utils.enums import ObstacleType, PathSegmentDesignStrategy
 from visualization.visualization import visualize_path_architect
 
-CASE_SHAPE_OPTIONS = list(CaseShape)
-MANUFACTURER_OPTIONS = [
-    CaseManufacturer.GENERIC,
-    CaseManufacturer.SPHERE_SAIDKOCC_100_MM,
-    CaseManufacturer.SPHERE_PLAYTASTIC_120_MM,
-]
-MANUFACTURER_LABELS = {
-    CaseManufacturer.GENERIC: "Generic",
-    CaseManufacturer.SPHERE_SAIDKOCC_100_MM: "SaidKocc 100 mm",
-    CaseManufacturer.SPHERE_PLAYTASTIC_120_MM: "Playtastic 120 mm",
-}
-
-
-def _get_pyvista_components() -> tuple[ModuleType, Callable] | None:
-    """Return the PyVista and stpyvista components if available."""
-
-    pyvista_spec = util.find_spec("pyvista")
-    stpyvista_spec = util.find_spec("stpyvista")
-
-    if not pyvista_spec or not stpyvista_spec:
-        return None
-
-    pyvista_module = import_module("pyvista")
-    stpyvista_component = import_module("stpyvista").stpyvista
-    return pyvista_module, stpyvista_component
-
-
-def _clamp(value: int, minimum: int, maximum: int) -> int:
-    """Clamp ``value`` to the inclusive range between ``minimum`` and ``maximum``."""
-
-    return max(minimum, min(value, maximum))
-
-
-def _load_stl_files(export_root: str | Path) -> list[Path]:
-    """Return STL files from the export root, if available."""
-
-    root_path = Path(export_root)
-    if not root_path.exists():
-        return []
-
-    return sorted(root_path.rglob("*.stl"))
-
-
-def _build_pyvista_plotter(stl_files: list[Path], pyvista_module: ModuleType) -> Any:
-    """Return a PyVista plotter containing the provided STL meshes."""
-
-    plotter = pyvista_module.Plotter()
-    added_mesh = False
-
-    for stl_file in stl_files:
-        try:
-            mesh = pyvista_module.read(stl_file)
-        except Exception as mesh_error:  # noqa: BLE001
-            st.warning(f"Could not load {stl_file.name}: {mesh_error}")
-            continue
-
-        mesh_name = stl_file.stem
-        name_lower = mesh_name.lower()
-        opacity = 0.05 if ("case" in name_lower or "casing" in name_lower) else 1.0
-        color = _color_from_mesh_name(mesh_name)
-
-        plotter.add_mesh(
-            mesh,
-            name=mesh_name,
-            color=color,
-            opacity=opacity,
-            show_edges=False,
-        )
-        added_mesh = True
-
-    if not added_mesh:
-        return None
-
-    background_color = _color_to_rgb(
-        st.get_option("theme.backgroundColor") or "#0e1117"
-    )
-    try:
-        plotter.set_background(color=(*background_color, 0))
-    except Exception:
-        plotter.set_background(background_color)
-
-    # Set up camera view with parameters
-    plotter.camera_position = "iso"
-    plotter.camera.azimuth = -10
-    plotter.camera.elevation = -20
-
-    # Enable terrain interaction style (shift to pan, mouse wheel to zoom)
-    try:
-        plotter.enable_terrain_style()
-    except Exception:
-        pass  # Fallback if terrain style not available
-
-    plotter.enable_anti_aliasing()
-    return plotter
-
-
-def _color_from_mesh_name(name: str) -> tuple[float, float, float]:
-    """Return an RGB tuple that matches the part's configured color when possible."""
-
-    name_lower = name.lower()
-
-    if name_lower.startswith("standard path"):
-        try:
-            index = int(name_lower.split("standard path")[-1]) - 1
-        except ValueError:
-            index = 0
-        colors = Config.Puzzle.PATH_COLORS
-        return _color_to_rgb(colors[index % len(colors)])
-
-    if "support path" in name_lower:
-        return _color_to_rgb(Config.Puzzle.SUPPORT_MATERIAL_COLOR)
-
-    if "accent color path" in name_lower:
-        return _color_to_rgb(Config.Puzzle.PATH_ACCENT_COLOR)
-
-    if "mounting ring" in name_lower or "mounting clip" in name_lower:
-        return _color_to_rgb(Config.Puzzle.MOUNTING_RING_COLOR)
-
-    if "path bridges" in name_lower:
-        return _color_to_rgb(Config.Puzzle.PATH_COLORS[0])
-
-    if name_lower.startswith("base top"):
-        return _color_to_rgb(Config.Puzzle.PATH_COLORS[0])
-
-    if name_lower.startswith("base bottom"):
-        return _color_to_rgb(Config.Puzzle.MOUNTING_RING_COLOR)
-
-    if name_lower.startswith("base edge"):
-        return _color_to_rgb(Config.Puzzle.PATH_ACCENT_COLOR)
-
-    if "base" in name_lower:
-        return _color_to_rgb(Config.Puzzle.PATH_COLORS[0])
-
-    if "case" in name_lower or "casing" in name_lower or "dome" in name_lower:
-        return _color_to_rgb(Config.Puzzle.TRANSPARENT_CASE_COLOR)
-
-    return _color_to_rgb(Config.Puzzle.PATH_COLORS[0])
-
-
-def _color_to_rgb(color: Any) -> tuple[float, float, float]:
-    """Convert color inputs (hex strings, Color, tuples) to an RGB tuple."""
-
-    if isinstance(color, str) and color.startswith("#"):
-        hex_value = color.lstrip("#")
-        if len(hex_value) in {6, 8}:  # ignore alpha if present
-            r = int(hex_value[0:2], 16) / 255
-            g = int(hex_value[2:4], 16) / 255
-            b = int(hex_value[4:6], 16) / 255
-            return (r, g, b)
-
-    if hasattr(color, "r") and hasattr(color, "g") and hasattr(color, "b"):
-        return (float(color.r), float(color.g), float(color.b))
-
-    if isinstance(color, (tuple, list)) and len(color) >= 3:
-        return tuple(float(component) for component in color[:3])  # type: ignore[misc]
-
-    return (0.7, 0.7, 0.7)
+from designer.sidebar import render_sidebar
+from designer.tabs.design_tab import render_design_tab
+from designer.tabs.export_tab import render_export_tab
 
 
 def main() -> None:
@@ -183,53 +21,11 @@ def main() -> None:
 
     Config.Manufacturing.EXPORT_STL = True
 
-    st.sidebar.header("Configuration")
-    seed = st.sidebar.slider(
-        "Seed", min_value=1, max_value=10, value=_clamp(Config.Puzzle.SEED, 1, 10)
-    )
-    waypoint_count = st.sidebar.slider(
-        "Waypoint nodes",
-        min_value=0,
-        max_value=5,
-        value=_clamp(Config.Puzzle.NUMBER_OF_WAYPOINTS, 0, 5),
-    )
-    manufacturer = st.sidebar.selectbox(
-        "Case manufacturer",
-        options=MANUFACTURER_OPTIONS,
-        index=MANUFACTURER_OPTIONS.index(Config.Puzzle.CASE_MANUFACTURER),
-        format_func=lambda option: MANUFACTURER_LABELS.get(option, option.value),
-    )
-
-    Config.Puzzle.CASE_MANUFACTURER = manufacturer
-    apply_case_manufacturer_overrides()
-
-    case_shape: CaseShape = Config.Puzzle.CASE_SHAPE
-    if manufacturer == CaseManufacturer.GENERIC:
-        case_shape = st.sidebar.selectbox(
-            "Case shape",
-            options=CASE_SHAPE_OPTIONS,
-            index=CASE_SHAPE_OPTIONS.index(Config.Puzzle.CASE_SHAPE),
-            format_func=lambda shape: shape.value,
-        )
-
-    # Path design strategy options
-    use_spline = st.sidebar.checkbox(
-        "Enable Spline path strategy",
-        value=PathSegmentDesignStrategy.SPLINE in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY,
-    )
-
-    # Update path segment design strategy based on checkbox
-    if use_spline:
-        if PathSegmentDesignStrategy.SPLINE not in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY:
-            Config.Path.PATH_SEGMENT_DESIGN_STRATEGY.append(PathSegmentDesignStrategy.SPLINE)
-    else:
-        if PathSegmentDesignStrategy.SPLINE in Config.Path.PATH_SEGMENT_DESIGN_STRATEGY:
-            Config.Path.PATH_SEGMENT_DESIGN_STRATEGY.remove(PathSegmentDesignStrategy.SPLINE)
+    sidebar_state = render_sidebar()
 
     # Initialize manual obstacles in session state
     if "manual_obstacles" not in st.session_state:
         st.session_state["manual_obstacles"] = []
-
     # Initialize profile overrides in session state
     if "profile_overrides" not in st.session_state:
         st.session_state["profile_overrides"] = []
@@ -237,7 +33,12 @@ def main() -> None:
     # Include obstacle configuration and profile overrides in cache key
     obstacle_hash = hash(str(st.session_state["manual_obstacles"]))
     profile_hash = hash(str(st.session_state["profile_overrides"]))
-    current_key = f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}-{obstacle_hash}-{profile_hash}"
+    s = sidebar_state
+    current_key = (
+        f"{s.manufacturer.value}-{s.case_shape.value}-{s.seed}-{s.waypoint_count}"
+        f"-{obstacle_hash}-{profile_hash}"
+    )
+
     st.session_state.setdefault("stl_exports", {"key": None, "path": None, "files": []})
     if st.session_state["stl_exports"].get("key") != current_key:
         st.session_state["stl_exports"] = {
@@ -250,9 +51,9 @@ def main() -> None:
     visualization = None
 
     try:
-        Config.Puzzle.NUMBER_OF_WAYPOINTS = waypoint_count
-        Config.Puzzle.SEED = int(seed)
-        Config.Puzzle.CASE_SHAPE = case_shape
+        Config.Puzzle.NUMBER_OF_WAYPOINTS = sidebar_state.waypoint_count
+        Config.Puzzle.SEED = sidebar_state.seed
+        Config.Puzzle.CASE_SHAPE = sidebar_state.case_shape
 
         # Apply manual obstacles from session state
         Config.Obstacles.MANUAL_PLACEMENTS = tuple(st.session_state["manual_obstacles"])
@@ -266,8 +67,8 @@ def main() -> None:
 
         puzzle = Puzzle(
             node_size=Config.Puzzle.NODE_SIZE,
-            seed=int(seed),
-            case_shape=case_shape,
+            seed=sidebar_state.seed,
+            case_shape=sidebar_state.case_shape,
         )
 
         visualization = visualize_path_architect(
@@ -291,458 +92,13 @@ def main() -> None:
             f"Obstacles: {len(puzzle.obstacle_manager.placed_obstacles)}"
         )
 
-        design_tab, export_tab = st.tabs(["Design & Obstacles", "3D Preview & Export"])
+        design_tab_col, export_tab_col = st.tabs(["Design & Obstacles", "3D Preview & Export"])
 
-        with design_tab:
-            st.markdown("#### 3D Path Visualization")
-            st.plotly_chart(visualization, width="stretch")
+        with design_tab_col:
+            render_design_tab(puzzle, visualization)
 
-            # Display and edit obstacle list
-            st.markdown("#### Manual Obstacles")
-
-            if st.session_state["manual_obstacles"]:
-                # Header row
-                hdr_name, hdr_x, hdr_y, hdr_z, hdr_rx, hdr_ry, hdr_rz, hdr_actions = (
-                    st.columns([2, 1, 1, 1, 1, 1, 1, 1])
-                )
-                with hdr_name:
-                    st.caption("Name")
-                with hdr_x:
-                    st.caption("X")
-                with hdr_y:
-                    st.caption("Y")
-                with hdr_z:
-                    st.caption("Z")
-                with hdr_rx:
-                    st.caption("Rot X")
-                with hdr_ry:
-                    st.caption("Rot Y")
-                with hdr_rz:
-                    st.caption("Rot Z")
-                with hdr_actions:
-                    st.caption("Actions")
-
-                obstacles_to_remove = []
-
-                # Build a set of failed obstacles for quick lookup (by name and position)
-                failed_obstacles = set()
-                if puzzle and puzzle.obstacle_manager.failed_manual_placements:
-                    for failed_obstacle in puzzle.obstacle_manager.failed_manual_placements:
-                        name = failed_obstacle.name
-                        origin = failed_obstacle.grid_origin
-                        if origin is not None:
-                            # Create a key from name and position (rounded to avoid floating point issues)
-                            key = (name, tuple(round(x, 2) for x in origin))
-                            failed_obstacles.add(key)
-
-                for idx, obstacle in enumerate(st.session_state["manual_obstacles"]):
-                    (
-                        col_name,
-                        col_x,
-                        col_y,
-                        col_z,
-                        col_rx,
-                        col_ry,
-                        col_rz,
-                        col_actions,
-                    ) = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
-
-                    # Check if this obstacle failed validation
-                    obstacle_key = (
-                        obstacle["name"],
-                        tuple(round(x, 2) for x in obstacle["origin"]),
-                    )
-                    is_failed = obstacle_key in failed_obstacles
-
-                    with col_name:
-                        # Add error icon if this obstacle failed validation
-                        if is_failed:
-                            st.text(f"{obstacle['name']} ❌")
-                        else:
-                            st.text(obstacle["name"])
-
-                    with col_x:
-                        new_pos_x = st.number_input(
-                            "X",
-                            value=obstacle["origin"][0],
-                            step=float(Config.Puzzle.NODE_SIZE),
-                            key=f"obstacle_pos_x_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_y:
-                        new_pos_y = st.number_input(
-                            "Y",
-                            value=obstacle["origin"][1],
-                            step=float(Config.Puzzle.NODE_SIZE),
-                            key=f"obstacle_pos_y_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_z:
-                        new_pos_z = st.number_input(
-                            "Z",
-                            value=obstacle["origin"][2],
-                            step=float(Config.Puzzle.NODE_SIZE),
-                            key=f"obstacle_pos_z_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_rx:
-                        new_rot_x = st.number_input(
-                            "Rot X",
-                            value=int(obstacle["orientation"][0]),
-                            step=90,
-                            key=f"obstacle_rot_x_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_ry:
-                        new_rot_y = st.number_input(
-                            "Rot Y",
-                            value=int(obstacle["orientation"][1]),
-                            step=90,
-                            key=f"obstacle_rot_y_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_rz:
-                        new_rot_z = st.number_input(
-                            "Rot Z",
-                            value=int(obstacle["orientation"][2]),
-                            step=90,
-                            key=f"obstacle_rot_z_{idx}",
-                            label_visibility="collapsed",
-                        )
-                    with col_actions:
-                        act_col1, act_col2 = st.columns(2)
-                        with act_col1:
-                            is_enabled = st.checkbox(
-                                "On",
-                                value=obstacle["enabled"],
-                                key=f"obstacle_enabled_{idx}",
-                                label_visibility="collapsed",
-                            )
-                            if is_enabled != obstacle["enabled"]:
-                                st.session_state["manual_obstacles"][idx]["enabled"] = (
-                                    is_enabled
-                                )
-                                st.rerun()
-                        with act_col2:
-                            if st.button("🗑️", key=f"delete_obstacle_{idx}"):
-                                obstacles_to_remove.append(idx)
-
-                    # Update obstacle if any values changed
-                    if (
-                        new_pos_x != obstacle["origin"][0]
-                        or new_pos_y != obstacle["origin"][1]
-                        or new_pos_z != obstacle["origin"][2]
-                        or float(new_rot_x) != obstacle["orientation"][0]
-                        or float(new_rot_y) != obstacle["orientation"][1]
-                        or float(new_rot_z) != obstacle["orientation"][2]
-                    ):
-                        st.session_state["manual_obstacles"][idx]["origin"] = (
-                            new_pos_x,
-                            new_pos_y,
-                            new_pos_z,
-                        )
-                        st.session_state["manual_obstacles"][idx]["orientation"] = (
-                            float(new_rot_x),
-                            float(new_rot_y),
-                            float(new_rot_z),
-                        )
-                        st.rerun()
-
-                # Remove obstacles marked for deletion
-                if obstacles_to_remove:
-                    for idx in sorted(obstacles_to_remove, reverse=True):
-                        st.session_state["manual_obstacles"].pop(idx)
-                    st.rerun()
-
-            # Add new obstacle controls
-            obstacle_types = list(ObstacleType)
-            add_col1, add_col2 = st.columns([3, 1])
-            with add_col1:
-                selected_obstacle = st.selectbox(
-                    "Obstacle Type",
-                    options=obstacle_types,
-                    format_func=lambda x: x.value,
-                    key="new_obstacle_type",
-                    label_visibility="collapsed",
-                )
-            with add_col2:
-                if st.button("Add Obstacle", type="primary", width="stretch"):
-                    new_obstacle = {
-                        "enabled": True,
-                        "name": selected_obstacle.value,
-                        "origin": (0.0, 0.0, 0.0),
-                        "orientation": (0.0, 0.0, 0.0),
-                    }
-                    st.session_state["manual_obstacles"].append(new_obstacle)
-                    st.rerun()
-
-            # Path Profile Type Overrides section
-            st.markdown("#### Path Profile Type Overrides")
-
-            # Get available segment main indices from the puzzle (unique, sorted)
-            # Exclude index 1 which is hardcoded
-            segment_indices = sorted(
-                idx for idx in set(seg.main_index for seg in puzzle.path_architect.segments)
-                if idx != 1
-            )
-
-            if st.session_state["profile_overrides"]:
-                # Header row
-                hdr_segment, hdr_profile, hdr_override_actions = st.columns([2, 3, 1])
-                with hdr_segment:
-                    st.caption("Segment Index")
-                with hdr_profile:
-                    st.caption("Profile Type")
-                with hdr_override_actions:
-                    st.caption("Actions")
-
-                overrides_to_remove = []
-
-                for idx, override in enumerate(st.session_state["profile_overrides"]):
-                    col_segment, col_profile, col_actions = st.columns([2, 3, 1])
-
-                    current_segment_idx = override["segment_index"]
-                    segment_available = current_segment_idx in segment_indices
-
-                    # Auto-enable/disable based on segment availability
-                    current_enabled = override.get("enabled", True)
-                    if not segment_available and current_enabled:
-                        st.session_state["profile_overrides"][idx]["enabled"] = False
-                        st.session_state["profile_overrides"][idx]["auto_disabled"] = True
-                        # Also update widget state to prevent mismatch
-                        st.session_state[f"override_enabled_{idx}"] = False
-                    elif segment_available and not current_enabled and override.get("auto_disabled", False):
-                        st.session_state["profile_overrides"][idx]["enabled"] = True
-                        st.session_state["profile_overrides"][idx]["auto_disabled"] = False
-                        # Also update widget state to prevent mismatch
-                        st.session_state[f"override_enabled_{idx}"] = True
-
-                    with col_segment:
-                        # Use current index if available, otherwise show it but mark as unavailable
-                        display_indices = segment_indices if segment_available else [current_segment_idx] + segment_indices
-                        new_segment_index = st.selectbox(
-                            "Segment",
-                            options=display_indices,
-                            index=0,
-                            format_func=lambda x, seg=current_segment_idx, avail=segment_available: f"{x} (unavailable)" if x == seg and not avail else str(x),
-                            key=f"override_segment_{idx}",
-                            label_visibility="collapsed",
-                        )
-
-                    with col_profile:
-                        profile_types = Config.Path.PATH_PROFILE_TYPES
-                        current_profile = PathProfileType(override["profile_type"])
-                        # Ensure current profile is in list, fallback to first if not
-                        if current_profile not in profile_types:
-                            current_profile = profile_types[0] if profile_types else current_profile
-                        new_profile_type = st.selectbox(
-                            "Profile Type",
-                            options=profile_types,
-                            index=profile_types.index(current_profile) if current_profile in profile_types else 0,
-                            format_func=lambda x: x.value.replace("_", " ").title(),
-                            key=f"override_profile_{idx}",
-                            label_visibility="collapsed",
-                        )
-
-                    with col_actions:
-                        act_col1, act_col2 = st.columns(2)
-                        with act_col1:
-                            is_enabled = st.checkbox(
-                                "On",
-                                value=override.get("enabled", True),
-                                key=f"override_enabled_{idx}",
-                                label_visibility="collapsed",
-                                disabled=not segment_available,
-                            )
-                            if is_enabled != override.get("enabled", True):
-                                st.session_state["profile_overrides"][idx]["enabled"] = is_enabled
-                                st.session_state["profile_overrides"][idx]["auto_disabled"] = False
-                                st.rerun()
-                        with act_col2:
-                            if st.button("🗑️", key=f"delete_override_{idx}"):
-                                overrides_to_remove.append(idx)
-
-                    # Update override if any values changed
-                    if (
-                        new_segment_index != override["segment_index"]
-                        or new_profile_type.value != override["profile_type"]
-                    ):
-                        st.session_state["profile_overrides"][idx]["segment_index"] = int(new_segment_index)
-                        st.session_state["profile_overrides"][idx]["profile_type"] = new_profile_type.value
-                        # If segment changed to an available one, mark as not auto-disabled
-                        if new_segment_index in segment_indices:
-                            st.session_state["profile_overrides"][idx]["auto_disabled"] = False
-                        st.rerun()
-
-                # Remove overrides marked for deletion
-                if overrides_to_remove:
-                    for idx in sorted(overrides_to_remove, reverse=True):
-                        st.session_state["profile_overrides"].pop(idx)
-                    st.rerun()
-
-            # Add new override controls
-            profile_type_options = Config.Path.PATH_PROFILE_TYPES
-
-            # Initialize pending selections in session state
-            if "pending_override_segment" not in st.session_state:
-                st.session_state["pending_override_segment"] = segment_indices[0] if segment_indices else 0
-            if "pending_override_profile" not in st.session_state:
-                st.session_state["pending_override_profile"] = profile_type_options[0]
-
-            # Validate stored segment is still valid
-            current_seg = st.session_state["pending_override_segment"]
-            if current_seg not in segment_indices:
-                current_seg = segment_indices[0] if segment_indices else 0
-                st.session_state["pending_override_segment"] = current_seg
-
-            add_col1, add_col2, add_col3 = st.columns([2, 3, 1])
-            with add_col1:
-                st.selectbox(
-                    "Segment Index",
-                    options=segment_indices,
-                    index=segment_indices.index(current_seg) if current_seg in segment_indices else 0,
-                    key="pending_override_segment",
-                    label_visibility="collapsed",
-                )
-            with add_col2:
-                current_profile = st.session_state["pending_override_profile"]
-                if current_profile not in profile_type_options:
-                    current_profile = profile_type_options[0]
-                st.selectbox(
-                    "Profile Type",
-                    options=profile_type_options,
-                    index=profile_type_options.index(current_profile),
-                    format_func=lambda x: x.value.replace("_", " ").title(),
-                    key="pending_override_profile",
-                    label_visibility="collapsed",
-                )
-            with add_col3:
-                if st.button("Add Override", type="primary", key="add_override_button"):
-                    new_override = {
-                        "enabled": True,
-                        "segment_index": int(st.session_state["pending_override_segment"]),
-                        "profile_type": st.session_state["pending_override_profile"].value,
-                    }
-                    st.session_state["profile_overrides"].append(new_override)
-                    st.rerun()
-
-        with export_tab:
-            st.markdown("#### 3D Printable STL Preview")
-
-            export_state = st.session_state.get("stl_exports", {})
-            progress_placeholder = st.empty()
-            export_ready_for_config = (
-                bool(export_state.get("files"))
-                and export_state.get("key") == current_key
-            )
-
-            if not export_ready_for_config:
-                generate_stl = st.button(
-                    "Generate STL files",
-                    type="primary",
-                    disabled=puzzle is None,
-                    help="Runs model assembly and exports all printable parts to STL files.",
-                )
-
-                if generate_stl and puzzle:
-                    stl_progress = progress_placeholder.progress(
-                        0, text="Exporting STL files..."
-                    )
-                    try:
-                        export_root = export_components(
-                            puzzle, apply_manufacturing_preparation=False
-                        )
-                        stl_progress.progress(0.5, text="Collecting STL files...")
-
-                        if export_root:
-                            stl_files = _load_stl_files(export_root)
-                            st.session_state["stl_exports"] = {
-                                "key": f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}",
-                                "path": export_root,
-                                "files": stl_files,
-                            }
-                            stl_progress.progress(1.0, text="STL files ready.")
-                        else:
-                            stl_progress.empty()
-                            st.warning("STL export did not produce any files.")
-                    except Exception as stl_error:  # noqa: BLE001
-                        stl_progress.empty()
-                        st.error(f"Failed to prepare STL preview: {stl_error}")
-                    else:
-                        stl_progress.empty()
-            else:
-                st.caption("STL files are ready. Change configuration to regenerate.")
-
-            export_state = st.session_state.get("stl_exports", export_state)
-
-            if export_state.get("files"):
-                relative_names = [
-                    str(
-                        Path(stl_file).relative_to(export_state["path"])
-                        if export_state.get("path")
-                        else stl_file.name
-                    )
-                    for stl_file in export_state["files"]
-                ]
-
-                visibility_key = f"stl-visibility-{export_state.get('key', 'default')}"
-                default_visibility = {name: True for name in relative_names}
-                st.session_state.setdefault(visibility_key, default_visibility)
-
-                viewer_container = st.container()
-                visibility_state = st.session_state[visibility_key]
-                selected_files: list[Path] = []
-                for index, name in enumerate(relative_names):
-                    visibility_state[name] = st.checkbox(
-                        f"Show {name}",
-                        value=visibility_state.get(name, True),
-                        key=f"{visibility_key}-{index}",
-                    )
-                    if visibility_state[name]:
-                        selected_files.append(export_state["files"][index])
-
-                with viewer_container:
-                    viewer_placeholder = st.empty()
-
-                    if selected_files:
-                        pyvista_components = _get_pyvista_components()
-                        if pyvista_components is None:
-                            viewer_placeholder.info(
-                                "Install optional dependencies to enable the combined PyVista"
-                                ' viewer: pip install "pyvista==0.44.1 stpyvista==0.0.15'
-                                ' vtk==9.3.1".'
-                            )
-                        else:
-                            viewer_placeholder.info("Loading 3D viewer...")
-                            pyvista_module, stpyvista_component = pyvista_components
-                            plotter = _build_pyvista_plotter(
-                                selected_files, pyvista_module
-                            )
-                            if plotter:
-                                selected_names = [path.stem for path in selected_files]
-                                selection_key = (
-                                    "-".join(sorted(selected_names)) or "all"
-                                )
-                                viewer_key = (
-                                    f"stl-viewer-{export_state.get('key', 'default')}-"
-                                    f"{selection_key}"
-                                )
-                                with viewer_placeholder.container():
-                                    stpyvista_component(plotter, key=viewer_key)
-                            else:
-                                viewer_placeholder.warning(
-                                    "No STL meshes could be loaded for preview."
-                                )
-                    else:
-                        viewer_placeholder.info(
-                            "Select at least one STL file to include in the combined view."
-                        )
-            elif export_state.get("path"):
-                st.warning(
-                    "No STL files were found in the export folder after generation."
-                )
-            else:
-                st.info('Click "Generate STL files" to export and preview any part.')
+        with export_tab_col:
+            render_export_tab(puzzle, sidebar_state, current_key)
 
 
 if __name__ == "__main__":
