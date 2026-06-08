@@ -10,7 +10,7 @@ from typing import Any, Callable
 import streamlit as st
 
 from cad.cases.case_model_base import CaseManufacturer
-from config import CaseShape, Config, apply_case_manufacturer_overrides
+from config import CaseShape, Config, PathProfileType, apply_case_manufacturer_overrides
 from model_assembly import export_components
 from puzzle.puzzle import Puzzle
 from puzzle.utils.enums import ObstacleType, PathSegmentDesignStrategy
@@ -230,9 +230,14 @@ def main() -> None:
     if "manual_obstacles" not in st.session_state:
         st.session_state["manual_obstacles"] = []
 
-    # Include obstacle configuration in cache key
+    # Initialize profile overrides in session state
+    if "profile_overrides" not in st.session_state:
+        st.session_state["profile_overrides"] = []
+
+    # Include obstacle configuration and profile overrides in cache key
     obstacle_hash = hash(str(st.session_state["manual_obstacles"]))
-    current_key = f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}-{obstacle_hash}"
+    profile_hash = hash(str(st.session_state["profile_overrides"]))
+    current_key = f"{manufacturer.value}-{case_shape.value}-{seed}-{waypoint_count}-{obstacle_hash}-{profile_hash}"
     st.session_state.setdefault("stl_exports", {"key": None, "path": None, "files": []})
     if st.session_state["stl_exports"].get("key") != current_key:
         st.session_state["stl_exports"] = {
@@ -251,6 +256,13 @@ def main() -> None:
 
         # Apply manual obstacles from session state
         Config.Obstacles.MANUAL_PLACEMENTS = tuple(st.session_state["manual_obstacles"])
+
+        # Apply profile overrides from session state (only enabled ones)
+        Config.Path.PATH_PROFILE_TYPE_OVERRIDES = {
+            override["segment_index"]: PathProfileType(override["profile_type"])
+            for override in st.session_state["profile_overrides"]
+            if override.get("enabled", True)
+        }
 
         puzzle = Puzzle(
             node_size=Config.Puzzle.NODE_SIZE,
@@ -462,6 +474,156 @@ def main() -> None:
                         "orientation": (0.0, 0.0, 0.0),
                     }
                     st.session_state["manual_obstacles"].append(new_obstacle)
+                    st.rerun()
+
+            # Path Profile Type Overrides section
+            st.markdown("#### Path Profile Type Overrides")
+
+            # Get available segment main indices from the puzzle (unique, sorted)
+            # Exclude index 1 which is hardcoded
+            segment_indices = sorted(
+                idx for idx in set(seg.main_index for seg in puzzle.path_architect.segments)
+                if idx != 1
+            )
+
+            if st.session_state["profile_overrides"]:
+                # Header row
+                hdr_segment, hdr_profile, hdr_override_actions = st.columns([2, 3, 1])
+                with hdr_segment:
+                    st.caption("Segment Index")
+                with hdr_profile:
+                    st.caption("Profile Type")
+                with hdr_override_actions:
+                    st.caption("Actions")
+
+                overrides_to_remove = []
+
+                for idx, override in enumerate(st.session_state["profile_overrides"]):
+                    col_segment, col_profile, col_actions = st.columns([2, 3, 1])
+
+                    current_segment_idx = override["segment_index"]
+                    segment_available = current_segment_idx in segment_indices
+
+                    # Auto-enable/disable based on segment availability
+                    current_enabled = override.get("enabled", True)
+                    if not segment_available and current_enabled:
+                        st.session_state["profile_overrides"][idx]["enabled"] = False
+                        st.session_state["profile_overrides"][idx]["auto_disabled"] = True
+                        # Also update widget state to prevent mismatch
+                        st.session_state[f"override_enabled_{idx}"] = False
+                    elif segment_available and not current_enabled and override.get("auto_disabled", False):
+                        st.session_state["profile_overrides"][idx]["enabled"] = True
+                        st.session_state["profile_overrides"][idx]["auto_disabled"] = False
+                        # Also update widget state to prevent mismatch
+                        st.session_state[f"override_enabled_{idx}"] = True
+
+                    with col_segment:
+                        # Use current index if available, otherwise show it but mark as unavailable
+                        display_indices = segment_indices if segment_available else [current_segment_idx] + segment_indices
+                        new_segment_index = st.selectbox(
+                            "Segment",
+                            options=display_indices,
+                            index=0,
+                            format_func=lambda x, seg=current_segment_idx, avail=segment_available: f"{x} (unavailable)" if x == seg and not avail else str(x),
+                            key=f"override_segment_{idx}",
+                            label_visibility="collapsed",
+                        )
+
+                    with col_profile:
+                        profile_types = Config.Path.PATH_PROFILE_TYPES
+                        current_profile = PathProfileType(override["profile_type"])
+                        # Ensure current profile is in list, fallback to first if not
+                        if current_profile not in profile_types:
+                            current_profile = profile_types[0] if profile_types else current_profile
+                        new_profile_type = st.selectbox(
+                            "Profile Type",
+                            options=profile_types,
+                            index=profile_types.index(current_profile) if current_profile in profile_types else 0,
+                            format_func=lambda x: x.value.replace("_", " ").title(),
+                            key=f"override_profile_{idx}",
+                            label_visibility="collapsed",
+                        )
+
+                    with col_actions:
+                        act_col1, act_col2 = st.columns(2)
+                        with act_col1:
+                            is_enabled = st.checkbox(
+                                "On",
+                                value=override.get("enabled", True),
+                                key=f"override_enabled_{idx}",
+                                label_visibility="collapsed",
+                                disabled=not segment_available,
+                            )
+                            if is_enabled != override.get("enabled", True):
+                                st.session_state["profile_overrides"][idx]["enabled"] = is_enabled
+                                st.session_state["profile_overrides"][idx]["auto_disabled"] = False
+                                st.rerun()
+                        with act_col2:
+                            if st.button("🗑️", key=f"delete_override_{idx}"):
+                                overrides_to_remove.append(idx)
+
+                    # Update override if any values changed
+                    if (
+                        new_segment_index != override["segment_index"]
+                        or new_profile_type.value != override["profile_type"]
+                    ):
+                        st.session_state["profile_overrides"][idx]["segment_index"] = int(new_segment_index)
+                        st.session_state["profile_overrides"][idx]["profile_type"] = new_profile_type.value
+                        # If segment changed to an available one, mark as not auto-disabled
+                        if new_segment_index in segment_indices:
+                            st.session_state["profile_overrides"][idx]["auto_disabled"] = False
+                        st.rerun()
+
+                # Remove overrides marked for deletion
+                if overrides_to_remove:
+                    for idx in sorted(overrides_to_remove, reverse=True):
+                        st.session_state["profile_overrides"].pop(idx)
+                    st.rerun()
+
+            # Add new override controls
+            profile_type_options = Config.Path.PATH_PROFILE_TYPES
+
+            # Initialize pending selections in session state
+            if "pending_override_segment" not in st.session_state:
+                st.session_state["pending_override_segment"] = segment_indices[0] if segment_indices else 0
+            if "pending_override_profile" not in st.session_state:
+                st.session_state["pending_override_profile"] = profile_type_options[0]
+
+            # Validate stored segment is still valid
+            current_seg = st.session_state["pending_override_segment"]
+            if current_seg not in segment_indices:
+                current_seg = segment_indices[0] if segment_indices else 0
+                st.session_state["pending_override_segment"] = current_seg
+
+            add_col1, add_col2, add_col3 = st.columns([2, 3, 1])
+            with add_col1:
+                st.selectbox(
+                    "Segment Index",
+                    options=segment_indices,
+                    index=segment_indices.index(current_seg) if current_seg in segment_indices else 0,
+                    key="pending_override_segment",
+                    label_visibility="collapsed",
+                )
+            with add_col2:
+                current_profile = st.session_state["pending_override_profile"]
+                if current_profile not in profile_type_options:
+                    current_profile = profile_type_options[0]
+                st.selectbox(
+                    "Profile Type",
+                    options=profile_type_options,
+                    index=profile_type_options.index(current_profile),
+                    format_func=lambda x: x.value.replace("_", " ").title(),
+                    key="pending_override_profile",
+                    label_visibility="collapsed",
+                )
+            with add_col3:
+                if st.button("Add Override", type="primary", key="add_override_button"):
+                    new_override = {
+                        "enabled": True,
+                        "segment_index": int(st.session_state["pending_override_segment"]),
+                        "profile_type": st.session_state["pending_override_profile"].value,
+                    }
+                    st.session_state["profile_overrides"].append(new_override)
                     st.rerun()
 
         with export_tab:
