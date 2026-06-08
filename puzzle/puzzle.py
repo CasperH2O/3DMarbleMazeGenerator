@@ -16,6 +16,7 @@ from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 from puzzle.path_finder import AStarPathFinder
+from puzzle.waypoint_connector import WaypointConnector
 from puzzle.utils.geometry import key3
 
 configure_logging()
@@ -62,8 +63,9 @@ class Puzzle:
         else:
             raise ValueError(f"Unknown case_shape '{case_shape}'.")
 
-        # Initialize the pathfinder
+        # Initialize the pathfinder and waypoint connector
         self.path_finder: AStarPathFinder = AStarPathFinder()
+        self.waypoint_connector: WaypointConnector = WaypointConnector(self.path_finder)
 
         # nodes, dict, start from casing
         self.nodes, self.node_dict, self.start_node = self.casing.create_nodes()
@@ -87,8 +89,8 @@ class Puzzle:
         # Randomly select waypoints
         self.randomly_select_waypoints(num_waypoints=Config.Puzzle.NUMBER_OF_WAYPOINTS)
 
-        # Connect the waypoints using the pathfinder
-        self.total_path: list[Node] = self.path_finder.connect_waypoints(self)
+        # Connect the waypoints using the waypoint connector
+        self.total_path: list[Node] = self.waypoint_connector.connect_waypoints(self)
 
         # Process the path segments
         self.path_architect: PathArchitect = PathArchitect(
