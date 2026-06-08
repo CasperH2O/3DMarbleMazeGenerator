@@ -91,44 +91,46 @@ class CaseSphereEpic(Case):
 
     def create_hole_locations(self) -> list[Location]:
         """
-        Create a list of Location objects at explicit polar angles (degrees),
-        then mirror them across the YZ plane to get the symmetric set.
+        Create a list of Location objects at the 18 measured polar angles of the
+        Perplexus Epic flange (degrees, 0° = right, counter-clockwise positive).
 
-        Create locations for the following:
-        - Next to 1 indent + mirrored = 2
-        - Either side of 1 middle sized gap + mirrored = 4
-        - Either side of 2 small sized gaps + mirrored = 8
-        - In between 2 small sized gaps + mirrored = 2
-        - Next to 1 large sized gap + mirrored = 2
+        Angles were measured by flatbed scan + OpenCV detection
+        (tools/angle_detector/flange_angle_detector.py).  The pattern has four
+        gap sizes (~12°, ~18°, ~25°, ~29°/34°) and is approximately symmetric
+        around the large gap at ~180°, but the two halves are not exactly
+        mirrored so all 18 angles are listed explicitly.
 
         Returns:
             list[Location]: Locations on a circular pattern to be used with `with Locations(...):`
         """
 
-        # TODO Finalize angles
-        # Angles for the first (pre-mirror) set [degrees]
         angles_deg = [
-            7.4,  # next to 1 indent
-            28.4,  # before middle sized gap 1
-            46.3,  # after middle sized gap 1
-            70.9,
-            83.2,
-            105.2,  # in between 2 small sized gaps
-            122.1,
-            134.3,
-            162.8,  # next to 1 large sized gap
+            6.5,  # manual
+            26.4,  # manual
+            44.0,  # auto
+            68.9,  # manual
+            81.1,  # auto
+            105.4,  # manual
+            120.9,  # manual
+            133.4,  # manual
+            162.4,  # manual
+            196.7,  # auto
+            225.4,  # auto
+            237.7,  # auto
+            254.5,  # auto
+            276.6,  # auto
+            288.9,  # auto
+            313.5,  # manual
+            331.2,  # manual
+            352.1,  # auto
         ]
-
-        # Calculate mirrored angles
-        mirrored = [(-1 * a) for a in angles_deg]
-        angles = mirrored + angles_deg
 
         # Create Location objects in a single pass
         locations: list[Location] = []
         pattern_radius = (
             self.sphere_outer_radius + self.sphere_flange_radius
         ) / 2 - 1.0
-        for angle in angles:
+        for angle in angles_deg:
             locations += PolarLocations(
                 radius=pattern_radius,
                 count=1,

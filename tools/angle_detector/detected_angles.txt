@@ -1,0 +1,24 @@
+# Detected flange feature angles
+# Convention: 0° = reference (set with Z), counter-clockwise positive
+# 18 features  (9 auto-detected, 9 manual)
+
+angles_deg = [
+    6.5,  # manual
+    26.4,  # manual
+    44.0,  # auto
+    68.9,  # manual
+    81.1,  # auto
+    105.4,  # manual
+    120.9,  # manual
+    133.4,  # manual
+    162.4,  # manual
+    196.7,  # auto
+    225.4,  # auto
+    237.7,  # auto
+    254.5,  # auto
+    276.6,  # auto
+    288.9,  # auto
+    313.5,  # manual
+    331.2,  # manual
+    352.1,  # auto
+]
