@@ -4,7 +4,6 @@ import colorsys
 import random
 
 import numpy as np
-from build123d import Compound
 from ocp_vscode import (
     Animation,
     Camera,
@@ -101,7 +100,7 @@ def display_parts(
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
     # Display the ball, its path and direction
-    show_object([ball, ball_path, ball_path_direction], name="Path Indcator")
+    show_object([ball, ball_path, ball_path_direction], name="Path Indicator")
 
     if case_parts:
         if len(case_parts) == 1:
@@ -153,10 +152,8 @@ def set_viewer():
             shape_on, _edges_on = val
             st[path] = [shape_on, 0]  # keep current shape visibility, hide edges
 
-    set_viewer_config(states=st)
-
-    # Rotating animation
-    animation = Animation(Compound())
+    # Rotating animation — must be created before any viewer state changes
+    animation = Animation()
     times = np.linspace(0, 12, 33)  # 12 seconds split in 0.2 intervals
     values = np.linspace(0, -360, 33)  # as many positions as times
 
@@ -168,3 +165,5 @@ def set_viewer():
         animation.add_track(grp, "rz", times, values)
 
     animation.animate(1)
+
+    set_viewer_config(states=st)
