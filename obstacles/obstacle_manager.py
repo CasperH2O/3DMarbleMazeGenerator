@@ -483,6 +483,7 @@ class ObstacleManager:
             node = self.node_dict.get(key)
             if node:
                 node.occupied = True
+                node.is_obstacle_occupied = True
                 self.occupied_positions.add(key)
 
         overlap_local = [

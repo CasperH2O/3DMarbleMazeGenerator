@@ -62,6 +62,7 @@ class Node:
         # Obstacle markers
         self.is_obstacle_entry: bool = False
         self.is_obstacle_exit: bool = False
+        self.is_obstacle_occupied: bool = False  # permanently occupied by an obstacle solid
 
     def __lt__(self, other):
         return self.f < other.f  # For priority queue (heapq)

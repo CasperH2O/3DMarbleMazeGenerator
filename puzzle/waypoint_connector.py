@@ -178,9 +178,9 @@ class WaypointConnector:
                 return state.path
 
             # Restore the occupied state for this branch
-            # First clear any nodes that shouldn't be occupied
+            # First clear any nodes that shouldn't be occupied (preserve obstacle-occupied nodes)
             for node in puzzle.nodes:
-                if node.occupied and node not in state.occupied_nodes and node not in state.path:
+                if node.occupied and not node.is_obstacle_occupied and node not in state.occupied_nodes and node not in state.path:
                     node.occupied = False
             # Then mark the nodes from this state as occupied
             for node in state.occupied_nodes:
@@ -551,10 +551,11 @@ class WaypointConnector:
             len(greedy_remaining_nm),
         )
 
-        # Reset all occupied nodes before backtracking
+        # Reset all occupied nodes before backtracking (preserve obstacle-occupied nodes)
         logger.debug("Resetting occupied nodes for backtracking")
         for node in puzzle.nodes:
-            node.occupied = False
+            if not node.is_obstacle_occupied:
+                node.occupied = False
 
         # Mark start node as occupied
         start_node.occupied = True
@@ -602,9 +603,10 @@ class WaypointConnector:
             "Returning partial path from greedy attempt."
         )
 
-        # Restore the greedy path's occupied state
+        # Restore the greedy path's occupied state (preserve obstacle-occupied nodes)
         for node in puzzle.nodes:
-            node.occupied = False
+            if not node.is_obstacle_occupied:
+                node.occupied = False
         for node in greedy_path:
             node.occupied = True
 
