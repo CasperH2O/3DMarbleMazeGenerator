@@ -12,6 +12,7 @@ from build123d import (
     Box,
     BuildLine,
     BuildPart,
+    Color,
     Face,
     Location,
     Part,
@@ -636,12 +637,12 @@ class Obstacle(ABC):
         occupied_cubes = self.solid_model_node_cubes(
             nodes=self.occupied_nodes,
             name="Occupied Node",
-            color="#40004947",
+            color=Color(64/255, 0.0, 73/255, 71/255),
         )
         overlap_cubes = self.solid_model_node_cubes(
             nodes=self.overlap_nodes,
             name="Overlap Node",
-            color="#00444900",
+            color=Color(0.0, 68/255, 73/255, 0.0),
         )
 
         set_defaults(reset_camera=Camera.KEEP, black_edges=True)

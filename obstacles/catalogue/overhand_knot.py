@@ -159,7 +159,7 @@ class OverhandKnotObstacle(Obstacle):
 
     def model_solid(self) -> Part:
         """
-        Solid model the obstacle, but used for, determining
+        Solid model the obstacle, only used for determining
         occupied nodes, debug and overview.
         """
         self._ensure_entry_exit_paths()
@@ -169,9 +169,15 @@ class OverhandKnotObstacle(Obstacle):
                 add(self.entry_path_segment.path)
                 add(self.main_path_segment.path)
                 add(self.exit_path_segment.path)
-            with BuildSketch(line.line ^ 0):
+            with BuildSketch(line.line ^ 0) as start_section:
                 add(self.default_path_profile_type())
-            sweep()
+            with BuildSketch(line.line ^ 1) as end_section:
+                add(self.default_path_profile_type())
+            sweep(
+                sections=[start_section.sketch, end_section.sketch],
+                path=line.line,
+                multisection=True,
+            )
 
         obstacle.part.label = f"{self.name} Obstacle Solid"
 
