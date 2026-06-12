@@ -542,6 +542,14 @@ class PathBuilder:
 
         # Compute base angle (the sum of the previous segment angle and the profile match)
         base_angle = angle_path_line_previous + angle_profile_rotation_match
+
+        # Straight-line path: tangents at t=0 and t=1 are parallel, no twist correction needed
+        tan_start = segment.path % 0
+        tan_end = segment.path % 1
+        cosine = max(-1.0, min(1.0, tan_start.normalized().dot(tan_end.normalized())))
+        if abs(cosine - 1.0) < 1e-4:
+            return base_angle, base_angle
+
         # Compute the difference between the desired end-of-path angle and the
         # base angle, normalized to the range (-180, 180)
         angle_diff = normalize_angle(angle_profile_end_of_path - base_angle)
@@ -634,6 +642,48 @@ class PathBuilder:
         setattr(segment, body_attr_name, body)
         return body
 
+    def _build_guide_wire_from_shared_vertex(
+        self,
+        segment: PathSegment,
+        angle_start: float,
+        angle_end: float,
+    ) -> Optional[Spline]:
+        """
+        Build a Spline guide wire through the shared inner-corner vertex of the main and accent
+        profiles placed at t=0 and t=1 on the segment path.
+        Returns None when the profiles do not share a vertex (e.g. O-shape has no accent).
+        
+        Developer note, using an arbitrary vertex (but the same from both sketches) led to 
+        odd shapes due to binormal
+        """
+        if segment.accent_profile_type is None:
+            return None
+
+        main_params = self.path_profile_type_parameters.get(segment.path_profile_type.value, {})
+        accent_params = self.path_profile_type_parameters.get(segment.accent_profile_type.value, {})
+        main_fn = PROFILE_TYPE_FUNCTIONS.get(segment.path_profile_type, create_u_shape)
+        accent_fn = PROFILE_TYPE_FUNCTIONS.get(segment.accent_profile_type, create_u_shape)
+
+        loc_t0 = segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)
+        loc_t1 = segment.path.location_at(1, frame_method=FrameMethod.CORRECTED)
+
+        with BuildSketch(loc_t0) as main_sketch_start:
+            add(main_fn(**main_params, rotation_angle=angle_start))
+        with BuildSketch(loc_t0) as accent_sketch_start:
+            add(accent_fn(**accent_params, rotation_angle=angle_start))
+        shared_vertex_start = _find_shared_vertex(main_sketch_start, accent_sketch_start)
+
+        with BuildSketch(loc_t1) as main_sketch_end:
+            add(main_fn(**main_params, rotation_angle=angle_end))
+        with BuildSketch(loc_t1) as accent_sketch_end:
+            add(accent_fn(**accent_params, rotation_angle=angle_end))
+        shared_vertex_end = _find_shared_vertex(main_sketch_end, accent_sketch_end)
+
+        if shared_vertex_start is None or shared_vertex_end is None:
+            return None
+
+        return Spline([shared_vertex_start, shared_vertex_end], tangents=[segment.path % 0, segment.path % 1])
+
     def create_spline_segment(
         self,
         segment: PathSegment,
@@ -644,8 +694,8 @@ class PathBuilder:
         """
         Creates a spline segment.
 
-        Tries different spline point combinations to create a valid path and profile
-        for a SPLINE design strategy segment. Falls back to a polyline path if no valid path can be created.
+        Tries different spline point combinations to create a valid path and profile for a 
+        SPLINE design strategy segment. Falls back to a polyline path if no valid path can be created.
         """
         # Get the sub path points (positions of nodes in the segment)
         sub_path_points = [Vector(node.x, node.y, node.z) for node in segment.nodes]
@@ -654,8 +704,12 @@ class PathBuilder:
 
         # Try each option
         for opt_idx, spline_points in enumerate(options, 1):
-            # Debug statement indicating which option is being tried
-            # print(f"Attempting Option {opt_idx} for segment {segment.main_index}.{segment.secondary_index}")
+            logger.debug(
+                "Attempting Option {opt_idx} for segment %s.%s.",               
+                opt_idx,
+                segment.main_index,
+                segment.secondary_index,
+                )
 
             if spline_points is None or len(spline_points) < 2:
                 logger.debug(
@@ -663,7 +717,8 @@ class PathBuilder:
                     opt_idx,
                     segment.main_index,
                     segment.secondary_index,
-                )
+                    )
+            
                 continue
 
             # Create the spline with tangents
@@ -683,18 +738,70 @@ class PathBuilder:
             )
 
             try:
-                # Sweep for the main path body
-                path_body = self._build_start_and_end_profile_and_sweep(
-                    segment=segment,
-                    profile_type=segment.path_profile_type,
-                    start_angle=angle_sketch_1_final,
-                    end_angle=angle_sketch_2_final,
-                    profile_attr_name="path_profile",
-                    body_attr_name="path_body",
-                    sweep_label="Path",
-                )
+                path_body: Optional[BuildPart] = None
+                accent_body: Optional[BuildPart] = None
 
-                # Check if bodies are valid, try other approach if fail
+                # When both main and accent profiles exist, try shared-vertex guide wire first
+                _guide_wire: Optional[Spline] = None
+                if segment.accent_profile_type is not None:
+                    _guide_wire = self._build_guide_wire_from_shared_vertex(
+                        segment, angle_sketch_1_final, angle_sketch_2_final
+                    )
+
+                if _guide_wire is not None:
+                    main_params = self.path_profile_type_parameters.get(
+                        segment.path_profile_type.value, {}
+                    )
+                    main_fn = PROFILE_TYPE_FUNCTIONS.get(segment.path_profile_type, create_u_shape)
+                    profile_main_start = main_fn(**main_params, rotation_angle=angle_sketch_1_final)
+                    segment.path_profile = profile_main_start
+                    with BuildPart() as path_body:
+                        with BuildLine():
+                            add(segment.path)
+                        with BuildSketch(segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)):
+                            add(profile_main_start)
+                        sweep(binormal=_guide_wire, transition=segment.transition_type)
+                    segment.path_body = path_body
+
+                    accent_params = self.path_profile_type_parameters.get(
+                        segment.accent_profile_type.value, {}
+                    )
+                    accent_fn = PROFILE_TYPE_FUNCTIONS.get(segment.accent_profile_type, create_u_shape)
+                    profile_accent_start = accent_fn(
+                        **accent_params, rotation_angle=angle_sketch_1_final
+                    )
+                    segment.accent_profile = profile_accent_start
+                    with BuildPart() as accent_body:
+                        with BuildLine():
+                            add(segment.path)
+                        with BuildSketch(segment.path.location_at(0, frame_method=FrameMethod.CORRECTED)):
+                            add(profile_accent_start)
+                        sweep(binormal=_guide_wire, transition=segment.transition_type)
+                    segment.accent_body = accent_body
+                else:
+                    # No shared vertex (e.g. O-shape) — fall back to multi-section sweep
+                    path_body = self._build_start_and_end_profile_and_sweep(
+                        segment=segment,
+                        profile_type=segment.path_profile_type,
+                        start_angle=angle_sketch_1_final,
+                        end_angle=angle_sketch_2_final,
+                        profile_attr_name="path_profile",
+                        body_attr_name="path_body",
+                        sweep_label="Path",
+                    )
+
+                    if segment.accent_profile_type is not None:
+                        accent_body = self._build_start_and_end_profile_and_sweep(
+                            segment=segment,
+                            profile_type=segment.accent_profile_type,
+                            start_angle=angle_sketch_1_final,
+                            end_angle=angle_sketch_2_final,
+                            profile_attr_name="accent_profile",
+                            body_attr_name="accent_body",
+                            sweep_label="Accent",
+                        )
+
+                # Check if main body is valid
                 if path_body is None or not path_body.part.is_valid:
                     logger.warning(
                         "Segment %s.%s spline option %d produced an invalid path body.",
@@ -704,8 +811,7 @@ class PathBuilder:
                     )
                     continue
 
-                # Check if faces interset, try other approach if fail
-                if path_body and do_faces_intersect(path_body.part):
+                if do_faces_intersect(path_body.part):
                     logger.warning(
                         "Segment %s.%s spline option %d encountered a main body self-intersection.",
                         segment.main_index,
@@ -714,20 +820,9 @@ class PathBuilder:
                     )
                     continue
 
-                # Create the accent profile if the segment has an accent profile type
-                if segment.accent_profile_type is not None:
-                    accent_body = self._build_start_and_end_profile_and_sweep(
-                        segment=segment,
-                        profile_type=segment.accent_profile_type,
-                        start_angle=angle_sketch_1_final,
-                        end_angle=angle_sketch_2_final,
-                        profile_attr_name="accent_profile",
-                        body_attr_name="accent_body",
-                        sweep_label="Accent",
-                    )
-
-                    # Check if body is valid, try other approach if fail
-                    if accent_body is None or not accent_body.part.is_valid:
+                # Check accent body validity
+                if accent_body is not None:
+                    if not accent_body.part.is_valid:
                         logger.warning(
                             "Segment %s.%s spline option %d produced an invalid accent body.",
                             segment.main_index,
@@ -736,8 +831,7 @@ class PathBuilder:
                         )
                         continue
 
-                    # Check if faces intersect
-                    if accent_body and do_faces_intersect(accent_body.part):
+                    if do_faces_intersect(accent_body.part):
                         logger.warning(
                             "Segment %s.%s spline option %d encountered an accent body self-intersection.",
                             segment.main_index,
@@ -746,7 +840,7 @@ class PathBuilder:
                         )
                         continue
 
-                # Create the support profile if the segment has a support profile type
+                # Support body always uses multi-section sweep
                 if segment.support_profile_type is not None:
                     support_body = self._build_start_and_end_profile_and_sweep(
                         segment=segment,
@@ -768,8 +862,7 @@ class PathBuilder:
                         )
                         continue
 
-                    # Check if faces intersect
-                    if support_body and do_faces_intersect(support_body.part):
+                    if do_faces_intersect(support_body.part):
                         logger.warning(
                             "Segment %s.%s spline option %d encountered a support body self-intersection.",
                             segment.main_index,
@@ -1452,6 +1545,16 @@ def round_to_nearest_90(value: float) -> float:
         rounded_value = value
 
     return rounded_value
+
+
+def _find_shared_vertex(sketch_a: BuildSketch, sketch_b: BuildSketch, tol: float = 0.01) -> Optional[Vector]:
+    """Return the 3-D position of the first vertex shared between two placed sketches, or None."""
+    for vertices in sketch_a.sketch.vertices():
+        position_a: Vector = vertices.center()  # type: ignore[operator]
+        for vb in sketch_b.sketch.vertices():
+            if (position_a - vb.center()).length < tol:  # type: ignore[operator]
+                return position_a
+    return None
 
 
 def normalize_angle(angle: float) -> float:
