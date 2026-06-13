@@ -4,19 +4,23 @@ from typing import Optional
 
 from build123d import (
     Align,
+    Box,
     BuildPart,
+    Color,
     Cone,
     Edge,
     Location,
     Locations,
     Part,
     Sphere,
+    Vector,
     Wire,
     add,
 )
 
-from cad.path_builder import PathBuilder, PathTypes
 from config import Config
+from cad.path_builder import PathBuilder, PathTypes
+from puzzle.gravity_validation import detect_gravity_warning_issues
 from puzzle.puzzle import Puzzle
 
 
@@ -98,6 +102,44 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
         parts.append(part)
 
     return parts
+
+
+def build_gravity_warning_cubes(puzzle: Puzzle) -> list[Part]:
+    """
+    Build transparent warning cubes for route/profile gravity feasibility issues.
+
+    These markers are diagnostic only. They intentionally do not reject or alter
+    the generated puzzle; they highlight suspicious areas in the final assembly
+    so the detection rules can be tuned against real generated models.
+    """
+    issues = detect_gravity_warning_issues(
+        puzzle.path_architect.segments,
+        Config.Puzzle.NODE_SIZE,
+    )
+    if not issues:
+        return []
+
+    cubes: list[Part] = []
+    warning_color = Color(1.0, 0.55, 0.0, 71 / 255)
+
+    for index, issue in enumerate(issues, start=1):
+        with BuildPart() as cube_builder:
+            Box(
+                Config.Puzzle.NODE_SIZE,
+                Config.Puzzle.NODE_SIZE,
+                Config.Puzzle.NODE_SIZE,
+            )
+
+        cube = cube_builder.part
+        cube.position = Vector(issue.node.x, issue.node.y, issue.node.z)
+        cube.label = (
+            f"Gravity Warning {index} - Segment {issue.segment_label} "
+            f"{issue.movement_pattern}"
+        )
+        cube.color = warning_color
+        cubes.append(cube)
+
+    return cubes
 
 
 def ball_and_path_indicators(puzzle: Puzzle):

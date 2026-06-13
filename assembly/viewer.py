@@ -18,13 +18,33 @@ from config import Config
 from puzzle.utils.enums import Theme
 
 
-def _is_transparent(color: str) -> bool:
-    """True if color is '#RRGGBBAA' with AA != 'FF' (i.e., not fully opaque)."""
-    if not isinstance(color, str) or not color.startswith("#"):
-        return False  # treat unknown/absent as opaque
-    if len(color) == 9:  # '#RRGGBBAA'
-        return color[-2:].upper() != "FF"
-    return False  # '#RRGGBB' (no alpha) -> opaque
+def _is_transparent(color) -> bool:
+    """True if a color value includes a non-opaque alpha channel."""
+    if isinstance(color, str):
+        if not color.startswith("#"):
+            return False  # treat unknown/absent as opaque
+        if len(color) == 9:  # '#RRGGBBAA'
+            return color[-2:].upper() != "FF"
+        return False  # '#RRGGBB' (no alpha) -> opaque
+
+    # build123d Color can be converted to an RGBA tuple. Keep this best-effort
+    # so transparent diagnostic markers are not recolored in high-contrast mode.
+    try:
+        rgba = tuple(color)
+    except TypeError:
+        return False
+    return len(rgba) >= 4 and rgba[3] < 1.0
+
+
+def _extend_parts_flat(target: list, parts) -> None:
+    """Append a part or nested list of parts to target as a flat list."""
+    if not parts:
+        return
+    if isinstance(parts, (list, tuple)):
+        for part in parts:
+            _extend_parts_flat(target, part)
+    else:
+        target.append(parts)
 
 
 def _apply_generic_distinct_colors_per_part(parts: list, seed: int) -> None:
@@ -72,6 +92,7 @@ def display_parts(
     support_path,
     coloring_path,
     obstacle_extras,
+    gravity_warning_cubes,
     ball,
     ball_path,
     ball_path_direction,
@@ -86,16 +107,13 @@ def display_parts(
     if Config.Puzzle.THEME == Theme.HIGH_CONTRAST:
         # Build the list of parts to recolor
         parts_to_color = []
-        parts_to_color.extend(case_parts or [])
-        parts_to_color.extend(base_parts or [])
-        parts_to_color.extend(standard_paths or [])
-
-        if support_path:
-            parts_to_color.append(support_path)
-        if coloring_path:
-            parts_to_color.append(coloring_path)
-        if obstacle_extras:
-            parts_to_color.append(obstacle_extras)
+        _extend_parts_flat(parts_to_color, case_parts)
+        _extend_parts_flat(parts_to_color, base_parts)
+        _extend_parts_flat(parts_to_color, standard_paths)
+        _extend_parts_flat(parts_to_color, support_path)
+        _extend_parts_flat(parts_to_color, coloring_path)
+        _extend_parts_flat(parts_to_color, obstacle_extras)
+        _extend_parts_flat(parts_to_color, gravity_warning_cubes)
 
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
@@ -123,6 +141,9 @@ def display_parts(
 
     if obstacle_extras:
         show_object(obstacle_extras, name="Obstacle Extra's")
+
+    if gravity_warning_cubes:
+        show_object(gravity_warning_cubes, name="Gravity Warnings")
 
     # Display each part from the base
     if base_parts:
