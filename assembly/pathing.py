@@ -27,9 +27,19 @@ from puzzle.gravity_validation import (
     detect_direction_reversals,
     involved_reversal_indices,
 )
+from puzzle.utils.enums import PathSegmentDesignStrategy
 from puzzle.puzzle import Puzzle
 
 logger = logging.getLogger(__name__)
+
+# Gravity hairpin check tuning - validated values, intentionally not exposed as
+# user config. Samples are taken one node length apart; a reversal is flagged
+# when the path turns >= _REVERSAL_ANGLE_DEG within _REVERSAL_WINDOW_NODES node
+# lengths and is a downward valley (turn plane contains "down" by at least
+# _REVERSAL_VERTICALNESS, apex on the low side).
+_REVERSAL_WINDOW_NODES = 4
+_REVERSAL_ANGLE_DEG = 150.0
+_REVERSAL_VERTICALNESS = 0.5
 
 
 def path(puzzle: Puzzle, cut_shape: Part):
@@ -120,9 +130,12 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     wire (splines and obstacle paths included) and flags the nodes involved in a
     near-reversal of direction. The per-node findings of each detection are
     combined into a single sphere at their average location, sized to enclose the
-    involved nodes. These markers are diagnostic only; they do not reject or
-    alter the generated puzzle.
+    involved nodes. Each sphere gets a clean incrementing name (no "/", which the
+    viewer treats as a tree separator) so they list properly under the group.
+    These markers are diagnostic only; they do not reject or alter the puzzle.
     """
+    logger.info("Performing gravity hairpin check...")
+
     samples = build_oriented_path_samples(puzzle)
 
     # Cheap first pass: find candidate reversals from tangents only, then probe
@@ -130,17 +143,17 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     candidate_indices = involved_reversal_indices(
         samples,
         node_size=Config.Puzzle.NODE_SIZE,
-        window_nodes=Config.Puzzle.DIRECTION_REVERSAL_WINDOW_NODES,
-        angle_threshold_deg=Config.Puzzle.DIRECTION_REVERSAL_ANGLE_DEG,
+        window_nodes=_REVERSAL_WINDOW_NODES,
+        angle_threshold_deg=_REVERSAL_ANGLE_DEG,
     )
     samples = fill_sample_down(puzzle, samples, candidate_indices)
 
     issues = detect_direction_reversals(
         samples,
         node_size=Config.Puzzle.NODE_SIZE,
-        window_nodes=Config.Puzzle.DIRECTION_REVERSAL_WINDOW_NODES,
-        angle_threshold_deg=Config.Puzzle.DIRECTION_REVERSAL_ANGLE_DEG,
-        verticalness_threshold=Config.Puzzle.DIRECTION_REVERSAL_VERTICALNESS,
+        window_nodes=_REVERSAL_WINDOW_NODES,
+        angle_threshold_deg=_REVERSAL_ANGLE_DEG,
+        verticalness_threshold=_REVERSAL_VERTICALNESS,
     )
     if not issues:
         return []
@@ -155,7 +168,7 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     warning_color = Color(1.0, 0.55, 0.0, 71 / 255)
 
     spheres: list[Part] = []
-    for index, (pattern, group) in enumerate(grouped.items(), start=1):
+    for index, (_pattern, group) in enumerate(grouped.items(), start=1):
         points = [Vector(issue.node.x, issue.node.y, issue.node.z) for issue in group]
         centroid = sum(points, Vector(0, 0, 0)) * (1.0 / len(points))
 
@@ -168,13 +181,16 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
 
         sphere = sphere_builder.part
         sphere.position = centroid
-        sphere.label = (
-            f"Gravity Warning {index} - Segment {group[0].segment_label} "
-            f"[{group[0].category}] {pattern}"
-        )
+        # Clean incrementing name only — no "/" (the viewer's tree separator).
+        sphere.label = f"Gravity Warning {index}"
         sphere.color = warning_color
         spheres.append(sphere)
 
+    logger.warning(
+        "Gravity hairpin check: found %d potential hairpin reversal(s) where "
+        "gravity cannot drive the marble through the turn.",
+        len(spheres),
+    )
     return spheres
 
 
@@ -231,65 +247,103 @@ def build_ball_path_wire(puzzle: Puzzle) -> Optional[Wire]:
     return ball_path_wire.trim(0, end_parameter)
 
 
+def _is_swept_geometry_segment(segment) -> bool:
+    """
+    True for segments whose shape lives BETWEEN the nodes and so must be sampled
+    along the swept wire: splines and obstacles. Regular (standard/compound)
+    segments are well represented by their node locations.
+    """
+    if getattr(segment, "is_obstacle", False):
+        return True
+    return segment.design_strategy in (
+        PathSegmentDesignStrategy.SPLINE,
+        PathSegmentDesignStrategy.OBSTACLE,
+    )
+
+
 def build_oriented_path_samples(puzzle: Puzzle) -> list[PathSample]:
     """
-    Sample every playable segment with position + forward tangent only.
+    Sample the path, combining two strategies for the best of both worlds:
 
-    This is intentionally cheap (no "down" probe): positions track arc length so
-    spacing/ordering is correct, tangents come from the curve directly. Distances
-    accumulate across the whole path so reversals spanning segment boundaries are
-    seen and samples are not duplicated at junctions. The local "down" is filled
-    in lazily by fill_sample_down() only where it is needed (it is costly).
+      - regular (standard/compound) segments contribute their node locations,
+        which line up cleanly with the grid corners;
+      - splines and obstacles are sampled along the swept wire at the configured
+        spacing, because their shape is not captured by node positions alone.
+
+    Forward-difference tangents and cumulative arc length are then computed over
+    the combined, de-duplicated, in-order point list, so reversals that span
+    segment boundaries are still seen. "Down" is cheap-omitted here and filled in
+    lazily by fill_sample_down() only where it is needed.
     """
-    spacing = Config.Puzzle.GRAVITY_DIRECTION_SAMPLE_SPACING
+    spacing = Config.Puzzle.NODE_SIZE  # one sample per node length
     if spacing <= 0:
         return []
 
-    samples: list[PathSample] = []
-    cumulative = 0.0
-    since_last = spacing  # emit the very first sample of the path
-    previous_origin = None
-
+    # 1) Collect ordered (position, segment) points along the whole path.
+    points = []
     for segment in puzzle.path_architect.segments:
         if any(node.puzzle_start for node in segment.nodes):
             continue
         path = segment.path
         if path is None:
             continue
-        try:
-            length = path.length
-        except Exception:  # noqa: BLE001 - skip anything not 1D-sampleable
-            continue
-        if length <= 0:
-            continue
 
-        fine_steps = max(int(length / (spacing * 0.25)), 8)
-
-        for step in range(fine_steps + 1):
-            parameter = step / fine_steps
-            origin = path @ parameter  # cheap position
-
-            if previous_origin is not None:
-                advance = (origin - previous_origin).length
-                cumulative += advance
-                since_last += advance
-            previous_origin = origin
-
-            if since_last < spacing and step != fine_steps:
+        if _is_swept_geometry_segment(segment):
+            try:
+                length = path.length
+            except Exception:  # noqa: BLE001 - skip anything not 1D-sampleable
                 continue
-            since_last = 0.0
+            if length <= 0:
+                continue
+            fine_steps = max(int(length / (spacing * 0.25)), 8)
+            since_last = spacing  # emit the first point of the segment
+            previous = None
+            for step in range(fine_steps + 1):
+                position = path @ (step / fine_steps)
+                if previous is not None:
+                    since_last += (position - previous).length
+                previous = position
+                if since_last >= spacing or step == fine_steps:
+                    since_last = 0.0
+                    points.append((position, segment))
+        else:
+            for node in segment.nodes:
+                points.append((Vector(node.x, node.y, node.z), segment))
 
-            tangent = (path % parameter).normalized()
-            samples.append(
-                PathSample(
-                    position=(origin.X, origin.Y, origin.Z),
-                    tangent=(tangent.X, tangent.Y, tangent.Z),
-                    distance=cumulative,
-                    down=None,
-                    segment_main_index=segment.main_index,
-                    segment_secondary_index=segment.secondary_index,
-                )
+    # 2) Drop consecutive duplicates (adjacent segments share boundary nodes).
+    ordered = []
+    for position, segment in points:
+        if ordered and (position - ordered[-1][0]).length < 1e-6:
+            continue
+        ordered.append((position, segment))
+
+    # 3) Forward-difference tangents + cumulative arc length over the point list.
+    samples: list[PathSample] = []
+    count = len(ordered)
+    cumulative = 0.0
+    for index in range(count):
+        position, segment = ordered[index]
+        if index > 0:
+            cumulative += (position - ordered[index - 1][0]).length
+
+        if index < count - 1:
+            tangent = ordered[index + 1][0] - position
+        elif index > 0:
+            tangent = position - ordered[index - 1][0]
+        else:
+            tangent = Vector(1, 0, 0)
+        tangent = tangent.normalized() if tangent.length > 0 else Vector(1, 0, 0)
+
+        samples.append(
+            PathSample(
+                position=(position.X, position.Y, position.Z),
+                tangent=(tangent.X, tangent.Y, tangent.Z),
+                distance=cumulative,
+                down=None,
+                segment_main_index=segment.main_index,
+                segment_secondary_index=segment.secondary_index,
             )
+        )
 
     return samples
 
@@ -378,53 +432,67 @@ def _make_arrow_prototype() -> Part:
     return arrow_builder.part
 
 
-def build_gravity_direction_indicators(puzzle: Puzzle) -> list[Part]:
-    """
-    Build debug arrows for the gravity model along the path.
+def _direction_arrows(samples, get_vector, color, label_prefix: str) -> list[Part]:
+    """Build one cone arrow per sample, oriented along get_vector(sample)."""
+    arrow_proto = _make_arrow_prototype()
+    arrows: list[Part] = []
+    for sample_index, sample in enumerate(samples, start=1):
+        vector = get_vector(sample)
+        if vector is None or vector.length == 0:
+            continue
+        arrow = arrow_proto.located(
+            Plane(origin=Vector(*sample.position), z_dir=vector).location
+        )
+        arrow.label = f"{label_prefix} {sample_index}"
+        arrow.color = color
+        arrows.append(arrow)
+    return arrows
 
-    Red arrows (Config.Puzzle.SHOW_GRAVITY_DIRECTION_INDICATORS) point along the
-    forward tangent (the ideal gravity to keep rolling forward). Blue arrows
-    (Config.Puzzle.SHOW_GRAVITY_DOWN_INDICATORS) point along the resolved
-    profile "down"/support direction and are the way to visually verify the
-    support model that gates the hairpin warning. Diagnostic only.
+
+def build_ball_roll_indicators(puzzle: Puzzle) -> list[Part]:
     """
-    show_forward = getattr(Config.Puzzle, "SHOW_GRAVITY_DIRECTION_INDICATORS", False)
-    show_down = getattr(Config.Puzzle, "SHOW_GRAVITY_DOWN_INDICATORS", False)
-    if not show_forward and not show_down:
+    Debug arrows showing the marble's forward roll/travel direction.
+
+    Red arrows along the local forward path tangent. Enabled with
+    Config.Puzzle.SHOW_BALL_ROLL_INDICATORS. Diagnostic only.
+    """
+    if not getattr(Config.Puzzle, "SHOW_BALL_ROLL_INDICATORS", False):
         return []
-
     samples = build_oriented_path_samples(puzzle)
     if not samples:
         return []
+    return _direction_arrows(
+        samples,
+        lambda sample: Vector(*sample.tangent),
+        Color(1.0, 0.0, 0.0, 1.0),
+        "Ball Roll",
+    )
 
-    # The down arrows need "down" resolved for every sample (costly accent probe
-    # per sample); only pay for it when those arrows are actually requested.
-    if show_down:
-        samples = fill_sample_down(puzzle, samples, range(len(samples)))
 
-    arrow_proto = _make_arrow_prototype()
-    forward_color = Color(1.0, 0.0, 0.0, 1.0)
-    down_color = Color(0.0, 0.3, 1.0, 1.0)
+def build_ideal_gravity_indicators(puzzle: Puzzle) -> list[Part]:
+    """
+    Debug arrows showing the ideal gravity-down (ball-seat) direction.
 
-    arrows: list[Part] = []
-    for sample_index, sample in enumerate(samples, start=1):
-        position = Vector(*sample.position)
+    Blue arrows along the resolved profile "down"/support direction (the way the
+    puzzle should be tilted so gravity seats the ball). This is the way to
+    visually verify the support model that gates the hairpin warning. Enabled
+    with Config.Puzzle.SHOW_IDEAL_GRAVITY_INDICATORS. Diagnostic only.
 
-        if show_forward:
-            tangent = Vector(*sample.tangent)
-            forward = arrow_proto.located(Plane(origin=position, z_dir=tangent).location)
-            forward.label = f"Gravity Dir {sample_index}"
-            forward.color = forward_color
-            arrows.append(forward)
-
-        if show_down and sample.down is not None:
-            down = Vector(*sample.down)
-            down_arrow = arrow_proto.located(Plane(origin=position, z_dir=down).location)
-            down_arrow.label = f"Gravity Down {sample_index}"
-            down_arrow.color = down_color
-            arrows.append(down_arrow)
-
-    return arrows
+    Resolving "down" for every sample is costly (accent probe per sample), so it
+    is only paid for when these arrows are requested.
+    """
+    if not getattr(Config.Puzzle, "SHOW_IDEAL_GRAVITY_INDICATORS", False):
+        return []
+    samples = build_oriented_path_samples(puzzle)
+    if not samples:
+        return []
+    samples = fill_sample_down(puzzle, samples, range(len(samples)))
+    return _direction_arrows(
+        samples,
+        lambda sample: Vector(*sample.down) if sample.down is not None else None,
+        Color(0.0, 0.3, 1.0, 1.0),
+        "Ideal Gravity",
+    )
 
 
 def ball_and_path_indicators(puzzle: Puzzle):

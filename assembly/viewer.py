@@ -104,7 +104,8 @@ def display_parts(
     coloring_path,
     obstacle_extras,
     gravity_warning_spheres,
-    gravity_direction_indicators,
+    ball_roll_indicators,
+    ideal_gravity_indicators,
     ball,
     ball_path,
     ball_path_direction,
@@ -126,6 +127,8 @@ def display_parts(
         _extend_parts_flat(parts_to_color, coloring_path)
         _extend_parts_flat(parts_to_color, obstacle_extras)
         _extend_parts_flat(parts_to_color, gravity_warning_spheres)
+        _extend_parts_flat(parts_to_color, ball_roll_indicators)
+        _extend_parts_flat(parts_to_color, ideal_gravity_indicators)
 
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
@@ -157,8 +160,11 @@ def display_parts(
     if gravity_warning_spheres:
         show_object(gravity_warning_spheres, name="Gravity Warnings")
 
-    if gravity_direction_indicators:
-        show_object(gravity_direction_indicators, name="Gravity Direction")
+    if ball_roll_indicators:
+        show_object(ball_roll_indicators, name="Ball Roll Direction")
+
+    if ideal_gravity_indicators:
+        show_object(ideal_gravity_indicators, name="Ideal Gravity Direction")
 
     # Display each part from the base
     if base_parts:

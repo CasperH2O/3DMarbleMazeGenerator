@@ -110,7 +110,11 @@ class PathBuilder:
             segments
         )
 
-        # Sweep segments
+        # Sweep segments (compute intensive)
+        logger.info(
+            "Building path geometry: sweeping %d segment(s), this can take a while...",
+            len(combine_segments),
+        )
         swept_segments: list[PathSegment] = self.sweep_segments(combine_segments)
 
         # Store segments in path architect again
