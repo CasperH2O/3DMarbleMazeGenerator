@@ -31,6 +31,14 @@ _REVERSAL_ANGLE_DEG = 170.0
 _REVERSAL_VERTICALNESS = 0.5  # downward valley needs (1 - alignment) >= this
 _REVERSAL_HORIZONTALNESS = 0.5  # sideways turn needs alignment >= this
 
+# A "drop": travel turns ~90° from forward to align with the local "down" within
+# _DROP_ONSET_NODES, then keeps dropping for at least _DROP_SUSTAIN_NODES.
+# _DROP_ALIGNMENT is cos(angle): 0.6 ~= within 53° of "down" (a generous margin
+# so drops coming out of a curve still count).
+_DROP_ALIGNMENT = 0.6
+_DROP_ONSET_NODES = 1.5
+_DROP_SUSTAIN_NODES = 3.0
+
 # Marker transparency shared by all warning spheres.
 _MARKER_ALPHA = 71 / 255
 
@@ -64,7 +72,7 @@ class GravityCheck:
     key: str
     name: str  # marker display name, e.g. "Downward Hairpin"
     color: Rgba  # marker colour (RGBA, 0..1)
-    detect: Callable[[list[PathSample], list[tuple[int, int, float]]], list[GravityDetection]]
+    detect: Callable[[list[PathSample], float], list[GravityDetection]]
 
 
 # The registry. Iterate this to run every check.
@@ -118,7 +126,10 @@ def _reversal_spans(
     Returns (start, peak, best_angle) spans where the forward tangent turns by at
     least _REVERSAL_ANGLE_DEG within _REVERSAL_WINDOW_NODES node-lengths of
     travel. Distances drive the look-ahead window, so the result is independent
-    of sampling density. This is the cheap shared pass for every reversal check.
+    of sampling density. This is the cheap shared pass for every reversal check;
+    note it matches a ~180° swing between any two tangents in the window, so a
+    vertical dip (down-then-up) and an S-curve (right-then-left) both qualify -
+    the individual checks decide what to keep.
     """
     window_distance = _REVERSAL_WINDOW_NODES * node_size
     spans: list[tuple[int, int, float]] = []
@@ -150,12 +161,17 @@ def _reversal_spans(
     return spans
 
 
-def involved_reversal_indices(samples: list[PathSample], node_size: float) -> set[int]:
-    """Sample indices belonging to any candidate reversal (for lazy down probing)."""
-    indices: set[int] = set()
-    for start, peak, _ in _reversal_spans(samples, node_size):
-        indices.update(range(start, peak + 1))
-    return indices
+def _net_heading_reversed(samples: list[PathSample], start: int, peak: int) -> bool:
+    """
+    True if the path's net heading reverses across the span: the leg entering the
+    maneuver and the leg leaving it (the samples just outside the span) are
+    ~opposite. Distinguishes a genuine sideways U-turn (legs antiparallel) from
+    an S-curve, whose legs are parallel even though its extremes swing ~180°.
+    """
+    count = len(samples)
+    entry_tangent = samples[max(0, start - 1)].tangent
+    exit_tangent = samples[min(count - 1, peak + 1)].tangent
+    return _angle_between_degrees(entry_tangent, exit_tangent) >= _REVERSAL_ANGLE_DEG
 
 
 def _reversal_geometry(samples: list[PathSample], start: int, peak: int):
@@ -208,7 +224,7 @@ def _span_positions(samples: list[PathSample], start: int, peak: int) -> tuple[V
     color=(1.0, 0.35, 0.0, _MARKER_ALPHA),  # red-orange
 )
 def _check_downward_hairpin(
-    samples: list[PathSample], spans: list[tuple[int, int, float]]
+    samples: list[PathSample], node_size: float
 ) -> list[GravityDetection]:
     """
     Abrupt ~180° reversal in a vertical plane where the ball descends into the
@@ -216,7 +232,7 @@ def _check_downward_hairpin(
     ascending reversals are left to other checks / not flagged.
     """
     detections: list[GravityDetection] = []
-    for start, peak, _angle in spans:
+    for start, peak, _angle in _reversal_spans(samples, node_size):
         geometry = _reversal_geometry(samples, start, peak)
         if geometry is None:
             continue
@@ -236,21 +252,93 @@ def _check_downward_hairpin(
     color=(1.0, 0.70, 0.15, _MARKER_ALPHA),  # amber-orange
 )
 def _check_sharp_sideways_turn(
-    samples: list[PathSample], spans: list[tuple[int, int, float]]
+    samples: list[PathSample], node_size: float
 ) -> list[GravityDetection]:
     """
     Abrupt ~180° turn in the horizontal plane (a tight left/right switchback):
     the turn plane is roughly perpendicular to "down". Both left and right are
     covered (the turn direction within a horizontal plane).
+
+    Unlike a vertical dip, a sideways turn that is unplayable actually reverses
+    the net heading, so we require the entry and exit legs to be ~opposite. This
+    rejects S-curves (right-then-left), whose legs are parallel even though their
+    extremes swing ~180°.
     """
     detections: list[GravityDetection] = []
-    for start, peak, _angle in spans:
+    for start, peak, _angle in _reversal_spans(samples, node_size):
         geometry = _reversal_geometry(samples, start, peak)
         if geometry is None:
             continue
         _down_unit, _apex_offset, alignment = geometry
-        if alignment >= _REVERSAL_HORIZONTALNESS:
-            detections.append(GravityDetection(_span_positions(samples, start, peak)))
+        if alignment < _REVERSAL_HORIZONTALNESS:
+            continue  # not a horizontal turn
+        if not _net_heading_reversed(samples, start, peak):
+            continue  # S-curve, not a true sideways reversal
+        detections.append(GravityDetection(_span_positions(samples, start, peak)))
+    return detections
+
+
+def _aligned_run_end(
+    samples: list[PathSample], onset: int, reference_down: Vec3, threshold: float
+) -> int:
+    """Last index from onset onward whose tangent stays aligned with reference_down."""
+    end = onset
+    index = onset
+    count = len(samples)
+    while index < count and _dot(samples[index].tangent, reference_down) >= threshold:
+        end = index
+        index += 1
+    return end
+
+
+@gravity_check(
+    key="drop",
+    name="Drop",
+    color=(1.0, 0.85, 0.2, _MARKER_ALPHA),  # yellow-orange
+)
+def _check_drop(
+    samples: list[PathSample], node_size: float
+) -> list[GravityDetection]:
+    """
+    A "drop": travel turns ~90° from forward to align with the local "down" and
+    then keeps going down. At the lip "down" points along the upcoming travel, so
+    we look for the tangent rotating to align with the lip's "down" within
+    _DROP_ONSET_NODES and staying aligned for at least _DROP_SUSTAIN_NODES.
+    """
+    onset_distance = _DROP_ONSET_NODES * node_size
+    sustain_distance = _DROP_SUSTAIN_NODES * node_size
+    detections: list[GravityDetection] = []
+    count = len(samples)
+
+    lip = 0
+    while lip < count:
+        lip_down = samples[lip].down
+        # The lip must currently roll forward (tangent not yet aligned with down).
+        if lip_down is None or _dot(samples[lip].tangent, lip_down) >= _DROP_ALIGNMENT:
+            lip += 1
+            continue
+
+        # Find where the tangent first turns to align with the lip's "down".
+        onset = None
+        look = lip + 1
+        while look < count and (samples[look].distance - samples[lip].distance) <= onset_distance:
+            if _dot(samples[look].tangent, lip_down) >= _DROP_ALIGNMENT:
+                onset = look
+                break
+            look += 1
+        if onset is None:
+            lip += 1
+            continue
+
+        # Require the descent to continue for at least the sustain distance.
+        end = _aligned_run_end(samples, onset, lip_down, _DROP_ALIGNMENT)
+        if (samples[end].distance - samples[onset].distance) < sustain_distance:
+            lip += 1
+            continue
+
+        detections.append(GravityDetection(_span_positions(samples, lip, end)))
+        lip = end + 1  # skip past this drop
+
     return detections
 
 
@@ -261,17 +349,12 @@ def run_gravity_checks(
     Run every registered check over the samples.
 
     Returns the (check, detections) pairs that produced at least one detection.
-    Candidate reversals are found once and shared across the checks; "down" must
-    already be resolved for the samples involved in candidate spans (the geometry
-    layer probes it lazily).
+    "Down" must already be resolved on the samples (the geometry layer probes it
+    before calling); checks that need it skip samples where it is unknown.
     """
-    spans = _reversal_spans(samples, node_size)
-    if not spans:
-        return []
-
     results: list[tuple[GravityCheck, list[GravityDetection]]] = []
     for check in GRAVITY_CHECKS:
-        detections = check.detect(samples, spans)
+        detections = check.detect(samples, node_size)
         if detections:
             results.append((check, detections))
     return results

@@ -61,10 +61,39 @@ SIDEWAYS_TURN = [
     ((1.0, 10.0, 0.0), (0.0, 1.0, 0.0), WORLD_DOWN),
 ]
 
+# S-curves: the heading swings 180 degrees between the extremes, but the entry
+# and exit legs are parallel (same net heading), so they are NOT reversals.
+S_CURVE_RIGHT_LEFT = [
+    ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+    ((10.0, 0.0, 0.0), (0.0, -1.0, 0.0), WORLD_DOWN),  # right
+    ((10.0, -10.0, 0.0), (0.0, 1.0, 0.0), WORLD_DOWN),  # left
+    ((10.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+    ((20.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+]
 
-def test_two_checks_are_registered():
+S_CURVE_LEFT_RIGHT = [
+    ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+    ((10.0, 0.0, 0.0), (0.0, 1.0, 0.0), WORLD_DOWN),  # left
+    ((10.0, 10.0, 0.0), (0.0, -1.0, 0.0), WORLD_DOWN),  # right
+    ((10.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+    ((20.0, 0.0, 0.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+]
+
+
+# Roll forward, then turn ~90 degrees down and keep dropping for several nodes.
+DROP = [
+    ((0.0, 0.0, 30.0), (1.0, 0.0, 0.0), WORLD_DOWN),
+    ((10.0, 0.0, 30.0), (1.0, 0.0, 0.0), WORLD_DOWN),  # lip
+    ((10.0, 0.0, 20.0), (0.0, 0.0, -1.0), WORLD_DOWN),  # onset of the drop
+    ((10.0, 0.0, 10.0), (0.0, 0.0, -1.0), WORLD_DOWN),
+    ((10.0, 0.0, 0.0), (0.0, 0.0, -1.0), WORLD_DOWN),
+    ((10.0, 0.0, -10.0), (0.0, 0.0, -1.0), WORLD_DOWN),
+]
+
+
+def test_checks_are_registered():
     keys = {check.key for check in GRAVITY_CHECKS}
-    assert {"downward-hairpin", "sharp-sideways-turn"} <= keys
+    assert {"downward-hairpin", "sharp-sideways-turn", "drop"} <= keys
 
 
 def test_downward_hairpin_fires_only_downward_check():
@@ -83,8 +112,22 @@ def test_sideways_turn_fires_only_sideways_check():
     assert len(keys["sharp-sideways-turn"]) == 1
 
 
+def test_drop_fires_only_drop_check():
+    keys = detections_by_key(make_path(DROP))
+    assert "drop" in keys
+    assert "downward-hairpin" not in keys
+    assert "sharp-sideways-turn" not in keys
+    assert len(keys["drop"]) == 1
+
+
 def test_vertical_mirror_fires_nothing():
     assert detections_by_key(make_path(VERTICAL_MIRROR)) == {}
+
+
+def test_s_curves_fire_nothing():
+    # The 180-degree swing between extremes must not be read as a reversal.
+    assert detections_by_key(make_path(S_CURVE_RIGHT_LEFT)) == {}
+    assert detections_by_key(make_path(S_CURVE_LEFT_RIGHT)) == {}
 
 
 def test_contained_profile_fires_nothing():
