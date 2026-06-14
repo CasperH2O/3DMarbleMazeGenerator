@@ -1,10 +1,11 @@
 # assembly/pathing.py
 
+import logging
+from dataclasses import replace
 from typing import Optional
 
 from build123d import (
     Align,
-    Box,
     BuildPart,
     Color,
     Cone,
@@ -12,6 +13,7 @@ from build123d import (
     Location,
     Locations,
     Part,
+    Plane,
     Sphere,
     Vector,
     Wire,
@@ -20,8 +22,14 @@ from build123d import (
 
 from config import Config
 from cad.path_builder import PathBuilder, PathTypes
-from puzzle.gravity_validation import detect_gravity_warning_issues
+from puzzle.gravity_validation import (
+    PathSample,
+    detect_direction_reversals,
+    involved_reversal_indices,
+)
 from puzzle.puzzle import Puzzle
+
+logger = logging.getLogger(__name__)
 
 
 def path(puzzle: Puzzle, cut_shape: Part):
@@ -104,52 +112,82 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
     return parts
 
 
-def build_gravity_warning_cubes(puzzle: Puzzle) -> list[Part]:
+def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     """
-    Build transparent warning cubes for route/profile gravity feasibility issues.
+    Build transparent warning spheres for gravity feasibility issues.
 
-    These markers are diagnostic only. They intentionally do not reject or alter
-    the generated puzzle; they highlight suspicious areas in the final assembly
-    so the detection rules can be tuned against real generated models.
+    Currently the only check is the hairpin detector: it samples the played path
+    wire (splines and obstacle paths included) and flags the nodes involved in a
+    near-reversal of direction. The per-node findings of each detection are
+    combined into a single sphere at their average location, sized to enclose the
+    involved nodes. These markers are diagnostic only; they do not reject or
+    alter the generated puzzle.
     """
-    issues = detect_gravity_warning_issues(
-        puzzle.path_architect.segments,
-        Config.Puzzle.NODE_SIZE,
+    samples = build_oriented_path_samples(puzzle)
+
+    # Cheap first pass: find candidate reversals from tangents only, then probe
+    # the costly "down" direction (accent body) just for the samples involved.
+    candidate_indices = involved_reversal_indices(
+        samples,
+        node_size=Config.Puzzle.NODE_SIZE,
+        window_nodes=Config.Puzzle.DIRECTION_REVERSAL_WINDOW_NODES,
+        angle_threshold_deg=Config.Puzzle.DIRECTION_REVERSAL_ANGLE_DEG,
+    )
+    samples = fill_sample_down(puzzle, samples, candidate_indices)
+
+    issues = detect_direction_reversals(
+        samples,
+        node_size=Config.Puzzle.NODE_SIZE,
+        window_nodes=Config.Puzzle.DIRECTION_REVERSAL_WINDOW_NODES,
+        angle_threshold_deg=Config.Puzzle.DIRECTION_REVERSAL_ANGLE_DEG,
+        verticalness_threshold=Config.Puzzle.DIRECTION_REVERSAL_VERTICALNESS,
     )
     if not issues:
         return []
 
-    cubes: list[Part] = []
+    # Group the per-node findings by detection (movement_pattern is unique per
+    # hairpin, e.g. "hairpin 1: ...").
+    grouped: dict[str, list] = {}
+    for issue in issues:
+        grouped.setdefault(issue.movement_pattern, []).append(issue)
+
+    node_size = Config.Puzzle.NODE_SIZE
     warning_color = Color(1.0, 0.55, 0.0, 71 / 255)
 
-    for index, issue in enumerate(issues, start=1):
-        with BuildPart() as cube_builder:
-            Box(
-                Config.Puzzle.NODE_SIZE,
-                Config.Puzzle.NODE_SIZE,
-                Config.Puzzle.NODE_SIZE,
-            )
+    spheres: list[Part] = []
+    for index, (pattern, group) in enumerate(grouped.items(), start=1):
+        points = [Vector(issue.node.x, issue.node.y, issue.node.z) for issue in group]
+        centroid = sum(points, Vector(0, 0, 0)) * (1.0 / len(points))
 
-        cube = cube_builder.part
-        cube.position = Vector(issue.node.x, issue.node.y, issue.node.z)
-        cube.label = (
-            f"Gravity Warning {index} - Segment {issue.segment_label} "
-            f"{issue.movement_pattern}"
+        # Size the sphere to sit over the involved nodes, with a sensible floor.
+        spread = max((point - centroid).length for point in points)
+        radius = max(spread + node_size * 0.5, node_size * 0.6) * 0.8
+
+        with BuildPart() as sphere_builder:
+            Sphere(radius)
+
+        sphere = sphere_builder.part
+        sphere.position = centroid
+        sphere.label = (
+            f"Gravity Warning {index} - Segment {group[0].segment_label} "
+            f"[{group[0].category}] {pattern}"
         )
-        cube.color = warning_color
-        cubes.append(cube)
+        sphere.color = warning_color
+        spheres.append(sphere)
 
-    return cubes
+    return spheres
 
 
-def ball_and_path_indicators(puzzle: Puzzle):
+def build_ball_path_wire(puzzle: Puzzle) -> Optional[Wire]:
     """
-    Create and return a ball, its path, and
-    directional cones along that path.
-    """
+    Build the playable ball-path wire (the "Path Indicator").
 
-    # Segments from puzzle
-    segments = puzzle.path_architect.segments
+    Collects the resolved path edges of every segment except the start ramp,
+    including spline paths and obstacle paths, and trims half a node off the end
+    so it finishes nicely in the finish box. Returns None when there are no
+    usable edges. This single source is sampled for direction arrows and reused
+    for the visual Path Indicator.
+    """
     path_edges: list[Edge] = []
 
     # Append edges from different data types and sources
@@ -172,21 +210,230 @@ def ball_and_path_indicators(puzzle: Puzzle):
                 _append_edges_from(edge)
 
     # Collect edges that represent the playable path
-    for segment in segments:
+    for segment in puzzle.path_architect.segments:
         # Skip start segment
         if any(node.puzzle_start for node in segment.nodes):
             continue
 
         _append_edges_from(segment.path)
 
+    if not path_edges:
+        return None
+
     ball_path_wire = Wire(path_edges)
 
     # Trim path with half a node size to nicely end in the finish box
     # Derive a normalized parameter [0..1] from lengths
-    reduced_lenght = 0.5 * Config.Puzzle.NODE_SIZE
-    end_parameter = 1.0 - (reduced_lenght / ball_path_wire.length)
+    reduced_length = 0.5 * Config.Puzzle.NODE_SIZE
+    if ball_path_wire.length <= reduced_length:
+        return ball_path_wire
+    end_parameter = 1.0 - (reduced_length / ball_path_wire.length)
+    return ball_path_wire.trim(0, end_parameter)
 
-    ball_path_wire = ball_path_wire.trim(0, end_parameter)
+
+def build_oriented_path_samples(puzzle: Puzzle) -> list[PathSample]:
+    """
+    Sample every playable segment with position + forward tangent only.
+
+    This is intentionally cheap (no "down" probe): positions track arc length so
+    spacing/ordering is correct, tangents come from the curve directly. Distances
+    accumulate across the whole path so reversals spanning segment boundaries are
+    seen and samples are not duplicated at junctions. The local "down" is filled
+    in lazily by fill_sample_down() only where it is needed (it is costly).
+    """
+    spacing = Config.Puzzle.GRAVITY_DIRECTION_SAMPLE_SPACING
+    if spacing <= 0:
+        return []
+
+    samples: list[PathSample] = []
+    cumulative = 0.0
+    since_last = spacing  # emit the very first sample of the path
+    previous_origin = None
+
+    for segment in puzzle.path_architect.segments:
+        if any(node.puzzle_start for node in segment.nodes):
+            continue
+        path = segment.path
+        if path is None:
+            continue
+        try:
+            length = path.length
+        except Exception:  # noqa: BLE001 - skip anything not 1D-sampleable
+            continue
+        if length <= 0:
+            continue
+
+        fine_steps = max(int(length / (spacing * 0.25)), 8)
+
+        for step in range(fine_steps + 1):
+            parameter = step / fine_steps
+            origin = path @ parameter  # cheap position
+
+            if previous_origin is not None:
+                advance = (origin - previous_origin).length
+                cumulative += advance
+                since_last += advance
+            previous_origin = origin
+
+            if since_last < spacing and step != fine_steps:
+                continue
+            since_last = 0.0
+
+            tangent = (path % parameter).normalized()
+            samples.append(
+                PathSample(
+                    position=(origin.X, origin.Y, origin.Z),
+                    tangent=(tangent.X, tangent.Y, tangent.Z),
+                    distance=cumulative,
+                    down=None,
+                    segment_main_index=segment.main_index,
+                    segment_secondary_index=segment.secondary_index,
+                )
+            )
+
+    return samples
+
+
+def _probe_down(segment, point: Vector) -> Optional[tuple]:
+    """
+    Resolve the local "down" at a path point by probing the accent body.
+
+    The accent ("path color") body is always built on the down side of the ball,
+    so the closest point on it from the path centerline points into the support.
+    This reads the real built geometry, so it is exact for every segment type
+    (standard, arc, spline) with no frame reconstruction. O/closed profiles have
+    no accent body, which correctly yields None (the ball is contained there).
+    Uses a single closest-point query (BRepExtrema) rather than a plane-boolean.
+    """
+    accent = getattr(segment, "accent_body", None)
+    if accent is None:
+        return None
+    solid = getattr(accent, "part", accent)
+    try:
+        on_accent, _ = solid.closest_points(point)
+        down = on_accent - point
+        if down.length <= 0:
+            return None
+        down = down.normalized()
+        return (down.X, down.Y, down.Z)
+    except Exception as error:  # noqa: BLE001 - geometry kernel can raise
+        logger.debug("Accent-based down probe failed: %s", error)
+        return None
+
+
+def fill_sample_down(
+    puzzle: Puzzle, samples: list[PathSample], indices
+) -> list[PathSample]:
+    """
+    Return a copy of ``samples`` with "down" resolved for the given indices.
+
+    "Down" is probed from the accent body of each sample's segment. This is the
+    costly step, so callers pass only the indices they need (e.g. the samples
+    involved in a candidate reversal, or all of them when drawing debug arrows).
+    """
+    if not indices:
+        return samples
+
+    segment_by_id = {
+        (segment.main_index, segment.secondary_index): segment
+        for segment in puzzle.path_architect.segments
+    }
+
+    filled = list(samples)
+    for index in indices:
+        sample = filled[index]
+        segment = segment_by_id.get(
+            (sample.segment_main_index, sample.segment_secondary_index)
+        )
+        if segment is None:
+            continue
+        down = _probe_down(segment, Vector(*sample.position))
+        if down is not None:
+            filled[index] = replace(sample, down=down)
+
+    return filled
+
+
+def _make_arrow_prototype() -> Part:
+    """Reusable thin cone pointing along its local +Z axis."""
+    with BuildPart() as arrow_builder:
+        Cone(
+            bottom_radius=Config.Puzzle.BALL_DIAMETER / 10,
+            top_radius=0,
+            height=Config.Puzzle.BALL_DIAMETER / 2,
+            align=(Align.CENTER, Align.CENTER, Align.MIN),
+        )
+    return arrow_builder.part
+
+
+def _make_arrow_prototype() -> Part:
+    """Reusable thin cone pointing along its local +Z axis."""
+    with BuildPart() as arrow_builder:
+        Cone(
+            bottom_radius=Config.Puzzle.BALL_DIAMETER / 10,
+            top_radius=0,
+            height=Config.Puzzle.BALL_DIAMETER / 2,
+            align=(Align.CENTER, Align.CENTER, Align.MIN),
+        )
+    return arrow_builder.part
+
+
+def build_gravity_direction_indicators(puzzle: Puzzle) -> list[Part]:
+    """
+    Build debug arrows for the gravity model along the path.
+
+    Red arrows (Config.Puzzle.SHOW_GRAVITY_DIRECTION_INDICATORS) point along the
+    forward tangent (the ideal gravity to keep rolling forward). Blue arrows
+    (Config.Puzzle.SHOW_GRAVITY_DOWN_INDICATORS) point along the resolved
+    profile "down"/support direction and are the way to visually verify the
+    support model that gates the hairpin warning. Diagnostic only.
+    """
+    show_forward = getattr(Config.Puzzle, "SHOW_GRAVITY_DIRECTION_INDICATORS", False)
+    show_down = getattr(Config.Puzzle, "SHOW_GRAVITY_DOWN_INDICATORS", False)
+    if not show_forward and not show_down:
+        return []
+
+    samples = build_oriented_path_samples(puzzle)
+    if not samples:
+        return []
+
+    # The down arrows need "down" resolved for every sample (costly accent probe
+    # per sample); only pay for it when those arrows are actually requested.
+    if show_down:
+        samples = fill_sample_down(puzzle, samples, range(len(samples)))
+
+    arrow_proto = _make_arrow_prototype()
+    forward_color = Color(1.0, 0.0, 0.0, 1.0)
+    down_color = Color(0.0, 0.3, 1.0, 1.0)
+
+    arrows: list[Part] = []
+    for sample_index, sample in enumerate(samples, start=1):
+        position = Vector(*sample.position)
+
+        if show_forward:
+            tangent = Vector(*sample.tangent)
+            forward = arrow_proto.located(Plane(origin=position, z_dir=tangent).location)
+            forward.label = f"Gravity Dir {sample_index}"
+            forward.color = forward_color
+            arrows.append(forward)
+
+        if show_down and sample.down is not None:
+            down = Vector(*sample.down)
+            down_arrow = arrow_proto.located(Plane(origin=position, z_dir=down).location)
+            down_arrow.label = f"Gravity Down {sample_index}"
+            down_arrow.color = down_color
+            arrows.append(down_arrow)
+
+    return arrows
+
+
+def ball_and_path_indicators(puzzle: Puzzle):
+    """
+    Create and return a ball, its path, and
+    directional cones along that path.
+    """
+
+    ball_path_wire = build_ball_path_wire(puzzle)
 
     ball_path_wire.label = "Ball Path"
     ball_path_wire.color = Config.Puzzle.BALL_COLOR
