@@ -619,9 +619,12 @@ class PathSegment:
                     )
                     if next_curve_type is not None:
                         adjusted_end = _node_to_vector(next_start_node)
-                        is_circular_end = (
-                            self.nodes[0].in_circular_grid and next_is_circular
-                        )
+                        # The end snaps exactly onto next_start_node, so it inherits
+                        # that node's circular property. Gating on the (possibly
+                        # rectangular) source node would drop the circular flag of an
+                        # arc start we are landing on, breaking circular transition
+                        # harmonisation and the 90-degree profile-angle matching.
+                        is_circular_end = next_is_circular
                         logger.debug(
                             "PathSegment[%s.%s] single-node snapped end to next start %s (fixed curve)",
                             self.main_index,

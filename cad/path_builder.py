@@ -187,56 +187,75 @@ class PathBuilder:
         self, segments: list[PathSegment]
     ) -> list[PathSegment]:
         """
-        Combine all the individual paths of sub segments of a
-        single main index compound segment into a single path
-        """
-        compound_groups: Dict[int, list[PathSegment]] = {}
-        non_compound_segments: list[PathSegment] = []
+        Combine the individual paths of sub segments of a single main index
+        compound segment into a single path.
 
-        # Separate compound segments from non-compound segments.
-        for segment in segments:
-            if (
+        Only *contiguous* runs of compound sub segments are merged. A main index
+        can legitimately contain a non-compound segment (e.g. a SPLINE stitch)
+        between compound runs; merging across such a gap would produce a
+        disconnected wire, so each contiguous run is combined on its own.
+        """
+        # Process in path order so contiguity reflects the real geometry.
+        ordered_segments = sorted(
+            segments, key=lambda s: (s.main_index, s.secondary_index)
+        )
+
+        result_segments: list[PathSegment] = []
+        current_run: list[PathSegment] = []
+
+        def _is_combinable(segment: PathSegment) -> bool:
+            return (
                 segment.design_strategy == PathSegmentDesignStrategy.COMPOUND
                 and not any(node.puzzle_start for node in segment.nodes)
-            ):
-                compound_groups.setdefault(segment.main_index, []).append(segment)
-            else:
-                non_compound_segments.append(segment)
+            )
 
-        combined_segments: list[PathSegment] = []
-        for main_index, seg_list in compound_groups.items():
-            if len(seg_list) == 1:
-                # No combination needed if there's only one segment in this group.
-                combined_segments.append(seg_list[0])
+        def _flush_run() -> None:
+            if not current_run:
+                return
+            if len(current_run) == 1:
+                # No combination needed for a single-segment run.
+                result_segments.append(current_run[0])
             else:
-                # Sort segments by secondary_index to maintain correct order.
-                seg_list_sorted: list[PathSegment] = sorted(
-                    seg_list, key=lambda s: s.secondary_index
-                )
                 # Collect edges from each segment's already-created path.
-                all_edges: list[Any] = self._collect_edges(seg_list_sorted)
+                all_edges: list[Any] = self._collect_edges(current_run)
                 # Combine the collected edges into one continuous Wire.
                 combined_wire = Wire(all_edges)
                 # Combine the nodes of the segments.
-                combined_nodes = self._combine_nodes(seg_list_sorted)
+                combined_nodes = self._combine_nodes(current_run)
                 # Create a new compound segment using the combined nodes and Wire.
+                # Keep the run's first secondary_index so ordering survives when a
+                # main index has multiple combined runs separated by a stitch.
                 new_segment = PathSegment(
-                    combined_nodes, main_index=main_index, secondary_index=0
+                    combined_nodes,
+                    main_index=current_run[0].main_index,
+                    secondary_index=current_run[0].secondary_index,
                 )
                 new_segment.design_strategy = PathSegmentDesignStrategy.COMPOUND
                 new_segment.path = combined_wire
                 new_segment.path_edge_only = all_edges
-                # Inherit additional attributes (like profile type and transition) from the first segment.
-                new_segment.copy_attributes_from(seg_list_sorted[0])
-                combined_segments.append(new_segment)
+                # Inherit additional attributes (profile type, transition, …).
+                new_segment.copy_attributes_from(current_run[0])
+                result_segments.append(new_segment)
 
-        segments = non_compound_segments + combined_segments
+        for segment in ordered_segments:
+            if not _is_combinable(segment):
+                # Non-combinable segment breaks the current contiguous run.
+                _flush_run()
+                current_run = []
+                result_segments.append(segment)
+            elif current_run and current_run[-1].main_index == segment.main_index:
+                # Extend the current run within the same main index.
+                current_run.append(segment)
+            else:
+                # Start a new run (new main index or after a gap).
+                _flush_run()
+                current_run = [segment]
+        _flush_run()
 
         # Sort segments by main_index and secondary_index to ensure correct order.
-        segments.sort(key=lambda s: (s.main_index, s.secondary_index))
+        result_segments.sort(key=lambda s: (s.main_index, s.secondary_index))
 
-        # Return both non-compound and combined compound segments (sorted)
-        return segments
+        return result_segments
 
     def _collect_edges(self, seg_list: list[PathSegment]) -> list[Any]:
         """
