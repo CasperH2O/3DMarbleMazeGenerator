@@ -184,13 +184,16 @@ def set_viewer():
         "Ball",
         "Ball Path Direction",
     }
+    # Whole groups whose leaves should all have edges hidden.
+    target_group_names = {"Gravity Warnings"}
 
-    # Only touch leaves whose basename matches one of the targets
+    # Hide edges on matching leaves and on anything inside a target group.
     for path, val in list(st.items()):
         if not (isinstance(val, list) and len(val) == 2):
             continue
         basename = path.rsplit("/", 1)[-1]
-        if basename in target_leaf_names:
+        in_target_group = any(f"/{group}/" in path for group in target_group_names)
+        if basename in target_leaf_names or in_target_group:
             shape_on, _edges_on = val
             st[path] = [shape_on, 0]  # keep current shape visibility, hide edges
 

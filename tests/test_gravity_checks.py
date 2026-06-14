@@ -81,10 +81,12 @@ S_CURVE_LEFT_RIGHT = [
 
 
 # Roll forward, then turn ~90 degrees down and keep dropping for several nodes.
+# Tangents are consistent with the positions (forward then straight down); the
+# edge of the drop is the node at (10, 0, 30).
 DROP = [
-    ((0.0, 0.0, 30.0), (1.0, 0.0, 0.0), WORLD_DOWN),
-    ((10.0, 0.0, 30.0), (1.0, 0.0, 0.0), WORLD_DOWN),  # lip
-    ((10.0, 0.0, 20.0), (0.0, 0.0, -1.0), WORLD_DOWN),  # onset of the drop
+    ((0.0, 0.0, 30.0), (1.0, 0.0, 0.0), WORLD_DOWN),  # forward
+    ((10.0, 0.0, 30.0), (0.0, 0.0, -1.0), WORLD_DOWN),  # edge: pitches down
+    ((10.0, 0.0, 20.0), (0.0, 0.0, -1.0), WORLD_DOWN),
     ((10.0, 0.0, 10.0), (0.0, 0.0, -1.0), WORLD_DOWN),
     ((10.0, 0.0, 0.0), (0.0, 0.0, -1.0), WORLD_DOWN),
     ((10.0, 0.0, -10.0), (0.0, 0.0, -1.0), WORLD_DOWN),
@@ -100,9 +102,9 @@ def test_downward_hairpin_fires_only_downward_check():
     keys = detections_by_key(make_path(DOWNWARD_HAIRPIN))
     assert "downward-hairpin" in keys
     assert "sharp-sideways-turn" not in keys
-    # One occurrence, spanning multiple involved nodes.
+    # One occurrence, whose sleeve spans the involved nodes.
     assert len(keys["downward-hairpin"]) == 1
-    assert len(keys["downward-hairpin"][0].positions) >= 2
+    assert len(keys["downward-hairpin"][0].path) >= 2
 
 
 def test_sideways_turn_fires_only_sideways_check():
@@ -118,6 +120,8 @@ def test_drop_fires_only_drop_check():
     assert "downward-hairpin" not in keys
     assert "sharp-sideways-turn" not in keys
     assert len(keys["drop"]) == 1
+    # The sleeve ends at the edge of the drop (where travel pitches down).
+    assert keys["drop"][0].path[-1] == (10.0, 0.0, 30.0)
 
 
 def test_vertical_mirror_fires_nothing():

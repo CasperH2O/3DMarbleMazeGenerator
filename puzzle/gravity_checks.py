@@ -60,9 +60,13 @@ class PathSample:
 
 @dataclass(frozen=True)
 class GravityDetection:
-    """One flagged occurrence: the path-sample positions it involves."""
+    """
+    One flagged occurrence: the ordered path points it spans. The geometry layer
+    renders a translucent "sleeve" (a tube) hugging these points - short for a
+    point-like failure (a drop edge), longer to envelope a whole maneuver.
+    """
 
-    positions: tuple[Vec3, ...]
+    path: tuple[Vec3, ...]
 
 
 @dataclass(frozen=True)
@@ -213,8 +217,13 @@ def _reversal_geometry(samples: list[PathSample], start: int, peak: int):
     return down_unit, apex_offset, alignment
 
 
-def _span_positions(samples: list[PathSample], start: int, peak: int) -> tuple[Vec3, ...]:
-    return tuple(samples[index].position for index in range(start, peak + 1))
+def _path_between(
+    samples: list[PathSample], start: int, end: int
+) -> GravityDetection:
+    """A detection spanning the node positions from start to end (inclusive)."""
+    return GravityDetection(
+        path=tuple(samples[index].position for index in range(start, end + 1))
+    )
 
 
 # --- Registered checks ------------------------------------------------------
@@ -242,7 +251,7 @@ def _check_downward_hairpin(
         # Apex on the side opposite "down" => ball descends into the reversal
         # (sign calibrated against the real model).
         if _dot(apex_offset, down_unit) < 0.0:
-            detections.append(GravityDetection(_span_positions(samples, start, peak)))
+            detections.append(_path_between(samples, start, peak))
     return detections
 
 
@@ -274,7 +283,9 @@ def _check_sharp_sideways_turn(
             continue  # not a horizontal turn
         if not _net_heading_reversed(samples, start, peak):
             continue  # S-curve, not a true sideways reversal
-        detections.append(GravityDetection(_span_positions(samples, start, peak)))
+        # Include the entry node (one before the span) so the sleeve covers the
+        # full sideways turn from where the ball enters it.
+        detections.append(_path_between(samples, max(0, start - 1), peak))
     return detections
 
 
@@ -336,7 +347,8 @@ def _check_drop(
             lip += 1
             continue
 
-        detections.append(GravityDetection(_span_positions(samples, lip, end)))
+        # Mark the edge of the drop (where travel pitches down), not the whole run.
+        detections.append(_path_between(samples, lip, onset))
         lip = end + 1  # skip past this drop
 
     return detections

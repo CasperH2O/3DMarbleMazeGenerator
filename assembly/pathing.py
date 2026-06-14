@@ -6,18 +6,25 @@ from typing import Optional
 
 from build123d import (
     Align,
+    BuildLine,
     BuildPart,
+    BuildSketch,
+    Circle,
     Color,
     Cone,
+    Cylinder,
     Edge,
     Location,
     Locations,
     Part,
     Plane,
+    Polyline,
     Sphere,
+    Transition,
     Vector,
     Wire,
     add,
+    sweep,
 )
 
 from config import Config
@@ -112,39 +119,106 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
     return parts
 
 
-def _warning_sphere(positions, node_size: float, color: Color, label: str) -> Part:
-    """One transparent sphere over the average of a detection's positions."""
-    points = [Vector(*position) for position in positions]
-    centroid = sum(points, Vector(0, 0, 0)) * (1.0 / len(points))
+# Sleeve (tube) radius as a fraction of node size - wraps the ~node-wide channel.
+_SLEEVE_RADIUS_FACTOR = 0.7
 
-    # Size the sphere to sit over the involved nodes, with a sensible floor.
-    spread = max((point - centroid).length for point in points)
-    radius = max(spread + node_size * 0.5, node_size * 0.6) * 0.8
 
-    with BuildPart() as sphere_builder:
-        Sphere(radius)
+def _dedup_points(path) -> list[Vector]:
+    """Path points as Vectors with consecutive duplicates removed."""
+    points: list[Vector] = []
+    for raw in path:
+        vector = Vector(*raw)
+        if not points or (vector - points[-1]).length > 1e-6:
+            points.append(vector)
+    return points
 
-    sphere = sphere_builder.part
-    sphere.position = centroid
-    sphere.label = label  # clean name, no "/" (the viewer's tree separator)
-    sphere.color = color
-    return sphere
+
+def _swept_tube_with_caps(points: list[Vector], radius: float) -> Optional[Part]:
+    """Tube swept along the straight polyline through points, with end-cap spheres."""
+    with BuildPart() as sleeve_builder:
+        with BuildLine() as sleeve_line:
+            Polyline(points)
+        with BuildSketch(sleeve_line.line ^ 0):
+            Circle(radius)
+        sweep(transition=Transition.RIGHT)
+        with Locations(points[0], points[-1]):
+            Sphere(radius)
+    part = sleeve_builder.part
+    # A sweep around a sharp corner can yield an empty-but-"valid" solid.
+    if not part.is_valid or part.volume <= 1e-6:
+        return None
+    return part
+
+
+def _capsule_chain(points: list[Vector], radius: float) -> Part:
+    """
+    Robust fallback: a cylinder per straight segment plus a sphere at every joint
+    (rounds the bends and caps the ends). Handles sharp corners a swept polyline
+    cannot.
+    """
+    part: Optional[Part] = None
+    for start, end in zip(points, points[1:]):
+        height = (end - start).length
+        if height <= 0:
+            continue
+        cylinder = Cylinder(
+            radius, height, align=(Align.CENTER, Align.CENTER, Align.MIN)
+        ).located(Plane(origin=start, z_dir=(end - start)).location)
+        part = cylinder if part is None else part + cylinder
+    for point in points:
+        joint = Sphere(radius).located(Location(point))
+        part = joint if part is None else part + joint
+    return part
+
+
+def _warning_sleeve(detection, radius: float, color: Color, label: str) -> Part:
+    """
+    A translucent "sleeve" hugging the detection's path: a tube along the straight
+    polyline through its points, capped with a sphere at the start and end. Falls
+    back to a capsule chain (then a sphere) if a sweep ever fails on a sharp span.
+    """
+    points = _dedup_points(detection.path)
+
+    part: Optional[Part] = None
+    if len(points) >= 2:
+        try:
+            part = _swept_tube_with_caps(points, radius)
+        except Exception as error:  # noqa: BLE001 - geometry kernel can raise
+            logger.debug("Sleeve sweep failed (%s); using capsule fallback.", error)
+            part = None
+        if part is None:
+            try:
+                part = _capsule_chain(points, radius)
+            except Exception as error:  # noqa: BLE001
+                logger.debug("Capsule fallback failed (%s); using sphere.", error)
+                part = None
+
+    if part is None:
+        with BuildPart() as sphere_builder:
+            Sphere(radius)
+        part = sphere_builder.part
+        part.position = points[0] if points else Vector(0, 0, 0)
+
+    part.label = label  # clean name, no "/" (the viewer's tree separator)
+    part.color = color
+    return part
 
 
 def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     """
-    Build transparent warning spheres for the registered gravity checks.
+    Build translucent warning "sleeves" for the registered gravity checks.
 
     Samples the played path (node locations for regular segments, wire samples
     for splines/obstacles), runs every check in puzzle.gravity_checks, and turns
-    each detection into one sphere at the average of its involved nodes. Each
-    sphere is named and coloured by its check type. Markers are diagnostic only;
-    they do not reject or alter the puzzle.
+    each detection into a tube hugging the offending stretch of path - short for
+    a drop edge, longer to envelope a hairpin. Each sleeve is named and coloured
+    by its check type. Markers are diagnostic only; they do not alter the puzzle.
     """
     logger.info("Performing gravity checks...")
 
     samples = build_oriented_path_samples(puzzle)
     node_size = Config.Puzzle.NODE_SIZE
+    sleeve_radius = node_size * _SLEEVE_RADIUS_FACTOR
 
     # Resolve the local "down" (accent-body probe) for every sample; the checks
     # rely on it and drops can occur anywhere along the path. The probe is a
@@ -155,20 +229,18 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     if not results:
         return []
 
-    spheres: list[Part] = []
+    sleeves: list[Part] = []
     for check, detections in results:
         color = Color(*check.color)
         for index, detection in enumerate(detections, start=1):
-            spheres.append(
-                _warning_sphere(
-                    detection.positions, node_size, color, f"{check.name} {index}"
-                )
+            sleeves.append(
+                _warning_sleeve(detection, sleeve_radius, color, f"{check.name} {index}")
             )
         logger.warning(
             "Gravity check '%s': found %d occurrence(s).", check.name, len(detections)
         )
 
-    return spheres
+    return sleeves
 
 
 def build_ball_path_wire(puzzle: Puzzle) -> Optional[Wire]:
@@ -247,10 +319,13 @@ def build_oriented_path_samples(puzzle: Puzzle) -> list[PathSample]:
       - splines and obstacles are sampled along the swept wire at the configured
         spacing, because their shape is not captured by node positions alone.
 
-    Forward-difference tangents and cumulative arc length are then computed over
-    the combined, de-duplicated, in-order point list, so reversals that span
-    segment boundaries are still seen. "Down" is cheap-omitted here and filled in
-    lazily by fill_sample_down() only where it is needed.
+    Backward-difference tangents (the heading the ball ARRIVES with at each node)
+    and cumulative arc length are then computed over the combined, de-duplicated,
+    in-order point list, so reversals that span segment boundaries are still seen.
+    Using the arriving heading (rather than the heading leaving toward the next
+    node) keeps a detected corner on the node where the turn happens, instead of
+    one node early. "Down" is omitted here and filled in lazily by
+    fill_sample_down() only where it is needed.
     """
     spacing = Config.Puzzle.NODE_SIZE  # one sample per node length
     if spacing <= 0:
@@ -294,7 +369,7 @@ def build_oriented_path_samples(puzzle: Puzzle) -> list[PathSample]:
             continue
         ordered.append((position, segment))
 
-    # 3) Forward-difference tangents + cumulative arc length over the point list.
+    # 3) Backward-difference tangents (arriving heading) + cumulative arc length.
     samples: list[PathSample] = []
     count = len(ordered)
     cumulative = 0.0
@@ -303,10 +378,10 @@ def build_oriented_path_samples(puzzle: Puzzle) -> list[PathSample]:
         if index > 0:
             cumulative += (position - ordered[index - 1][0]).length
 
-        if index < count - 1:
-            tangent = ordered[index + 1][0] - position
-        elif index > 0:
-            tangent = position - ordered[index - 1][0]
+        if index > 0:
+            tangent = position - ordered[index - 1][0]  # heading arriving at node
+        elif index < count - 1:
+            tangent = ordered[index + 1][0] - position  # first node: look forward
         else:
             tangent = Vector(1, 0, 0)
         tangent = tangent.normalized() if tangent.length > 0 else Vector(1, 0, 0)
