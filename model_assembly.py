@@ -4,7 +4,8 @@ from assembly.casing import merge_standard_paths_with_case, puzzle_casing
 from assembly.exporting import export_all
 from assembly.pathing import (
     ball_and_path_indicators,
-    build_gravity_warning_cubes,
+    build_gravity_direction_indicators,
+    build_gravity_warning_spheres,
     build_obstacle_path_body_extras,
     path,
 )
@@ -19,7 +20,8 @@ def build_components(puzzle: Puzzle):
     case_parts, base_parts, cut_shape = puzzle_casing()
     standard_paths, support_path, coloring_path = path(puzzle, cut_shape)
     obstacle_extras = build_obstacle_path_body_extras(puzzle)
-    gravity_warning_cubes = build_gravity_warning_cubes(puzzle)
+    gravity_warning_spheres = build_gravity_warning_spheres(puzzle)
+    gravity_direction_indicators = build_gravity_direction_indicators(puzzle)
     ball, ball_path, ball_path_direction = ball_and_path_indicators(puzzle)
 
     merge_standard_paths_with_case(case_parts, standard_paths or [])
@@ -31,7 +33,8 @@ def build_components(puzzle: Puzzle):
         support_path,
         coloring_path,
         obstacle_extras,
-        gravity_warning_cubes,
+        gravity_warning_spheres,
+        gravity_direction_indicators,
         ball,
         ball_path,
         ball_path_direction,
@@ -76,7 +79,8 @@ def main() -> None:
         support_path,
         coloring_path,
         obstacle_extras,
-        gravity_warning_cubes,
+        gravity_warning_spheres,
+        gravity_direction_indicators,
         ball,
         ball_path,
         ball_path_direction,
@@ -89,7 +93,8 @@ def main() -> None:
         support_path,
         coloring_path,
         obstacle_extras,
-        gravity_warning_cubes,
+        gravity_warning_spheres,
+        gravity_direction_indicators,
         ball,
         ball_path,
         ball_path_direction,

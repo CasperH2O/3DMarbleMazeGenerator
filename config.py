@@ -27,6 +27,26 @@ class Puzzle:
     NUMBER_OF_WAYPOINTS = 14  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
+    # Debug: draw red arrows sampled along the path showing the relative ideal
+    # gravity direction (the forward tangent the marble should roll along).
+    SHOW_GRAVITY_DIRECTION_INDICATORS = True
+    # Debug: draw blue arrows showing the resolved "down"/support direction of
+    # the open profile (the way the player must tilt to keep the ball seated).
+    # Use this to verify the support model that gates the hairpin warning.
+    SHOW_GRAVITY_DOWN_INDICATORS = True
+    # Arc length (mm) between sampled direction arrows / detection samples.
+    GRAVITY_DIRECTION_SAMPLE_SPACING = NODE_SIZE
+    # Flag a near-reversal (hairpin) when the path turns at least this many
+    # degrees within DIRECTION_REVERSAL_WINDOW_NODES node-lengths of travel.
+    DIRECTION_REVERSAL_ANGLE_DEG = 150.0
+    DIRECTION_REVERSAL_WINDOW_NODES = 4
+    # Only flag a hairpin when it is a downward valley: its turn plane must
+    # contain the support/"down" direction by at least this fraction (1.0 =
+    # fully vertical loop, 0.0 = sideways loop) and its apex must be the low
+    # point. Sideways and ascending hairpins are left unflagged. "Down" is
+    # probed from the accent body, which is always built below the ball.
+    DIRECTION_REVERSAL_VERTICALNESS = 0.5
+
     BALL_COLOR = "#C0C0C0"  # Metal grey
     PATH_COLORS = ["#F0CC00", "#3D3FCE", "#B82D2D"]  # Gold, Cyan, Magenta
     PATH_ACCENT_COLOR = "#ECECEC"  # Blue
