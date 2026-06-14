@@ -22,24 +22,15 @@ from build123d import (
 
 from config import Config
 from cad.path_builder import PathBuilder, PathTypes
-from puzzle.gravity_validation import (
+from puzzle.gravity_checks import (
     PathSample,
-    detect_direction_reversals,
     involved_reversal_indices,
+    run_gravity_checks,
 )
 from puzzle.utils.enums import PathSegmentDesignStrategy
 from puzzle.puzzle import Puzzle
 
 logger = logging.getLogger(__name__)
-
-# Gravity hairpin check tuning - validated values, intentionally not exposed as
-# user config. Samples are taken one node length apart; a reversal is flagged
-# when the path turns >= _REVERSAL_ANGLE_DEG within _REVERSAL_WINDOW_NODES node
-# lengths and is a downward valley (turn plane contains "down" by at least
-# _REVERSAL_VERTICALNESS, apex on the low side).
-_REVERSAL_WINDOW_NODES = 4
-_REVERSAL_ANGLE_DEG = 150.0
-_REVERSAL_VERTICALNESS = 0.5
 
 
 def path(puzzle: Puzzle, cut_shape: Part):
@@ -122,75 +113,62 @@ def build_obstacle_path_body_extras(puzzle: Puzzle) -> list[Part]:
     return parts
 
 
+def _warning_sphere(positions, node_size: float, color: Color, label: str) -> Part:
+    """One transparent sphere over the average of a detection's positions."""
+    points = [Vector(*position) for position in positions]
+    centroid = sum(points, Vector(0, 0, 0)) * (1.0 / len(points))
+
+    # Size the sphere to sit over the involved nodes, with a sensible floor.
+    spread = max((point - centroid).length for point in points)
+    radius = max(spread + node_size * 0.5, node_size * 0.6) * 0.8
+
+    with BuildPart() as sphere_builder:
+        Sphere(radius)
+
+    sphere = sphere_builder.part
+    sphere.position = centroid
+    sphere.label = label  # clean name, no "/" (the viewer's tree separator)
+    sphere.color = color
+    return sphere
+
+
 def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     """
-    Build transparent warning spheres for gravity feasibility issues.
+    Build transparent warning spheres for the registered gravity checks.
 
-    Currently the only check is the hairpin detector: it samples the played path
-    wire (splines and obstacle paths included) and flags the nodes involved in a
-    near-reversal of direction. The per-node findings of each detection are
-    combined into a single sphere at their average location, sized to enclose the
-    involved nodes. Each sphere gets a clean incrementing name (no "/", which the
-    viewer treats as a tree separator) so they list properly under the group.
-    These markers are diagnostic only; they do not reject or alter the puzzle.
+    Samples the played path (node locations for regular segments, wire samples
+    for splines/obstacles), runs every check in puzzle.gravity_checks, and turns
+    each detection into one sphere at the average of its involved nodes. Each
+    sphere is named and coloured by its check type. Markers are diagnostic only;
+    they do not reject or alter the puzzle.
     """
-    logger.info("Performing gravity hairpin check...")
+    logger.info("Performing gravity checks...")
 
     samples = build_oriented_path_samples(puzzle)
+    node_size = Config.Puzzle.NODE_SIZE
 
     # Cheap first pass: find candidate reversals from tangents only, then probe
     # the costly "down" direction (accent body) just for the samples involved.
-    candidate_indices = involved_reversal_indices(
-        samples,
-        node_size=Config.Puzzle.NODE_SIZE,
-        window_nodes=_REVERSAL_WINDOW_NODES,
-        angle_threshold_deg=_REVERSAL_ANGLE_DEG,
-    )
+    candidate_indices = involved_reversal_indices(samples, node_size)
     samples = fill_sample_down(puzzle, samples, candidate_indices)
 
-    issues = detect_direction_reversals(
-        samples,
-        node_size=Config.Puzzle.NODE_SIZE,
-        window_nodes=_REVERSAL_WINDOW_NODES,
-        angle_threshold_deg=_REVERSAL_ANGLE_DEG,
-        verticalness_threshold=_REVERSAL_VERTICALNESS,
-    )
-    if not issues:
+    results = run_gravity_checks(samples, node_size)
+    if not results:
         return []
 
-    # Group the per-node findings by detection (movement_pattern is unique per
-    # hairpin, e.g. "hairpin 1: ...").
-    grouped: dict[str, list] = {}
-    for issue in issues:
-        grouped.setdefault(issue.movement_pattern, []).append(issue)
-
-    node_size = Config.Puzzle.NODE_SIZE
-    warning_color = Color(1.0, 0.55, 0.0, 71 / 255)
-
     spheres: list[Part] = []
-    for index, (_pattern, group) in enumerate(grouped.items(), start=1):
-        points = [Vector(issue.node.x, issue.node.y, issue.node.z) for issue in group]
-        centroid = sum(points, Vector(0, 0, 0)) * (1.0 / len(points))
+    for check, detections in results:
+        color = Color(*check.color)
+        for index, detection in enumerate(detections, start=1):
+            spheres.append(
+                _warning_sphere(
+                    detection.positions, node_size, color, f"{check.name} {index}"
+                )
+            )
+        logger.warning(
+            "Gravity check '%s': found %d occurrence(s).", check.name, len(detections)
+        )
 
-        # Size the sphere to sit over the involved nodes, with a sensible floor.
-        spread = max((point - centroid).length for point in points)
-        radius = max(spread + node_size * 0.5, node_size * 0.6) * 0.8
-
-        with BuildPart() as sphere_builder:
-            Sphere(radius)
-
-        sphere = sphere_builder.part
-        sphere.position = centroid
-        # Clean incrementing name only — no "/" (the viewer's tree separator).
-        sphere.label = f"Gravity Warning {index}"
-        sphere.color = warning_color
-        spheres.append(sphere)
-
-    logger.warning(
-        "Gravity hairpin check: found %d potential hairpin reversal(s) where "
-        "gravity cannot drive the marble through the turn.",
-        len(spheres),
-    )
     return spheres
 
 
