@@ -24,7 +24,6 @@ from config import Config
 from cad.path_builder import PathBuilder, PathTypes
 from puzzle.gravity_checks import (
     PathSample,
-    involved_reversal_indices,
     run_gravity_checks,
 )
 from puzzle.utils.enums import PathSegmentDesignStrategy
@@ -147,10 +146,10 @@ def build_gravity_warning_spheres(puzzle: Puzzle) -> list[Part]:
     samples = build_oriented_path_samples(puzzle)
     node_size = Config.Puzzle.NODE_SIZE
 
-    # Cheap first pass: find candidate reversals from tangents only, then probe
-    # the costly "down" direction (accent body) just for the samples involved.
-    candidate_indices = involved_reversal_indices(samples, node_size)
-    samples = fill_sample_down(puzzle, samples, candidate_indices)
+    # Resolve the local "down" (accent-body probe) for every sample; the checks
+    # rely on it and drops can occur anywhere along the path. The probe is a
+    # cheap closest-point query (~1 ms per sample).
+    samples = fill_sample_down(puzzle, samples, range(len(samples)))
 
     results = run_gravity_checks(samples, node_size)
     if not results:
