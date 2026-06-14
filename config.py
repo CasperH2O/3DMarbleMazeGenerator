@@ -36,6 +36,10 @@ class Puzzle:
     TRANSPARENT_CASE_COLOR = Color(1.0, 1.0, 1.0, 13 / 255)  # white ~5% opacity
     SUPPORT_MATERIAL_COLOR = Color(1.0, 1.0, 1.0, 26 / 255)  # white ~10% opacity
 
+    # Debug: red arrows showing the marble's forward travel direction.
+    SHOW_BALL_ROLL_INDICATORS = False
+    # Debug: blue arrows showing the ideal puzzle gravity-down direction.
+    SHOW_IDEAL_GRAVITY_INDICATORS = False
 
 class Obstacles:
     RANDOM_PLACEMENT_ENABLED = False  # random obstacle on/off switch.
