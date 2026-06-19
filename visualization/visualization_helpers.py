@@ -7,7 +7,7 @@ from typing import Iterable, List, Tuple
 
 import numpy as np
 import plotly.graph_objects as go
-from build123d import Spline, Vector
+from build123d import Spline, Vector, Polyline
 from geomdl import BSpline, utilities
 
 from cad.cases.case_model_base import Case
@@ -19,58 +19,30 @@ from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
 
 
-def _segment_endpoint_tangent(
-    adjacent_segment: PathSegment | None,
-    *,
-    at_end: bool,
-) -> Vector | None:
-    """Return a unit tangent for an adjacent segment endpoint when it can be inferred."""
-    if adjacent_segment is None:
-        return None
-
-    path = adjacent_segment.path
-    if path is not None:
-        path_tangent = path % (1 if at_end else 0)
-        if path_tangent.length != 0:
-            return path_tangent.normalized()
-
-    if len(adjacent_segment.nodes) < 2:
-        return None
+def _segment_endpoint_tangent(adjacent_segment: PathSegment, *, at_end: bool) -> Vector:
 
     if at_end:
-        start_node = adjacent_segment.nodes[-2]
-        end_node = adjacent_segment.nodes[-1]
+        n1, n2 = adjacent_segment.nodes[-2], adjacent_segment.nodes[-1]
     else:
-        start_node = adjacent_segment.nodes[0]
-        end_node = adjacent_segment.nodes[1]
-
-    tangent = Vector(
-        end_node.x - start_node.x,
-        end_node.y - start_node.y,
-        end_node.z - start_node.z,
-    )
-    if tangent.length == 0:
-        return None
-
-    return tangent.normalized()
-
+        n1, n2 = adjacent_segment.nodes[0], adjacent_segment.nodes[1]
+    return Polyline((n1.x, n1.y, n1.z), (n2.x, n2.y, n2.z)) % (0 if at_end else 1)
 
 def _sample_build123d_spline(
     spline_nodes: list[Node],
-    previous_segment: PathSegment | None,
-    next_segment: PathSegment | None,
+    previous_segment: PathSegment,
+    next_segment: PathSegment,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Sample the same Build123D/OCCT spline type used for physical path creation."""
     spline_points = [Vector(node.x, node.y, node.z) for node in spline_nodes]
-    start_tangent = _segment_endpoint_tangent(previous_segment, at_end=True)
-    end_tangent = _segment_endpoint_tangent(next_segment, at_end=False)
+    spline = Spline(
+        spline_points,
+        tangents=[
+            _segment_endpoint_tangent(previous_segment, at_end=True),
+            _segment_endpoint_tangent(next_segment, at_end=False),
+        ],
+    )
 
-    if start_tangent is not None and end_tangent is not None:
-        spline = Spline(spline_points, tangents=[start_tangent, end_tangent])
-    else:
-        spline = Spline(spline_points)
-
-    sampled_positions = spline.positions(np.linspace(0, 1, 1000))
+    sampled_positions = spline.positions(np.linspace(0, 1, 50))
     sampled_points = np.array(
         [[position.X, position.Y, position.Z] for position in sampled_positions]
     )
@@ -590,24 +562,8 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                         y_vals.append(b.y)
                         z_vals.append(b.z)
         elif segment.design_strategy == PathSegmentDesignStrategy.SPLINE:
-            # Keep endpoints + waypoints in the middle; chord-length parameterization
             total_nodes = segment.nodes
-            spline_nodes: list = []
-            if len(total_nodes) >= 2:
-                spline_nodes.extend(total_nodes[:2])
-                for node in total_nodes[2:-2]:
-                    if getattr(node, "waypoint", False) and node not in spline_nodes:
-                        spline_nodes.append(node)
-                for node in total_nodes[-2:]:
-                    if node not in spline_nodes:
-                        spline_nodes.append(node)
-            else:
-                spline_nodes = total_nodes
-
-            # Ensure original order
-            spline_nodes = sorted(
-                spline_nodes, key=lambda node: total_nodes.index(node)
-            )
+            spline_nodes = [total_nodes[0], total_nodes[-1]] if len(total_nodes) >= 2 else total_nodes
             xs = [node.x for node in spline_nodes]
             ys = [node.y for node in spline_nodes]
             zs = [node.z for node in spline_nodes]
