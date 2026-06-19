@@ -7,8 +7,8 @@ from typing import Iterable, List, Tuple
 
 import numpy as np
 import plotly.graph_objects as go
+from build123d import Spline, Vector, Polyline
 from geomdl import BSpline, utilities
-from scipy import interpolate
 
 from cad.cases.case_model_base import Case
 from cad.path_segment import PathSegment
@@ -17,6 +17,36 @@ from puzzle.grid_layouts.grid_layout_box import BoxCasing
 from puzzle.grid_layouts.grid_layout_cylinder import CylinderCasing
 from puzzle.grid_layouts.grid_layout_sphere import SphereCasing
 from puzzle.node import Node
+
+
+def _segment_endpoint_tangent(adjacent_segment: PathSegment, *, at_end: bool) -> Vector:
+
+    if at_end:
+        n1, n2 = adjacent_segment.nodes[-2], adjacent_segment.nodes[-1]
+    else:
+        n1, n2 = adjacent_segment.nodes[0], adjacent_segment.nodes[1]
+    return Polyline((n1.x, n1.y, n1.z), (n2.x, n2.y, n2.z)) % (0 if at_end else 1)
+
+def _sample_build123d_spline(
+    spline_nodes: list[Node],
+    previous_segment: PathSegment,
+    next_segment: PathSegment,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Sample the same Build123D/OCCT spline type used for physical path creation."""
+    spline_points = [Vector(node.x, node.y, node.z) for node in spline_nodes]
+    spline = Spline(
+        spline_points,
+        tangents=[
+            _segment_endpoint_tangent(previous_segment, at_end=True),
+            _segment_endpoint_tangent(next_segment, at_end=False),
+        ],
+    )
+
+    sampled_positions = spline.positions(np.linspace(0, 1, 50))
+    sampled_points = np.array(
+        [[position.X, position.Y, position.Z] for position in sampled_positions]
+    )
+    return sampled_points[:, 0], sampled_points[:, 1], sampled_points[:, 2]
 
 
 def plot_nodes(
@@ -446,7 +476,14 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
         seg_key: color for seg_key, color in zip(unique_keys, hsv_colors)
     }
 
-    for segment in segments:
+    for segment_index, segment in enumerate(segments):
+        previous_segment = segments[segment_index - 1] if segment_index > 0 else None
+        next_segment = (
+            segments[segment_index + 1]
+            if segment_index < len(segments) - 1
+            else None
+        )
+
         # Assign unique colors based on main and secondary index
         seg_key = (segment.main_index, segment.secondary_index)
         segment_color = segment_colors[seg_key]
@@ -525,41 +562,18 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
                         y_vals.append(b.y)
                         z_vals.append(b.z)
         elif segment.design_strategy == PathSegmentDesignStrategy.SPLINE:
-            # Keep endpoints + waypoints in the middle; chord-length parameterization
             total_nodes = segment.nodes
-            spline_nodes: list = []
-            if len(total_nodes) >= 2:
-                spline_nodes.extend(total_nodes[:2])
-                for n in total_nodes[2:-2]:
-                    if getattr(n, "waypoint", False) and n not in spline_nodes:
-                        spline_nodes.append(n)
-                for n in total_nodes[-2:]:
-                    if n not in spline_nodes:
-                        spline_nodes.append(n)
-            else:
-                spline_nodes = total_nodes
+            spline_nodes = [total_nodes[0], total_nodes[-1]] if len(total_nodes) >= 2 else total_nodes
+            xs = [node.x for node in spline_nodes]
+            ys = [node.y for node in spline_nodes]
+            zs = [node.z for node in spline_nodes]
 
-            # Ensure original order
-            spline_nodes = sorted(spline_nodes, key=lambda n: total_nodes.index(n))
-            xs = [n.x for n in spline_nodes]
-            ys = [n.y for n in spline_nodes]
-            zs = [n.z for n in spline_nodes]
+            x_vals, y_vals, z_vals = _sample_build123d_spline(
+                spline_nodes,
+                previous_segment,
+                next_segment,
+            )
 
-            xyz = np.vstack([xs, ys, zs]).T
-            if len(xyz) < 2:
-                x_vals, y_vals, z_vals = xs, ys, zs
-            else:
-                u = np.cumsum(np.r_[0, np.linalg.norm(np.diff(xyz, axis=0), axis=1)])
-                try:
-                    sx = interpolate.InterpolatedUnivariateSpline(u, xs)
-                    sy = interpolate.InterpolatedUnivariateSpline(u, ys)
-                    sz = interpolate.InterpolatedUnivariateSpline(u, zs)
-                    uu = np.linspace(u[0], u[-1], 1000)
-                    x_vals = sx(uu)
-                    y_vals = sy(uu)
-                    z_vals = sz(uu)
-                except Exception:
-                    x_vals, y_vals, z_vals = xs, ys, zs
         else:
             # Fallback: straight lines through the nodes
             x_vals = [n.x for n in segment.nodes]
