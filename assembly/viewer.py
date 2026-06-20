@@ -7,15 +7,38 @@ import numpy as np
 from ocp_vscode import (
     Animation,
     Camera,
+    StudioTextureMapping,
     set_defaults,
     set_viewer_config,
     show_object,
     status,
 )
+from threejs_materials import PbrProperties
 
 from assembly.casing import CasePart
 from config import Config
 from puzzle.utils.enums import Theme
+
+
+def _load_material(name: str, scale: tuple) -> PbrProperties | None:
+    """Load a GPU Open PBR material by name and apply UV scale. Returns None on failure."""
+    try:
+        return PbrProperties.from_gpuopen(name).scale(*scale)
+    except Exception as e:
+        print(f"[viewer] Could not load material '{name}': {e}")
+        return None
+
+
+def _get_materials() -> dict:
+    """Return a dict of role -> PbrProperties (or None) based on config."""
+    if not Config.Materials.ENABLED:
+        return {"casing": None, "track": None, "ball": None}
+    cfg = Config.Materials
+    return {
+        "casing": _load_material(cfg.CASING_MATERIAL, cfg.CASING_MATERIAL_SCALE),
+        "track": _load_material(cfg.TRACK_MATERIAL, cfg.TRACK_MATERIAL_SCALE),
+        "ball": _load_material(cfg.BALL_MATERIAL, cfg.BALL_MATERIAL_SCALE),
+    }
 
 
 def _is_transparent(color: str) -> bool:
@@ -79,8 +102,15 @@ def display_parts(
     """
     Display all puzzle physical objects.
     """
+    materials = _get_materials()
+    use_pbr = Config.Materials.ENABLED and any(v is not None for v in materials.values())
+
     # Set the default camera position, to not adjust on new show
-    set_defaults(reset_camera=Camera.KEEP, black_edges=True)
+    set_defaults(
+        reset_camera=Camera.KEEP,
+        black_edges=True,
+        studio_texture_mapping=StudioTextureMapping.PARAMETRIC if use_pbr else None,
+    )
 
     # If Generic theme, assign distinct HSV colors per part
     if Config.Puzzle.THEME == Theme.HIGH_CONTRAST:
@@ -100,29 +130,29 @@ def display_parts(
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
     # Display the ball, its path and direction
-    show_object([ball, ball_path, ball_path_direction], name="Path Indicator")
+    show_object([ball, ball_path, ball_path_direction], name="Path Indicator", material=materials["ball"])
 
     if case_parts:
         if len(case_parts) == 1:
-            show_object(case_parts[0])
+            show_object(case_parts[0], material=materials["casing"])
         else:
-            show_object(case_parts, name="Casing")
+            show_object(case_parts, name="Casing", material=materials["casing"])
 
     # The paths, standard paths, support path and coloring path
     if standard_paths:
         if len(standard_paths) == 1:
-            show_object(standard_paths[0])
+            show_object(standard_paths[0], material=materials["track"])
         else:
-            show_object(standard_paths, name="Standard Paths")
+            show_object(standard_paths, name="Standard Paths", material=materials["track"])
 
     if support_path:
-        show_object(support_path)
+        show_object(support_path, material=materials["track"])
 
     if coloring_path:
-        show_object(coloring_path)
+        show_object(coloring_path, material=materials["track"])
 
     if obstacle_extras:
-        show_object(obstacle_extras, name="Obstacle Extra's")
+        show_object(obstacle_extras, name="Obstacle Extra's", material=materials["track"])
 
     # Display each part from the base
     if base_parts:

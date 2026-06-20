@@ -1,11 +1,15 @@
 build123d==0.11.0
 colorlog==6.10.1
 geomdl==5.4.0
+materialx==1.39.5
 numpy==2.4.6
 ocp_vscode==3.4.0
+openexr==3.4.12
 plotly==6.8.0
+py-materials==3.10.0
 pyvista==0.48.4
 scipy==1.17.1
 stpyvista==0.2.1
 streamlit==1.58.0
+threejs-materials==1.1.1
 vtk==9.6.2

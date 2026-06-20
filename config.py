@@ -14,7 +14,6 @@ from puzzle.utils.enums import (
     Theme,
 )
 
-
 # Puzzle configuration
 class Puzzle:
     CASE_MANUFACTURER = CaseManufacturer.SPHERE_PLAYTASTIC_120_MM
@@ -227,6 +226,27 @@ class Path:
         },
     }
 
+class Materials:
+    """
+    PBR material assignments for viewer rendering.
+    
+    See: https://matlib.gpuopen.com/main/materials/all
+    """
+
+    ENABLED = True  # Master switch
+
+    # Enclosure domes (transparent plastic)
+    CASING_MATERIAL = "Glass"
+    CASING_MATERIAL_SCALE = (3, 3)
+
+    # Plastic track (ABS/PLA)
+    TRACK_MATERIAL = "Rough Plastic"
+    TRACK_MATERIAL_SCALE = (2, 2)
+
+    # Metal ball
+    BALL_MATERIAL = "Stainless Steel"
+    BALL_MATERIAL_SCALE = (1, 1)
+
 
 # Apply overrides
 def apply_case_manufacturer_overrides():
@@ -266,3 +286,4 @@ class Config:
     Path = Path
     Manufacturing = Manufacturing
     Obstacles = Obstacles
+    Materials = Materials
