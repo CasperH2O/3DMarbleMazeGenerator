@@ -80,6 +80,12 @@ class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
     EXPORT_STL = False
+    EXPORT_3MF = False
+    ORCA_ENABLE_SUPPORT = True
+    ORCA_SUPPORT_INTERFACE_TOP_LAYERS = 5
+    ORCA_SUPPORT_INTERFACE_BOTTOM_LAYERS = 5
+    # PVA support-interface material/extruder in OrcaSlicer
+    ORCA_SUPPORT_INTERFACE_FILAMENT = 2
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.
