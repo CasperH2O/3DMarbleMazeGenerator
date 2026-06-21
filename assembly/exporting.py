@@ -148,20 +148,32 @@ def _export_3mf_parts(
     os.makedirs(export_root, exist_ok=True)
     print_settings = _default_orca_print_settings()
 
-    for _, part in _part_records(case_parts, base_parts, additional_parts):
-        label = part.label
+    grouped_parts: dict[str, list[Part]] = {
+        "Puzzle": [],
+        "Mounting": [],
+        "Base": [],
+        "Extra": [],
+    }
+    for category, part in _part_records(case_parts, base_parts, additional_parts):
+        grouped_parts[category].append(part)
+
+    for category, parts in grouped_parts.items():
+        if not parts:
+            continue
+
         project = Project(
             info=ProjectInfo(
-                title=label,
+                title=category,
                 designer="3D Marble Maze Generator",
                 description=(
-                    "Model-only OrcaSlicer 3MF export with support interface "
-                    "settings for soluble PVA interface material."
+                    "Grouped model-only OrcaSlicer 3MF export with support "
+                    "interface settings for soluble PVA interface material."
                 ),
             )
         )
-        project.add_object(part, name=label, settings=print_settings)
-        project.save(Path(export_root) / f"{label}.3mf")
+        for part in parts:
+            project.add_object(part, name=part.label, settings=print_settings)
+        project.save(Path(export_root) / f"{category}.3mf")
 
     return export_root
 
