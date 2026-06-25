@@ -1,5 +1,6 @@
 # assembly/exporting.py
 
+import logging
 import os
 from collections.abc import Iterable
 from pathlib import Path
@@ -8,6 +9,8 @@ from build123d import Part, Vector, export_stl
 
 from assembly.casing import CasePart
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 def _export_folder_name() -> str:
@@ -131,6 +134,65 @@ def _export_stl_parts(
     return export_root
 
 
+def _mounting_point_count() -> int:
+    """Return the number of mounting points for the current case shape."""
+    from cad.cases.case_model_base import CaseShape
+
+    mapping = {
+        CaseShape.SPHERE: Config.Sphere,
+        CaseShape.SPHERE_WITH_FLANGE: Config.Sphere,
+        CaseShape.SPHERE_WITH_FLANGE_ENCLOSED_TWO_SIDES: Config.Sphere,
+        CaseShape.CYLINDER: Config.Cylinder,
+    }
+    case_cfg = mapping.get(Config.Puzzle.CASE_SHAPE)
+    return getattr(case_cfg, "NUMBER_OF_MOUNTING_POINTS", 1) if case_cfg else 1
+
+
+def _add_mounting_objects(project, parts: list[Part], print_settings) -> None:
+    """Add mounting parts to the project with two special behaviours:
+
+    - ``MOUNTING_RING_CLIP_START`` and ``START_INDICATOR`` are combined into one
+      ModelObject so they print in place as a single unit.
+    - ``MOUNTING_RING_CLIP_SINGLE`` is duplicated ``NUMBER_OF_MOUNTING_POINTS - 1``
+      times (one copy per remaining mounting point), if the part is present.
+    """
+    clip_start_label = CasePart.MOUNTING_RING_CLIP_START.value
+    indicator_label = CasePart.START_INDICATOR.value
+    clip_single_label = CasePart.MOUNTING_RING_CLIP_SINGLE.value
+
+    by_label = {p.label: p for p in parts}
+    clip_start = by_label.get(clip_start_label)
+    indicator = by_label.get(indicator_label)
+    clip_single = by_label.get(clip_single_label)
+
+    special_labels = {clip_start_label, indicator_label, clip_single_label}
+
+    # Add all non-special parts normally.
+    for part in parts:
+        if part.label not in special_labels:
+            project.add_object(part, name=part.label, settings=print_settings)
+
+    # Combine Mounting Clip Start + Start Indicator into one ModelObject.
+    if clip_start is not None or indicator is not None:
+        combined = [p for p in (clip_start, indicator) if p is not None]
+        obj_name = clip_start_label if clip_start is not None else indicator_label
+        obj = project.add_object(name=obj_name, settings=print_settings)
+        for p in combined:
+            obj.add_part(p, name=p.label)
+
+    # Duplicate Mounting Clip Single for each remaining mounting point.
+    if clip_single is not None:
+        n_copies = _mounting_point_count() - 1
+        for _ in range(n_copies):
+            project.add_object(clip_single, name=clip_single_label, settings=print_settings)
+
+
+# Categories where parts should remain stacked at design positions (assembled pile).
+# Parts are merged into one ModelObject so OrcaSlicer's auto_drop applies to the
+# combined bounding box — relative Z positions between parts are preserved.
+_3MF_STACK_CATEGORIES = {"Puzzle", "Base"}
+
+
 def _export_3mf_parts(
     case_parts: list[Part],
     base_parts: list[Part],
@@ -152,7 +214,6 @@ def _export_3mf_parts(
         "Puzzle": [],
         "Mounting": [],
         "Base": [],
-        "Extra": [],
     }
     for category, part in _part_records(case_parts, base_parts, additional_parts):
         grouped_parts[category].append(part)
@@ -171,9 +232,23 @@ def _export_3mf_parts(
                 ),
             )
         )
-        for part in parts:
-            project.add_object(part, name=part.label, settings=print_settings)
-        project.save(Path(export_root) / f"{category}.3mf")
+
+        if category in _3MF_STACK_CATEGORIES:
+            # Stack: merge all parts into one ModelObject with multiple volumes.
+            # OrcaSlicer's auto_drop then applies to the *combined* bounding box,
+            # so all parts shift by the same Z offset and their relative design
+            # positions are preserved (they print as a stacked assembly).
+            obj = project.add_object(name=category, settings=print_settings)
+            for part in parts:
+                obj.add_part(part, name=part.label)
+        elif category == "Mounting":
+            _add_mounting_objects(project, parts, print_settings)
+        else:
+            for part in parts:
+                project.add_object(part, name=part.label, settings=print_settings)
+
+        save_path = Path(export_root) / f"{category}.3mf"
+        project.save(save_path)
 
     return export_root
 
@@ -203,8 +278,10 @@ def export_all(
 
     export_roots = []
     if Config.Manufacturing.EXPORT_STL:
+        logger.info("Exporting STL parts to %s ...", _case_export_root())
         export_roots.append(_export_stl_parts(case_parts, base_parts, additional_parts))
     if Config.Manufacturing.EXPORT_3MF:
+        logger.info("Exporting 3MF parts to %s ...", _case_export_root())
         export_roots.append(_export_3mf_parts(case_parts, base_parts, additional_parts))
 
     return export_roots[-1] if export_roots else None
