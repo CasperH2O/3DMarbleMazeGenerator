@@ -1,17 +1,28 @@
 # assembly/viewer.py
 
 import colorsys
+import contextlib
+import io
 import random
 
 import numpy as np
 from ocp_vscode import (
     Animation,
     Camera,
+    ignore_camera_warnings,
     set_defaults,
     set_viewer_config,
     show_object,
     status,
 )
+
+ignore_camera_warnings() # Suppress the once-per-session CameraKeepWarning.
+
+@contextlib.contextmanager
+def _suppress_stdout():
+    """Silence stdout within the block (e.g. Animation's 'Available paths' dump)."""
+    with contextlib.redirect_stdout(io.StringIO()):
+        yield
 
 from assembly.casing import CasePart
 from config import Config
@@ -152,8 +163,11 @@ def set_viewer():
             shape_on, _edges_on = val
             st[path] = [shape_on, 0]  # keep current shape visibility, hide edges
 
-    # Rotating animation — must be created before any viewer state changes
-    animation = Animation()
+    
+    # Suppress Animation.__init__ printing "Available paths"
+    with _suppress_stdout():
+        # Rotating animation, must be created before any viewer state changes
+        animation = Animation()
     times = np.linspace(0, 12, 33)  # 12 seconds split in 0.2 intervals
     values = np.linspace(0, -360, 33)  # as many positions as times
 
