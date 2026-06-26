@@ -9,3 +9,4 @@ scipy==1.17.1
 stpyvista==0.2.1
 streamlit==1.58.0
 vtk==9.6.2
+orca123d @ git+https://github.com/jsmnbom/orca123d.git

@@ -36,7 +36,7 @@ def build_components(puzzle: Puzzle):
 
 
 def export_components(puzzle: Puzzle, apply_manufacturing_preparation: bool = True) -> str | None:
-    """Export STL files for the puzzle when enabled in configuration.
+    """Export manufacturing files for the puzzle when enabled in configuration.
 
     Args:
         puzzle: The puzzle to export.

@@ -79,7 +79,15 @@ class Obstacles:
 class Manufacturing:
     LAYER_THICKNESS = 0.2
     NOZZLE_DIAMETER = 0.4
+
     EXPORT_STL = False
+    EXPORT_3MF = True
+    
+    SLICER_3D_PRINTING_ENABLE_SUPPORT = True
+    SLICER_3D_PRINTING_SUPPORT_INTERFACE_TOP_LAYERS = 5
+    SLICER_3D_PRINTING_SUPPORT_INTERFACE_BOTTOM_LAYERS = 5
+    SLICER_3D_PRINTING_SUPPORT_INTERFACE_FILAMENT = 2
+    
     # Divide paths into n parts for printing,
     # 0 for everything seperate
     # 1 for one part, 2 for two parts, etc.
