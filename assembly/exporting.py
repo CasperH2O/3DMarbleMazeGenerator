@@ -8,21 +8,20 @@ from pathlib import Path
 from build123d import Part, Vector, export_stl
 
 from assembly.casing import CasePart
+from cad.cases.case_model_base import CaseShape
 from config import Config
 
 logger = logging.getLogger(__name__)
 
 
-def _export_folder_name() -> str:
-    return f"Case-{Config.Puzzle.CASE_SHAPE.value}-Seed-{Config.Puzzle.SEED}"
-
-
 def _case_export_root() -> str:
-    return os.path.join("export", _export_folder_name())
+    """Builds the per-configuration export root path, unique per case shape and seed."""
+    export_folder_name = f"Case-{Config.Puzzle.CASE_SHAPE.value}-Seed-{Config.Puzzle.SEED}"
+    return os.path.join("export", export_folder_name)
 
 
 def _create_export_folders(export_root: str) -> dict[str, str]:
-    # create the four categories for folder sorting
+    """Creates the category subfolders under export_root and returns their paths."""
     folders = {
         "Puzzle": os.path.join(export_root, "Puzzle"),
         "Mounting": os.path.join(export_root, "Mounting"),
@@ -35,6 +34,7 @@ def _create_export_folders(export_root: str) -> dict[str, str]:
 
 
 def _flatten_parts(parts: Iterable):
+    """Recursively flattens nested lists of parts into a single sequence."""
     for item in parts:
         if isinstance(item, list):
             yield from _flatten_parts(item)
@@ -43,6 +43,7 @@ def _flatten_parts(parts: Iterable):
 
 
 def _categorize_case_part(label: str) -> str:
+    """Maps a CasePart label to its export category (Puzzle, Mounting, Base, or Extra)."""
     puzzle_case = {
         CasePart.MOUNTING_RING.value,
         CasePart.INTERNAL_PATH_BRIDGES.value,
@@ -67,18 +68,19 @@ def _categorize_case_part(label: str) -> str:
         return "Mounting"
     if label in extra_case:
         return "Extra"
-    # anything un-matched goes to Extra
     return "Extra"
 
 
 def _prepare_parts_for_manufacturing(case_parts: list[Part]) -> None:
-    # Adjust some orientation to prepare for 3D printing plate
+    """Rotates parts into print-ready orientations before export.
+
+    Parts are designed in assembly orientation; some need to be flipped or
+    rotated so they sit flat on the build plate without requiring support.
+    """
     for part in case_parts:
         match part.label:
-            # Rotate mounting ring top upside down
             case CasePart.MOUNTING_RING_TOP.value:
                 part.orientation = Vector(0, 180, 0)
-            # Rotate mounting clips
             case (
                 CasePart.START_INDICATOR.value
                 | CasePart.MOUNTING_RING_CLIP_START.value
@@ -88,15 +90,14 @@ def _prepare_parts_for_manufacturing(case_parts: list[Part]) -> None:
 
 
 def _part_records(case_parts: list[Part], base_parts: list[Part], additional_parts=None):
+    """Yields (category, part) pairs for all parts across case, base, and additional inputs."""
     for part in case_parts:
         yield _categorize_case_part(part.label), part
 
     for part in base_parts:
         yield "Base", part
 
-    # export additional objects, the paths, if any.
     if additional_parts:
-        # all these go into the puzzle folder
         for part in _flatten_parts(additional_parts):
             try:
                 part.label
@@ -105,14 +106,15 @@ def _part_records(case_parts: list[Part], base_parts: list[Part], additional_par
             yield "Puzzle", part
 
 
-def _default_orca_print_settings():
-    from orca123d import PrintSettings
+def _default_3d_print_settings():
+    """Builds a PrintSettings object from Manufacturing config for use across all 3MF objects."""
+    from orca123d import PrintSettings  # Lazy load, only required for 3MF export.
 
     return PrintSettings(
-        enable_support=Config.Manufacturing.ORCA_ENABLE_SUPPORT,
-        support_interface_top_layers=Config.Manufacturing.ORCA_SUPPORT_INTERFACE_TOP_LAYERS,
-        support_interface_bottom_layers=Config.Manufacturing.ORCA_SUPPORT_INTERFACE_BOTTOM_LAYERS,
-        support_interface_filament=Config.Manufacturing.ORCA_SUPPORT_INTERFACE_FILAMENT,
+        enable_support=Config.Manufacturing.SLICER_3D_PRINTING_ENABLE_SUPPORT,
+        support_interface_top_layers=Config.Manufacturing.SLICER_3D_PRINTING_SUPPORT_INTERFACE_TOP_LAYERS,
+        support_interface_bottom_layers=Config.Manufacturing.SLICER_3D_PRINTING_SUPPORT_INTERFACE_BOTTOM_LAYERS,
+        support_interface_filament=Config.Manufacturing.SLICER_3D_PRINTING_SUPPORT_INTERFACE_FILAMENT,
     )
 
 
@@ -121,6 +123,7 @@ def _export_stl_parts(
     base_parts: list[Part],
     additional_parts=None,
 ) -> str:
+    """Exports all parts as individual STL files sorted into category subfolders."""
     export_root = os.path.join(_case_export_root(), "stl")
     folders = _create_export_folders(export_root)
 
@@ -135,8 +138,7 @@ def _export_stl_parts(
 
 
 def _mounting_point_count() -> int:
-    """Return the number of mounting points for the current case shape."""
-    from cad.cases.case_model_base import CaseShape
+    """Returns the number of mounting points for the current case shape."""
 
     mapping = {
         CaseShape.SPHERE: Config.Sphere,
@@ -145,16 +147,16 @@ def _mounting_point_count() -> int:
         CaseShape.CYLINDER: Config.Cylinder,
     }
     case_cfg = mapping.get(Config.Puzzle.CASE_SHAPE)
-    return getattr(case_cfg, "NUMBER_OF_MOUNTING_POINTS", 1) if case_cfg else 1
+    
+    return case_cfg.NUMBER_OF_MOUNTING_POINTS if case_cfg else 0
 
 
 def _add_mounting_objects(project, parts: list[Part], print_settings) -> None:
-    """Add mounting parts to the project with two special behaviours:
+    """Adds mounting parts to the project with two special behaviours:
 
-    - ``MOUNTING_RING_CLIP_START`` and ``START_INDICATOR`` are combined into one
-      ModelObject so they print in place as a single unit.
-    - ``MOUNTING_RING_CLIP_SINGLE`` is duplicated ``NUMBER_OF_MOUNTING_POINTS - 1``
-      times (one copy per remaining mounting point), if the part is present.
+    - MOUNTING_RING_CLIP_START and START_INDICATOR are combined into one ModelObject
+      so they print in place as a single unit.
+    - MOUNTING_RING_CLIP_SINGLE is duplicated NUMBER_OF_MOUNTING_POINTS - 1 times
     """
     clip_start_label = CasePart.MOUNTING_RING_CLIP_START.value
     indicator_label = CasePart.START_INDICATOR.value
@@ -167,7 +169,6 @@ def _add_mounting_objects(project, parts: list[Part], print_settings) -> None:
 
     special_labels = {clip_start_label, indicator_label, clip_single_label}
 
-    # Add all non-special parts normally.
     for part in parts:
         if part.label not in special_labels:
             project.add_object(part, name=part.label, settings=print_settings)
@@ -187,9 +188,9 @@ def _add_mounting_objects(project, parts: list[Part], print_settings) -> None:
             project.add_object(clip_single, name=clip_single_label, settings=print_settings)
 
 
-# Categories where parts should remain stacked at design positions (assembled pile).
-# Parts are merged into one ModelObject so OrcaSlicer's auto_drop applies to the
-# combined bounding box — relative Z positions between parts are preserved.
+# Parts in these categories must remain stacked at their design positions when opened in OrcaSlicer.
+# Merging them into one ModelObject ensures auto_drop applies to the combined bounding box,
+# so all parts shift by the same Z offset and their relative positions are preserved.
 _3MF_STACK_CATEGORIES = {"Puzzle", "Base"}
 
 
@@ -198,6 +199,7 @@ def _export_3mf_parts(
     base_parts: list[Part],
     additional_parts=None,
 ) -> str:
+    """Exports parts as per-category 3MF project files ready to open in OrcaSlicer."""
     try:
         from orca123d import Project, ProjectInfo
     except ImportError as import_error:
@@ -208,7 +210,7 @@ def _export_3mf_parts(
 
     export_root = os.path.join(_case_export_root(), "3mf")
     os.makedirs(export_root, exist_ok=True)
-    print_settings = _default_orca_print_settings()
+    print_settings = _default_3d_print_settings()
 
     grouped_parts: dict[str, list[Part]] = {
         "Puzzle": [],
@@ -216,7 +218,8 @@ def _export_3mf_parts(
         "Base": [],
     }
     for category, part in _part_records(case_parts, base_parts, additional_parts):
-        grouped_parts[category].append(part)
+        if category in grouped_parts:
+            grouped_parts[category].append(part)
 
     for category, parts in grouped_parts.items():
         if not parts:
@@ -227,17 +230,12 @@ def _export_3mf_parts(
                 title=category,
                 designer="3D Marble Maze Generator",
                 description=(
-                    "Grouped model-only OrcaSlicer 3MF export with support "
-                    "interface settings for soluble PVA interface material."
+                    "Grouped model-only 3MF export"
                 ),
             )
         )
 
         if category in _3MF_STACK_CATEGORIES:
-            # Stack: merge all parts into one ModelObject with multiple volumes.
-            # OrcaSlicer's auto_drop then applies to the *combined* bounding box,
-            # so all parts shift by the same Z offset and their relative design
-            # positions are preserved (they print as a stacked assembly).
             obj = project.add_object(name=category, settings=print_settings)
             for part in parts:
                 obj.add_part(part, name=part.label)
@@ -248,7 +246,7 @@ def _export_3mf_parts(
                 project.add_object(part, name=part.label, settings=print_settings)
 
         save_path = Path(export_root) / f"{category}.3mf"
-        project.save(save_path)
+        project.save(save_path, tolerance=1e-3)
 
     return export_root
 
@@ -268,7 +266,7 @@ def export_all(
         apply_manufacturing_preparation: If True, apply rotations and other tweaks for optimal 3D printing.
                                         If False, export in original model orientation (for visualization).
 
-    Returns the export root folder when exports are enabled, otherwise ``None``.
+    Returns the export root folder when exports are enabled, otherwise None.
     """
     if not Config.Manufacturing.EXPORT_STL and not Config.Manufacturing.EXPORT_3MF:
         return None
