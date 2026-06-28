@@ -79,6 +79,8 @@ def main() -> None:
             puzzle.obstacle_manager.placed_obstacles,
             failed_manual_placements=puzzle.obstacle_manager.failed_manual_placements,
             node_size=Config.Puzzle.NODE_SIZE,
+            rejected_spline_segments=puzzle.path_architect.rejected_spline_segments,
+            spline_voxel_debug=puzzle.path_architect.spline_voxel_debug,
         )
     except Exception as generation_error:  # noqa: BLE001
         st.error(f"Puzzle generation failed: {generation_error}")

@@ -30,6 +30,9 @@ def main() -> None:
         puzzle.casing,
         puzzle.total_path,
         puzzle.obstacle_manager.placed_obstacles,
+        node_size=Config.Puzzle.NODE_SIZE,
+        rejected_spline_segments=puzzle.path_architect.rejected_spline_segments,
+        spline_voxel_debug=puzzle.path_architect.spline_voxel_debug,
     )
     visualization.show()
 

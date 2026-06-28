@@ -24,7 +24,7 @@ class Puzzle:
     BALL_DIAMETER = 6  # Diameter of the ball in mm
     NODE_SIZE = 10  # Node size in mm
     SEED = 4  # Random seed for reproducibility
-    NUMBER_OF_WAYPOINTS = 8  # Number of randomly placed waypoints
+    NUMBER_OF_WAYPOINTS = 14  # Number of randomly placed waypoints
     WAYPOINT_CHANGE_INTERVAL = 1  # Change path profile and curve type every n waypoints
 
     BALL_COLOR = "#C0C0C0"  # Metal grey
@@ -137,6 +137,11 @@ class Path:
         PathCurveType.CURVE_90_DEGREE_SINGLE_PLANE,
         PathCurveType.ARC,
     ]
+
+    # Spline collision check with occupied nodes of exisiting routes (compound and spline).
+    # Small overlap is allowed, tune here.
+    SPLINE_OCCUPANCY_CHECK_ENABLED = True
+    SPLINE_OCCUPANCY_MAX_OVERLAP = 0.3
 
     PATH_PROFILE_TYPES = [
         # PathProfileType.U_SHAPE,

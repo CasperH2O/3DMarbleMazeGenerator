@@ -402,56 +402,65 @@ def plot_box_casing(casing: BoxCasing) -> list[go.Scatter3d]:
     return [box_trace]
 
 
+def _cube_wireframe_xyz(
+    centers: list[tuple[float, float, float]], size: float
+) -> tuple[list, list, list]:
+    """Return x/y/z lists drawing wire-frame cubes of ``size`` at each centre.
+
+    Cube edges are concatenated into a single polyline with ``None`` separators so
+    all cubes render as one Scatter3d trace.
+    """
+    half = size / 2.0
+    corner_offsets = [
+        (-half, -half, -half),
+        (half, -half, -half),
+        (half, half, -half),
+        (-half, half, -half),
+        (-half, -half, half),
+        (half, -half, half),
+        (half, half, half),
+        (-half, half, half),
+    ]
+    edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),  # bottom
+        (4, 5), (5, 6), (6, 7), (7, 4),  # top
+        (0, 4), (1, 5), (2, 6), (3, 7),  # verticals
+    ]
+    x_vals: list = []
+    y_vals: list = []
+    z_vals: list = []
+    for cx, cy, cz in centers:
+        corners = [(cx + ox, cy + oy, cz + oz) for ox, oy, oz in corner_offsets]
+        for i, j in edges:
+            x_vals += [corners[i][0], corners[j][0], None]
+            y_vals += [corners[i][1], corners[j][1], None]
+            z_vals += [corners[i][2], corners[j][2], None]
+    return x_vals, y_vals, z_vals
+
+
 def plot_node_cubes(
     nodes: list[Node], node_size: float, group_name: str = ""
 ) -> list[go.Scatter3d]:
     """
-    Draw a little wire-frame cube (edge length=node_size) centered on each node.
-    Returns a list of Scatter3d traces.
+    Draw a wire-frame cube (edge length=node_size) centred on each node, as a
+    single Scatter3d trace. Returns a one-element list (callers iterate).
     """
-    d = node_size / 2.0
-    # all 8 corner offsets
-    corner_offsets = [
-        (dx, dy, dz) for dx in (-d, d) for dy in (-d, d) for dz in (-d, d)
+    if not nodes:
+        return []
+    centers = [(node.x, node.y, node.z) for node in nodes]
+    x_vals, y_vals, z_vals = _cube_wireframe_xyz(centers, node_size)
+    return [
+        go.Scatter3d(
+            x=x_vals,
+            y=y_vals,
+            z=z_vals,
+            mode="lines",
+            line=dict(width=1, color="gray"),
+            opacity=0.5,
+            showlegend=False,
+            legendgroup=group_name,
+        )
     ]
-    # edges between corner indices
-    edges = [
-        (0, 1),
-        (1, 3),
-        (3, 2),
-        (2, 0),  # bottom
-        (4, 5),
-        (5, 7),
-        (7, 6),
-        (6, 4),  # top
-        (0, 4),
-        (1, 5),
-        (2, 6),
-        (3, 7),  # verticals
-    ]
-
-    traces = []
-    for node in nodes:
-        x0, y0, z0 = node.x, node.y, node.z
-        # build the 8 absolute corners
-        verts = [(x0 + dx, y0 + dy, z0 + dz) for dx, dy, dz in corner_offsets]
-        # for each edge, make a 3d line trace
-        for i, j in edges:
-            x1, y1, z1 = verts[i]
-            x2, y2, z2 = verts[j]
-            traces.append(
-                go.Scatter3d(
-                    x=[x1, x2],
-                    y=[y1, y2],
-                    z=[z1, z2],
-                    mode="lines",
-                    line=dict(width=1, color="gray"),
-                    opacity=0.5,
-                    showlegend=False,
-                    legendgroup=group_name,
-                )
-            )
-    return traces
 
 
 def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
@@ -599,6 +608,117 @@ def plot_segments(segments: list[PathSegment]) -> list[go.Scatter3d]:
             )
         )
 
+    return traces
+
+
+def plot_rejected_splines(rejected_splines: list) -> list[go.Scatter3d]:
+    """Highlight SPLINE segments demoted to COMPOUND by the occupancy check.
+
+    Each entry is expected to expose ``.segment`` (a PathSegment),
+    ``.overlap_fraction`` (0-1), ``.spline_points`` (sampled (x, y, z) of the
+    evaluated option-1 spline) and ``.intersection_points`` (centres of the
+    occupied cubes it intruded on), as produced by
+    ``cad.spline_occupancy.RejectedSpline``.
+
+    Per rejected spline, two traces are drawn: the actual bulging spline curve
+    (solid red line) and red ``x`` markers at the spots where it intersects
+    occupied cubes. All share one legend entry ("Rejected Splines"), so a single
+    click toggles every rejected spline at once. Hidden by default.
+    """
+    traces: list[go.Scatter3d] = []
+    legend_shown = False
+    for rejected in rejected_splines or []:
+        segment = rejected.segment
+        label = (
+            f"Rejected spline {segment.main_index}.{segment.secondary_index} "
+            f"({rejected.overlap_fraction * 100:.0f}% overlap)"
+        )
+
+        # The evaluated spline curve (what actually bulged into occupied space).
+        spline_points = rejected.spline_points or [
+            (node.x, node.y, node.z) for node in segment.nodes
+        ]
+        traces.append(
+            go.Scatter3d(
+                x=[point[0] for point in spline_points],
+                y=[point[1] for point in spline_points],
+                z=[point[2] for point in spline_points],
+                mode="lines",
+                line=dict(color="red", width=6),
+                name="Rejected Splines",
+                legendgroup="rejected_splines",
+                hoverinfo="text",
+                text=label,
+                visible="legendonly",
+                showlegend=not legend_shown,
+            )
+        )
+        legend_shown = True
+
+        # The cubes the spline actually intersected.
+        intersection_points = rejected.intersection_points
+        if intersection_points:
+            traces.append(
+                go.Scatter3d(
+                    x=[point[0] for point in intersection_points],
+                    y=[point[1] for point in intersection_points],
+                    z=[point[2] for point in intersection_points],
+                    mode="markers",
+                    marker=dict(color="red", size=5, symbol="x"),
+                    name="Rejected Splines",
+                    legendgroup="rejected_splines",
+                    hoverinfo="text",
+                    text=label,
+                    visible="legendonly",
+                    showlegend=False,
+                )
+            )
+    return traces
+
+
+def plot_spline_voxels(spline_voxel_debug: list, node_size: float) -> list[go.Scatter3d]:
+    """Wire-frame cubes for the voxels each spline occupies.
+
+    Each entry exposes ``.voxel_centers`` (the free-floating cubes sampled along
+    the spline) and ``.foreign_voxel_centers`` (the subset that collided), as
+    produced by ``cad.spline_occupancy.SplineVoxelDebug``. Sample cubes are drawn
+    grey and collision cubes red, under a single "Spline Voxels" legend entry,
+    hidden by default.
+    """
+    if not spline_voxel_debug or not node_size:
+        return []
+
+    traversed_centers: list[tuple[float, float, float]] = []
+    foreign_centers: list[tuple[float, float, float]] = []
+    for debug in spline_voxel_debug:
+        foreign_set = {tuple(center) for center in debug.foreign_voxel_centers}
+        foreign_centers.extend(debug.foreign_voxel_centers)
+        # Draw a sample cube grey only when it is not already drawn red.
+        traversed_centers.extend(
+            center for center in debug.voxel_centers if tuple(center) not in foreign_set
+        )
+
+    traces: list[go.Scatter3d] = []
+    legend_shown = False
+    for centers, color in ((traversed_centers, "gray"), (foreign_centers, "red")):
+        if not centers:
+            continue
+        x_vals, y_vals, z_vals = _cube_wireframe_xyz(centers, node_size)
+        traces.append(
+            go.Scatter3d(
+                x=x_vals,
+                y=y_vals,
+                z=z_vals,
+                mode="lines",
+                line=dict(color=color, width=2),
+                name="Spline Voxels",
+                legendgroup="spline_voxels",
+                hoverinfo="skip",
+                visible="legendonly",
+                showlegend=not legend_shown,
+            )
+        )
+        legend_shown = True
     return traces
 
 

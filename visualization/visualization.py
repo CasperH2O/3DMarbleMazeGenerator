@@ -13,7 +13,9 @@ from .visualization_helpers import (
     plot_nodes,
     plot_obstacles_raw_paths,
     plot_puzzle_path,
+    plot_rejected_splines,
     plot_segments,
+    plot_spline_voxels,
 )
 
 
@@ -25,6 +27,8 @@ def visualize_path_architect(
     obstacles: list[Obstacle],
     failed_manual_placements: list[dict] = None,
     node_size: float = None,
+    rejected_spline_segments: list = None,
+    spline_voxel_debug: list = None,
 ):
     """
     Visualizes the nodes and path segments as defined by path architect.
@@ -45,6 +49,12 @@ def visualize_path_architect(
         Failed manual obstacle placement attempts for visualization
     node_size : float, optional
         Size of grid nodes for visualization
+    rejected_spline_segments : list, optional
+        SPLINE segments demoted to COMPOUND by the occupancy check
+        (cad.spline_occupancy.RejectedSpline), highlighted in red.
+    spline_voxel_debug : list, optional
+        Debug data (cad.spline_occupancy.SplineVoxelDebug) used to draw the cubes
+        each spline occupies. Requires node_size.
 
     Returns
     -------
@@ -64,6 +74,14 @@ def visualize_path_architect(
 
     # Segments
     for trace in plot_segments(segments):
+        fig.add_trace(trace)
+
+    # Highlight splines demoted to compound by the occupancy check (hidden by default)
+    for trace in plot_rejected_splines(rejected_spline_segments):
+        fig.add_trace(trace)
+
+    # Cubes for the voxels each spline occupies (hidden by default)
+    for trace in plot_spline_voxels(spline_voxel_debug, node_size):
         fig.add_trace(trace)
 
     # Add puzzle path (hidden by default; toggle in legend)

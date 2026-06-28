@@ -14,6 +14,11 @@ from cad.path_profile_type_shapes import (
     PathProfileType,
 )
 from cad.path_segment import PathSegment, _node_to_vector, is_same_location, midpoint
+from cad.spline_occupancy import (
+    RejectedSpline,
+    SplineVoxelDebug,
+    evaluate_spline_occupancy,
+)
 from config import Config, PathCurveType, PathSegmentDesignStrategy
 from logging_config import configure_logging
 from obstacles.obstacle import Obstacle
@@ -40,6 +45,11 @@ class PathArchitect:
         # Inputs
         self.nodes = nodes
         self.segments: list[PathSegment] = []
+        # SPLINE segments demoted to COMPOUND by the occupancy check, kept for
+        # logging and visualization (see cad/spline_occupancy.py).
+        self.rejected_spline_segments: list[RejectedSpline] = []
+        # Per-spline voxelization for the cube overlay in the visualization.
+        self.spline_voxel_debug: list[SplineVoxelDebug] = []
         self.main_index_counter = 1  # Main index counter
         self.secondary_index_counters = {}  # Dictionary to track secondary indices per main_index
         self.obstacle_splices = self._index_obstacle_splices(obstacles)
@@ -61,6 +71,13 @@ class PathArchitect:
         self.detect_curves_and_adjust_segments()
 
         self.adjust_segments()
+
+        # Demote splines that would bulge through already-occupied cubes. Runs
+        # after adjust_segments so the check (and the stored debug spline) use the
+        # final, adjusted node geometry rather than stale pre-adjustment positions.
+        # adjust_segments has no SPLINE-specific path (it keys off curve_type),
+        # so a demoted segment is adjusted exactly as an ordinary COMPOUND.
+        self.apply_spline_occupancy_check()
 
         self.create_finish_box()
 
@@ -545,6 +562,25 @@ class PathArchitect:
                 i += len(new_segments)
             else:
                 i += 1
+
+    def apply_spline_occupancy_check(self) -> None:
+        """Demote SPLINE segments that would bulge through occupied cubes.
+
+        Delegates to :func:`cad.spline_occupancy.evaluate_spline_occupancy` and
+        records the demoted segments on ``self.rejected_spline_segments`` for
+        logging and visualization. No-op when disabled in config.
+        """
+        if not Config.Path.SPLINE_OCCUPANCY_CHECK_ENABLED:
+            return
+
+        result = evaluate_spline_occupancy(
+            self.segments,
+            self.nodes,
+            node_size=self.node_size,
+            max_overlap=Config.Path.SPLINE_OCCUPANCY_MAX_OVERLAP,
+        )
+        self.rejected_spline_segments = result.rejected
+        self.spline_voxel_debug = result.voxel_debug
 
     def _split_segment_by_detected_curves(
         self, nodes: list[Node], original_segment: PathSegment
