@@ -29,13 +29,33 @@ from config import Config
 from puzzle.utils.enums import Theme
 
 
-def _is_transparent(color: str) -> bool:
-    """True if color is '#RRGGBBAA' with AA != 'FF' (i.e., not fully opaque)."""
-    if not isinstance(color, str) or not color.startswith("#"):
-        return False  # treat unknown/absent as opaque
-    if len(color) == 9:  # '#RRGGBBAA'
-        return color[-2:].upper() != "FF"
-    return False  # '#RRGGBB' (no alpha) -> opaque
+def _is_transparent(color) -> bool:
+    """True if a color value includes a non-opaque alpha channel."""
+    if isinstance(color, str):
+        if not color.startswith("#"):
+            return False  # treat unknown/absent as opaque
+        if len(color) == 9:  # '#RRGGBBAA'
+            return color[-2:].upper() != "FF"
+        return False  # '#RRGGBB' (no alpha) -> opaque
+
+    # build123d Color can be converted to an RGBA tuple. Keep this best-effort
+    # so transparent diagnostic markers are not recolored in high-contrast mode.
+    try:
+        rgba = tuple(color)
+    except TypeError:
+        return False
+    return len(rgba) >= 4 and rgba[3] < 1.0
+
+
+def _extend_parts_flat(target: list, parts) -> None:
+    """Append a part or nested list of parts to target as a flat list."""
+    if not parts:
+        return
+    if isinstance(parts, (list, tuple)):
+        for part in parts:
+            _extend_parts_flat(target, part)
+    else:
+        target.append(parts)
 
 
 def _apply_generic_distinct_colors_per_part(parts: list, seed: int) -> None:
@@ -83,6 +103,9 @@ def display_parts(
     support_path,
     coloring_path,
     obstacle_extras,
+    gravity_warning_spheres,
+    ball_roll_indicators,
+    ideal_gravity_indicators,
     ball,
     ball_path,
     ball_path_direction,
@@ -97,16 +120,15 @@ def display_parts(
     if Config.Puzzle.THEME == Theme.HIGH_CONTRAST:
         # Build the list of parts to recolor
         parts_to_color = []
-        parts_to_color.extend(case_parts or [])
-        parts_to_color.extend(base_parts or [])
-        parts_to_color.extend(standard_paths or [])
-
-        if support_path:
-            parts_to_color.append(support_path)
-        if coloring_path:
-            parts_to_color.append(coloring_path)
-        if obstacle_extras:
-            parts_to_color.append(obstacle_extras)
+        _extend_parts_flat(parts_to_color, case_parts)
+        _extend_parts_flat(parts_to_color, base_parts)
+        _extend_parts_flat(parts_to_color, standard_paths)
+        _extend_parts_flat(parts_to_color, support_path)
+        _extend_parts_flat(parts_to_color, coloring_path)
+        _extend_parts_flat(parts_to_color, obstacle_extras)
+        _extend_parts_flat(parts_to_color, gravity_warning_spheres)
+        _extend_parts_flat(parts_to_color, ball_roll_indicators)
+        _extend_parts_flat(parts_to_color, ideal_gravity_indicators)
 
         _apply_generic_distinct_colors_per_part(parts_to_color, Config.Puzzle.SEED)
 
@@ -135,6 +157,15 @@ def display_parts(
     if obstacle_extras:
         show_object(obstacle_extras, name="Obstacle Extra's")
 
+    if gravity_warning_spheres:
+        show_object(gravity_warning_spheres, name="Gravity Warnings")
+
+    if ball_roll_indicators:
+        show_object(ball_roll_indicators, name="Ball Roll Direction")
+
+    if ideal_gravity_indicators:
+        show_object(ideal_gravity_indicators, name="Ideal Gravity Direction")
+
     # Display each part from the base
     if base_parts:
         show_object(base_parts, name="Base")
@@ -153,13 +184,16 @@ def set_viewer():
         "Ball",
         "Ball Path Direction",
     }
+    # Whole groups whose leaves should all have edges hidden.
+    target_group_names = {"Gravity Warnings"}
 
-    # Only touch leaves whose basename matches one of the targets
+    # Hide edges on matching leaves and on anything inside a target group.
     for path, val in list(st.items()):
         if not (isinstance(val, list) and len(val) == 2):
             continue
         basename = path.rsplit("/", 1)[-1]
-        if basename in target_leaf_names:
+        in_target_group = any(f"/{group}/" in path for group in target_group_names)
+        if basename in target_leaf_names or in_target_group:
             shape_on, _edges_on = val
             st[path] = [shape_on, 0]  # keep current shape visibility, hide edges
 
