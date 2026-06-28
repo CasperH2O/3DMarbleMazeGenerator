@@ -145,7 +145,7 @@ class Path:
     # Spline collision check with occupied nodes of exisiting routes (compound and spline).
     # Small overlap is allowed, tune here.
     SPLINE_OCCUPANCY_CHECK_ENABLED = True
-    SPLINE_OCCUPANCY_MAX_OVERLAP = 0.3
+    SPLINE_OCCUPANCY_MAX_OVERLAP = 0.25
 
     PATH_PROFILE_TYPES = [
         # PathProfileType.U_SHAPE,

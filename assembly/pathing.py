@@ -135,16 +135,23 @@ def _dedup_points(path) -> list[Vector]:
 
 def _swept_tube_with_caps(points: list[Vector], radius: float) -> Optional[Part]:
     """Tube swept along the straight polyline through points, with end-cap spheres."""
-    with BuildPart() as sleeve_builder:
+    # Build and validate the tube before adding caps: if the sweep silently
+    # produces empty geometry (a known build123d edge case on sharp corners),
+    # the cap spheres would otherwise inflate the volume check into a false pass.
+    with BuildPart() as tube_builder:
         with BuildLine() as sleeve_line:
             Polyline(points)
         with BuildSketch(sleeve_line.line ^ 0):
             Circle(radius)
         sweep(transition=Transition.RIGHT)
+    tube = tube_builder.part
+    if not tube.is_valid or tube.volume <= 1e-6:
+        return None
+    with BuildPart() as sleeve_builder:
+        add(tube)
         with Locations(points[0], points[-1]):
             Sphere(radius)
     part = sleeve_builder.part
-    # A sweep around a sharp corner can yield an empty-but-"valid" solid.
     if not part.is_valid or part.volume <= 1e-6:
         return None
     return part

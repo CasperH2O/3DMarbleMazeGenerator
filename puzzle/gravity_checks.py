@@ -249,19 +249,10 @@ def _check_downward_hairpin(
         down_unit, apex_offset, alignment = geometry
         if (1.0 - alignment) < _REVERSAL_VERTICALNESS:
             continue  # not a vertical loop -> not this check
-        # Exit leg must point into the backward half-space (≥ 120° from entry).
-        # Using a dot-product threshold rather than _net_heading_reversed's strict
-        # 170° so that tight consecutive corners with no intermediate nodes still
-        # pass — their exit sample may sit at a blended tangent (~135°) that
-        # would otherwise be rejected. 120° still filters perpendicular exits
-        # (the original "left turn" false positive) which land near 90°.
-        count = len(samples)
-        entry_t = samples[max(0, start - 1)].tangent
-        exit_t = samples[min(count - 1, peak + 1)].tangent
-        if _dot(entry_t, exit_t) >= -0.5:  # cos(120°) = -0.5
-            continue
-        # Apex on the side opposite "down" => ball descends into the reversal
-        # (sign calibrated against the real model).
+        # Apex on the side opposite "down" => ball must climb to reach it, i.e.
+        # the ball ascends into the reversal and would slide back without enough
+        # momentum. The verticalness check above already rejects horizontal
+        # switchbacks, making this the remaining discriminator.
         if _dot(apex_offset, down_unit) < 0.0:
             detections.append(_path_between(samples, start, peak))
     return detections
@@ -295,9 +286,7 @@ def _check_sharp_sideways_turn(
             continue  # not a horizontal turn
         if not _net_heading_reversed(samples, start, peak):
             continue  # S-curve, not a true sideways reversal
-        # Include the entry node (one before the span) so the sleeve covers the
-        # full sideways turn from where the ball enters it.
-        detections.append(_path_between(samples, max(0, start - 1), peak))
+        detections.append(_path_between(samples, start, max(start, peak - 1)))
     return detections
 
 
@@ -387,8 +376,28 @@ def run_gravity_checks(
     before calling); checks that need it skip samples where it is unknown.
     """
     results: list[tuple[GravityCheck, list[GravityDetection]]] = []
+    by_key: dict[str, list[GravityDetection]] = {}
     for check in GRAVITY_CHECKS:
         detections = check.detect(samples, node_size)
         if detections:
             results.append((check, detections))
+            by_key[check.key] = detections
+
+    # A drop whose edge falls inside a downward-hairpin span is already covered
+    # by the hairpin marker — suppress the duplicate so only the hairpin shows.
+    hairpin_positions: set[tuple[float, float, float]] = {
+        pos for det in by_key.get("downward-hairpin", []) for pos in det.path
+    }
+    if hairpin_positions:
+        filtered: list[tuple[GravityCheck, list[GravityDetection]]] = []
+        for check, detections in results:
+            if check.key == "drop":
+                detections = [
+                    d for d in detections
+                    if not any(pos in hairpin_positions for pos in d.path)
+                ]
+            if detections:
+                filtered.append((check, detections))
+        results = filtered
+
     return results

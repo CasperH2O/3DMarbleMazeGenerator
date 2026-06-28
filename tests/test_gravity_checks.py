@@ -80,6 +80,34 @@ S_CURVE_LEFT_RIGHT = [
 ]
 
 
+# Downward hairpin where the ball approaches the upward spike from a direction
+# perpendicular to the reversal plane. Derived from a real detection failure:
+# segment 7→8 corner where the ball arrives southward (-Y), shoots up (+Z),
+# turns back (-X) at the apex, then descends (-Z). The span entry (-Y) and exit
+# (-Z) are 90° apart, not antiparallel — previously rejected by an entry/exit
+# angle check that has since been removed.
+DOWNWARD_HAIRPIN_PERPENDICULAR_APPROACH = [
+    ((20.0, 10.0, 20.0), (0.0, -1.0, 0.0), WORLD_DOWN),   # approaching south
+    ((20.0, 0.0, 20.0), (0.0, 0.0, 1.0), WORLD_DOWN),      # span start: turns upward
+    ((20.0, 0.0, 30.0), (0.0, 0.0, 1.0), WORLD_DOWN),      # climbing
+    ((15.0, 0.0, 30.0), (-1.0, 0.0, 0.0), WORLD_DOWN),     # apex: turns back
+    ((10.0, 0.0, 30.0), (-1.0, 0.0, 0.0), WORLD_DOWN),     # still back
+    ((10.0, 0.0, 20.0), (0.0, 0.0, -1.0), WORLD_DOWN),     # span peak: descending
+    ((10.0, 0.0, 10.0), (0.0, 0.0, -1.0), WORLD_DOWN),     # exit
+]
+
+# Mirror of the perpendicular-approach case: ball descends from south into a
+# valley and climbs out. Apex is below the chord, so not a downward hairpin.
+VERTICAL_MIRROR_PERPENDICULAR_APPROACH = [
+    ((20.0, 10.0, 20.0), (0.0, -1.0, 0.0), WORLD_DOWN),   # approaching south
+    ((20.0, 0.0, 20.0), (0.0, 0.0, -1.0), WORLD_DOWN),     # span start: descends
+    ((20.0, 0.0, 10.0), (0.0, 0.0, -1.0), WORLD_DOWN),     # descending
+    ((15.0, 0.0, 10.0), (-1.0, 0.0, 0.0), WORLD_DOWN),     # apex at bottom: turns back
+    ((10.0, 0.0, 10.0), (-1.0, 0.0, 0.0), WORLD_DOWN),     # still back
+    ((10.0, 0.0, 20.0), (0.0, 0.0, 1.0), WORLD_DOWN),      # span peak: ascending
+    ((10.0, 0.0, 30.0), (0.0, 0.0, 1.0), WORLD_DOWN),      # exit
+]
+
 # Roll forward, then turn ~90 degrees down and keep dropping for several nodes.
 # Tangents are consistent with the positions (forward then straight down); the
 # edge of the drop is the node at (10, 0, 30).
@@ -102,6 +130,7 @@ def test_downward_hairpin_fires_only_downward_check():
     keys = detections_by_key(make_path(DOWNWARD_HAIRPIN))
     assert "downward-hairpin" in keys
     assert "sharp-sideways-turn" not in keys
+    assert "drop" not in keys  # drop inside hairpin span is suppressed
     # One occurrence, whose sleeve spans the involved nodes.
     assert len(keys["downward-hairpin"]) == 1
     assert len(keys["downward-hairpin"][0].path) >= 2
@@ -114,6 +143,12 @@ def test_sideways_turn_fires_only_sideways_check():
     assert len(keys["sharp-sideways-turn"]) == 1
 
 
+def test_drop_outside_hairpin_still_fires():
+    # A drop that shares no position with any hairpin must not be suppressed.
+    keys = detections_by_key(make_path(DROP))
+    assert "drop" in keys
+
+
 def test_drop_fires_only_drop_check():
     keys = detections_by_key(make_path(DROP))
     assert "drop" in keys
@@ -122,6 +157,23 @@ def test_drop_fires_only_drop_check():
     assert len(keys["drop"]) == 1
     # The sleeve ends at the edge of the drop (where travel pitches down).
     assert keys["drop"][0].path[-1] == (10.0, 0.0, 30.0)
+
+
+def test_downward_hairpin_perpendicular_approach_fires():
+    # Ball approaches the upward spike from a direction perpendicular to the
+    # reversal plane; the entry/exit tangents are 90° apart, not antiparallel.
+    keys = detections_by_key(make_path(DOWNWARD_HAIRPIN_PERPENDICULAR_APPROACH))
+    assert "downward-hairpin" in keys
+    assert "drop" not in keys  # drop inside hairpin span is suppressed
+    assert len(keys["downward-hairpin"]) == 1
+
+
+def test_vertical_mirror_perpendicular_approach_no_hairpin():
+    # Apex is at the bottom (valley), not the top: dot(apex_offset, down) > 0
+    # so the apex direction check correctly suppresses the downward-hairpin.
+    # (A drop may still fire for the abrupt southward→downward transition.)
+    keys = detections_by_key(make_path(VERTICAL_MIRROR_PERPENDICULAR_APPROACH))
+    assert "downward-hairpin" not in keys
 
 
 def test_vertical_mirror_fires_nothing():
