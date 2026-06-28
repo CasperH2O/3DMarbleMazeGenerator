@@ -32,9 +32,10 @@ _REVERSAL_VERTICALNESS = 0.5  # downward valley needs (1 - alignment) >= this
 _REVERSAL_HORIZONTALNESS = 0.5  # sideways turn needs alignment >= this
 
 # A "drop": travel turns ~90° from forward to align with the local "down" within
-# _DROP_ONSET_NODES, then keeps dropping for at least _DROP_SUSTAIN_NODES.
-# _DROP_ALIGNMENT is cos(angle): 0.6 ~= within 53° of "down" (a generous margin
-# so drops coming out of a curve still count).
+# _DROP_ONSET_NODES, and then no path in the original forward direction (a "flat"
+# landing surface) exists for at least _DROP_SUSTAIN_NODES after the corner.
+# _DROP_ALIGNMENT is cos(angle): 0.6 ~= within 53° of a direction (a generous
+# margin so drops coming out of a curve still count).
 _DROP_ALIGNMENT = 0.6
 _DROP_ONSET_NODES = 1.5
 _DROP_SUSTAIN_NODES = 3.0
@@ -248,6 +249,17 @@ def _check_downward_hairpin(
         down_unit, apex_offset, alignment = geometry
         if (1.0 - alignment) < _REVERSAL_VERTICALNESS:
             continue  # not a vertical loop -> not this check
+        # Exit leg must point into the backward half-space (≥ 120° from entry).
+        # Using a dot-product threshold rather than _net_heading_reversed's strict
+        # 170° so that tight consecutive corners with no intermediate nodes still
+        # pass — their exit sample may sit at a blended tangent (~135°) that
+        # would otherwise be rejected. 120° still filters perpendicular exits
+        # (the original "left turn" false positive) which land near 90°.
+        count = len(samples)
+        entry_t = samples[max(0, start - 1)].tangent
+        exit_t = samples[min(count - 1, peak + 1)].tangent
+        if _dot(entry_t, exit_t) >= -0.5:  # cos(120°) = -0.5
+            continue
         # Apex on the side opposite "down" => ball descends into the reversal
         # (sign calibrated against the real model).
         if _dot(apex_offset, down_unit) < 0.0:
@@ -311,10 +323,10 @@ def _check_drop(
     samples: list[PathSample], node_size: float
 ) -> list[GravityDetection]:
     """
-    A "drop": travel turns ~90° from forward to align with the local "down" and
-    then keeps going down. At the lip "down" points along the upcoming travel, so
-    we look for the tangent rotating to align with the lip's "down" within
-    _DROP_ONSET_NODES and staying aligned for at least _DROP_SUSTAIN_NODES.
+    A "drop": travel turns ~90° from forward to align with the local "down", and
+    then no path in the original forward direction (a flat landing surface) exists
+    for at least _DROP_SUSTAIN_NODES after the corner. Only the corner itself is
+    marked, not the full fall.
     """
     onset_distance = _DROP_ONSET_NODES * node_size
     sustain_distance = _DROP_SUSTAIN_NODES * node_size
@@ -324,8 +336,9 @@ def _check_drop(
     lip = 0
     while lip < count:
         lip_down = samples[lip].down
+        lip_forward = samples[lip].tangent
         # The lip must currently roll forward (tangent not yet aligned with down).
-        if lip_down is None or _dot(samples[lip].tangent, lip_down) >= _DROP_ALIGNMENT:
+        if lip_down is None or _dot(lip_forward, lip_down) >= _DROP_ALIGNMENT:
             lip += 1
             continue
 
@@ -341,15 +354,24 @@ def _check_drop(
             lip += 1
             continue
 
-        # Require the descent to continue for at least the sustain distance.
-        end = _aligned_run_end(samples, onset, lip_down, _DROP_ALIGNMENT)
-        if (samples[end].distance - samples[onset].distance) < sustain_distance:
-            lip += 1
+        # Check if a flat landing surface exists within the sustain window: any
+        # path going in the original forward direction would let the ball land.
+        flat_found = False
+        look = onset
+        while look < count and (samples[look].distance - samples[onset].distance) <= sustain_distance:
+            if _dot(samples[look].tangent, lip_forward) >= _DROP_ALIGNMENT:
+                flat_found = True
+                break
+            look += 1
+
+        if flat_found:
+            lip = onset + 1
             continue
 
-        # Mark the edge of the drop (where travel pitches down), not the whole run.
+        # Mark only the corner (where travel pitches down), not the whole fall.
+        end = _aligned_run_end(samples, onset, lip_down, _DROP_ALIGNMENT)
         detections.append(_path_between(samples, lip, onset))
-        lip = end + 1  # skip past this drop
+        lip = end + 1  # skip past the drop
 
     return detections
 
