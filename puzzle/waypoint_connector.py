@@ -221,9 +221,11 @@ class WaypointConnector:
             else:
                 ordered_candidates = non_mounting_sorted + mounting_sorted
 
-            # Try each candidate
+            # Try each candidate. Iterate in reverse because branches are pushed
+            # onto a LIFO stack: pushing the least preferred candidate first means
+            # the most preferred candidate is popped and explored first.
             found_valid_successor = False
-            for candidate in ordered_candidates:
+            for candidate in reversed(ordered_candidates):
                 # Attempt to find path to this candidate
                 path_segment = self._path_finder.find_path(state.current_node, candidate, puzzle)
 
@@ -253,20 +255,29 @@ class WaypointConnector:
                 for node in path_segment[1:]:
                     node.occupied = True
 
+                mounting_waypoints_reachable = (
+                    not new_remaining_mounting
+                    or self._check_mounting_waypoints_reachable(
+                        candidate, new_remaining_mounting, puzzle
+                    )
+                )
+
+                # Restore occupied state before evaluating the next candidate, so
+                # sibling branches are checked against the popped state's occupancy
+                # instead of this branch's path. The branch's own occupancy travels
+                # in new_occupied and is re-applied when its state is popped.
+                for node in path_segment[1:]:
+                    if node not in state.occupied_nodes:
+                        node.occupied = False
+
                 # Prune if any mounting waypoints become unreachable
-                if new_remaining_mounting and not self._check_mounting_waypoints_reachable(
-                    candidate, new_remaining_mounting, puzzle
-                ):
+                if not mounting_waypoints_reachable:
                     logger.debug(
                         "Backtracking: Pruning branch - mounting waypoints would become unreachable after visiting (%.1f, %.1f, %.1f)",
                         candidate.x,
                         candidate.y,
                         candidate.z,
                     )
-                    # Restore occupied state
-                    for node in path_segment[1:]:
-                        if node not in state.occupied_nodes:
-                            node.occupied = False
                     continue
 
                 # Update distribution tracking
