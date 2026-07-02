@@ -19,7 +19,10 @@ def main() -> None:
     st.set_page_config(page_title="3D Marble Maze Designer", layout="wide")
     st.sidebar.title("3D Marble Maze Designer")
 
+    # The preview tab consumes STL files, so export STL only. With 3MF also
+    # enabled, export_all would return the 3MF folder and the STL lookup fails.
     Config.Manufacturing.EXPORT_STL = True
+    Config.Manufacturing.EXPORT_3MF = False
 
     sidebar_state = render_sidebar()
 

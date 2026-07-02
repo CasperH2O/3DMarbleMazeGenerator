@@ -40,9 +40,10 @@ def render_export_tab(puzzle: Puzzle, sidebar_state: SidebarState, current_key: 
 
                 if export_root:
                     stl_files = _load_stl_files(export_root)
-                    s = sidebar_state
+                    # Store the full cache key (including obstacle and profile
+                    # hashes) so the exported state survives Streamlit reruns.
                     st.session_state["stl_exports"] = {
-                        "key": f"{s.manufacturer.value}-{s.case_shape.value}-{s.seed}-{s.waypoint_count}",
+                        "key": current_key,
                         "path": export_root,
                         "files": stl_files,
                     }
