@@ -1113,13 +1113,10 @@ class PathBuilder:
                 else:
                     work_plane = main_index_to_work_plane_direction[main_index]
 
-                # Skip O_SHAPE_SUPPORT segments if work plane is not 'XY',
-                # no need to print support underneath holes along the Z axis
-                if (
-                    work_plane != Plane.XY
-                    and segment.path_profile_type == PathProfileType.O_SHAPE_SUPPORT
-                ):
-                    continue  # Skip this segment
+                # Only cut holes through the support body when the work plane is 'XY',
+                # no need to print support underneath holes along the Z axis. Sideways
+                # holes (XZ/YZ work planes) must leave the support body intact.
+                cut_support_holes = work_plane == Plane.XY
 
                 hole_size = Config.Puzzle.BALL_DIAMETER + 1
                 total_nodes = len(segment.nodes)
@@ -1165,7 +1162,7 @@ class PathBuilder:
                         segment.path_body.part = (
                             segment.path_body.part - cutting_cylinder.part
                         )
-                    if segment.support_body:
+                    if segment.support_body and cut_support_holes:
                         segment.support_body.part = (
                             segment.support_body.part - cutting_cylinder.part
                         )
